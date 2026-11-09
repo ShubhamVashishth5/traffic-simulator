@@ -313,7 +313,7 @@ type TableDoc = (&'static str, &'static str, &'static [Column]);
 
 /// The data dictionary in Markdown: every output table, column, type and meaning.
 pub fn data_dictionary() -> String {
-    let tables: [TableDoc; 6] = [
+    let tables: [TableDoc; 7] = [
         (
             "manifest.json",
             "Run identity and provenance (JSON, not Parquet).",
@@ -331,10 +331,28 @@ pub fn data_dictionary() -> String {
                     "blake3 of every step's state; equal ⇔ bitwise-identical run",
                 ),
                 (
+                    "status, error",
+                    "string",
+                    "",
+                    "ok / failed / timeout; why a run failed",
+                ),
+                (
+                    "experiment",
+                    "object?",
+                    "",
+                    "experiment, run_id, point, arm, rep (absent for ad-hoc runs)",
+                ),
+                (
+                    "calibration_stages",
+                    "list<u8>",
+                    "",
+                    "frozen calibration stages applied (`calibration` layer)",
+                ),
+                (
                     "seed, threads, git_sha, git_dirty, marg_version, wall_time_s, …",
                     "",
                     "",
-                    "see `marg_io::RunManifest`",
+                    "see `marg_io::RunManifest` (run format version 2)",
                 ),
             ],
         ),
@@ -368,7 +386,7 @@ pub fn data_dictionary() -> String {
                     "set_by, fix_overridden",
                     "utf8, bool",
                     "",
-                    "base / scenario / experiment / live",
+                    "base / calibration / scenario / experiment / live",
                 ),
             ],
         ),
@@ -523,6 +541,44 @@ pub fn data_dictionary() -> String {
                     "f64",
                     "m/s, m/s²",
                     "speed and acceleration",
+                ),
+            ],
+        ),
+        (
+            "index.parquet (experiment folder)",
+            "Written by `marg collect`: one row per run-list entry of an experiment, with the \
+             run's status. Run folders sit at `scenario=<s>/point=<p>/arm=<a>/rep=<r>/run=<hash>/`; \
+             `design.parquet` gives each point's factor values.",
+            &[
+                (
+                    "run_id, run_hash, experiment",
+                    "u64, utf8, utf8",
+                    "",
+                    "position in `runs.jsonl`; identity",
+                ),
+                (
+                    "scenario, point, arm, rep, seed",
+                    "utf8, u64, utf8, u64, u64",
+                    "",
+                    "Hive partition keys and the run's seed",
+                ),
+                (
+                    "path, tables",
+                    "utf8",
+                    "",
+                    "run folder (relative); Parquet tables present",
+                ),
+                (
+                    "status, error",
+                    "utf8",
+                    "",
+                    "ok / failed / timeout / corrupt / stale / missing",
+                ),
+                (
+                    "wall_time_s, output_hash, marg_version, git_sha, host, agent_steps",
+                    "f64?, utf8?, …",
+                    "s",
+                    "from the run's manifest",
                 ),
             ],
         ),

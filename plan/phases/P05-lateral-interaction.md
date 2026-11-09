@@ -8,7 +8,10 @@ traffic, so it gets the most careful testing in the plan.
 - **Read first:**
   - guide §2.2, §2.1 (partial following), §4.4;
   - [03-model-design.md](../03-model-design.md) §2–3;
-  - Kanagaraj & Treiber (2018) and Budhkar & Maurya (2017) — the actual papers, not summaries.
+  - Kanagaraj & Treiber (2018) and Budhkar & Maurya (2017) — the actual papers, not summaries;
+  - [ADR-0007](../decisions/ADR-0007-cooperative-twin.md): the squeezing rule must read
+    `personas.cooperative.squeeze_kappa_quantile` (the cooperative twin, P3.3);
+  - `reports/phases/P3.md`: re-run the P3 Morris screen once lateral movement exists.
 
 ## Tasks
 

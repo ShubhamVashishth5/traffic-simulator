@@ -30,8 +30,8 @@ import json, pathlib, sys
 threshold = float(sys.argv[1])
 root = pathlib.Path("target/criterion")
 worst, failed = 0.0, []
-for est in root.glob("*/head/estimates.json"):
-    name = est.parent.parent.name
+for est in sorted(root.rglob("head/estimates.json")):  # grouped benches nest deeper
+    name = str(est.parent.parent.relative_to(root))
     base = est.parent.parent / "base" / "estimates.json"
     if not base.exists():
         print(f"{name}: new benchmark"); continue

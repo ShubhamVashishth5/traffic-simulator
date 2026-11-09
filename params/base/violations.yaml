@@ -1,6 +1,16 @@
 group: violations
 description: "One logistic decision rule for every violation (G§4, §9.4). Used from phase P8."
 entries:
+  enabled:
+    value: 1
+    unit: "1"
+    grade: C
+    role: scenario
+    source: "Plan P3.3: switch for the cooperative twin arm (social efficiency deficit, G§8.4)"
+    guide: "§4, §8.4"
+    register_row: core/experiment_switches
+    range: [0.0, 1.0]
+    notes: "1 = every violation decision runs as calibrated; 0 = every violation hazard is off (the cooperative twin, marg.bundles.cooperative). Read by the violation module from P8; the P2 core does not read it. Definition of the twin is pending (ADR-0007)."
   red_light.intercept:
     value: null
     unit: "1"

@@ -65,16 +65,22 @@ def run(
     out: str | Path = "runs/adhoc",
     threads: int = 1,
     params_dir: str | Path | None = None,
+    overrides: dict | None = None,
+    calibration_dir: str | Path | None = None,
 ) -> RunResult:
     """Run ``scenario`` (a YAML file path or YAML text) and write its run folder.
 
     ``params_dir`` is the parameter register directory; by default
     ``$MARG_PARAMS_DIR`` or the nearest ``params/base`` above the working directory.
+    ``overrides`` are experiment-layer overrides (register units);
+    ``calibration_dir`` applies its frozen ``stage_<k>.yaml`` files.
     """
     text = Path(scenario).read_text() if _looks_like_path(scenario) else str(scenario)
     out_path = Path(out)
     pdir = None if params_dir is None else str(params_dir)
-    manifest = json.loads(_core.run_yaml(text, seed, str(out_path), threads, pdir))
+    ov = None if not overrides else json.dumps(overrides)
+    cdir = None if calibration_dir is None else str(calibration_dir)
+    manifest = json.loads(_core.run_yaml(text, seed, str(out_path), threads, pdir, ov, cdir))
     return RunResult(path=out_path, manifest=manifest)
 
 

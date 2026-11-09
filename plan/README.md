@@ -39,6 +39,8 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Parquet outputs, resolved register per run, run identity by hash | proposed | [ADR-0004](decisions/ADR-0004-parquet-outputs-run-identity.md) |
 | Road effects only through mechanisms, never capacity multipliers | accepted (guide rule) | [ADR-0005](decisions/ADR-0005-mechanisms-not-multipliers.md) |
 | Built for corridors first, structured for zones of 20–100 junctions | accepted (your answer) | [02 §1](02-architecture.md#1-space-ribbons-not-lanes), [P11](phases/P11-network-scale.md) |
+| Design factors on distributions set the mean at fixed CV | proposed (P3.2) | [ADR-0006](decisions/ADR-0006-design-factors-on-distributions.md) |
+| What the cooperative twin switches off | **needs your decision** (P3.3, open question 1) | [ADR-0007](decisions/ADR-0007-cooperative-twin.md) |
 
 ## Folder map
 

@@ -35,6 +35,22 @@ jobs:
       - run: uv run ruff check python scripts
       - run: uv run pytest
 
+  static:
+    name: static musl binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          targets: x86_64-unknown-linux-musl
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - run: ./scripts/build-static.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marg-x86_64-linux-musl
+          path: dist/marg-x86_64-linux-musl
+
   web:
     runs-on: ubuntu-latest
     defaults:

@@ -177,17 +177,21 @@ def main() -> None:
         lines.append(
             f"| {vt} | {n} | {om:.2f} | {sm:.2f} | {sa:.2f} | {v0m:.2f} | {osd:.2f} | {ssd:.2f} | {st} |"
         )
+    gap = max(abs(sm - v0m) for _, _, _, sm, _, v0m, _, _, _ in rows)
+    passing = [vt for vt, *_, st in rows if st == "pass"]
     lines += [
         "",
         "## Reading it",
         "",
         "- **The following model is right for free vehicles.** Free crossings travel at their own drawn desired "
-        "speed: compare *Simulated mean, free* with *Mean drawn v0* (within about 1 km/h for every sub-class).",
+        f"speed: compare *Simulated mean, free* with *Mean drawn v0* (within {gap:.1f} km/h for every sub-class).",
         "- **The gap to the target is selection bias from the missing overtaking.** The free subset is biased "
         "toward slow drivers: fast drivers catch slower vehicles in their lateral band and, in P2, cannot move "
         "laterally to pass (lateral movement arrives in P5). So the drawn v0 of *free* hatchbacks averages well "
-        "below the population mean. Sub-classes with narrow speed spreads (moped, auto-rickshaw, truck) pass "
-        "already; wide-spread car classes fail most.",
+        "below the population mean. Wide-spread car classes fail most; the sub-classes that pass "
+        f"({', '.join(passing) or 'none'}) have narrower spreads, and which of them land inside ±2 km/h "
+        "changes with the seeds' draws (P3.3 changed every agent's draws; this run passed "
+        f"{len(passing)}, the previous one 3).",
         "- **What happens next.** Re-run this check after P5, then let stage-1 calibration (P3.8, P10.2) fit the "
         "`vehicles.free_flow_speed.*` and `vehicles.median_band.*` parameters jointly. Nothing is tuned here.",
         "",

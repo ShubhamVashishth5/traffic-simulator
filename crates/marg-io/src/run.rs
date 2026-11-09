@@ -1,12 +1,14 @@
 //! Run one scenario and write its run folder.
 
-use crate::manifest::{RUN_FORMAT_VERSION, RunManifest, RunStatus};
+use crate::manifest::{RNG_SCHEME, RUN_FORMAT_VERSION, RunManifest, RunMeta, RunStatus};
 use crate::outputs::{ParquetTrajectorySink, write_outputs};
 use crate::params_table::params_batch;
 use crate::table::{TableError, write_batch};
 use indexmap::IndexMap;
 use marg_core::Simulation;
-use marg_params::{ParamValue, Register, ResolveOptions, ResolvedSpec, Scenario, resolve};
+use marg_params::{
+    Calibration, ParamValue, Register, ResolveOptions, ResolvedSpec, Scenario, resolve_layers,
+};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -29,6 +31,8 @@ pub enum RunError {
     Arrow(#[from] arrow::error::ArrowError),
     #[error("writing trajectories: {0}")]
     Trajectories(String),
+    #[error("calibration: {0}")]
+    Calibration(#[from] marg_params::CalibrationError),
     #[error("no parameter register found: set MARG_PARAMS_DIR or run from the repository")]
     NoRegister,
 }
@@ -44,6 +48,11 @@ pub struct RunOptions {
     /// Experiment-level overrides, in register units.
     pub overrides: IndexMap<String, ParamValue>,
     pub allow_fix_override: bool,
+    /// Directory of `stage_<k>.yaml` files; frozen stages are applied as the
+    /// `calibration` layer. `None` = no calibration layer.
+    pub calibration_dir: Option<PathBuf>,
+    /// Experiment, point, arm and replication, recorded in the manifest.
+    pub meta: Option<RunMeta>,
 }
 
 impl Default for RunOptions {
@@ -54,7 +63,56 @@ impl Default for RunOptions {
             params_dir: None,
             overrides: IndexMap::new(),
             allow_fix_override: false,
+            calibration_dir: None,
+            meta: None,
         }
+    }
+}
+
+/// The register and calibration stages a set of runs resolves against,
+/// loaded once.
+#[derive(Debug, Clone)]
+pub struct Inputs {
+    pub register: Register,
+    pub calibration: Calibration,
+}
+
+impl Inputs {
+    /// Load the register (`params_dir`, else [`find_params_dir`]) and the
+    /// frozen calibration stages in `calibration_dir`, if given.
+    pub fn load(
+        params_dir: Option<&Path>,
+        calibration_dir: Option<&Path>,
+    ) -> Result<Self, RunError> {
+        let dir = params_dir
+            .map(Path::to_path_buf)
+            .or_else(find_params_dir)
+            .ok_or(RunError::NoRegister)?;
+        let register = Register::load_dir(&dir)?;
+        let calibration = match calibration_dir {
+            Some(c) => Calibration::load_dir(c, &register)?,
+            None => Calibration::default(),
+        };
+        Ok(Self {
+            register,
+            calibration,
+        })
+    }
+
+    /// Resolve `scenario` with experiment `overrides`.
+    pub fn resolve(
+        &self,
+        scenario: &Scenario,
+        overrides: &IndexMap<String, ParamValue>,
+        allow_fix_override: bool,
+    ) -> Result<ResolvedSpec, RunError> {
+        Ok(resolve_layers(
+            &self.register,
+            &self.calibration.values,
+            scenario,
+            overrides,
+            ResolveOptions { allow_fix_override },
+        )?)
     }
 }
 
@@ -76,22 +134,13 @@ pub fn find_params_dir() -> Option<PathBuf> {
     }
 }
 
-/// Load the register and resolve `scenario` against it.
+/// Load the register (and calibration) and resolve `scenario` against it.
 pub fn resolve_scenario(scenario: &Scenario, opts: &RunOptions) -> Result<ResolvedSpec, RunError> {
-    let dir = opts
-        .params_dir
-        .clone()
-        .or_else(find_params_dir)
-        .ok_or(RunError::NoRegister)?;
-    let register = Register::load_dir(&dir)?;
-    Ok(resolve(
-        &register,
+    Inputs::load(opts.params_dir.as_deref(), opts.calibration_dir.as_deref())?.resolve(
         scenario,
         &opts.overrides,
-        ResolveOptions {
-            allow_fix_override: opts.allow_fix_override,
-        },
-    )?)
+        opts.allow_fix_override,
+    )
 }
 
 /// Parse `yaml`, run it to the end and write the run folder to `out`.
@@ -111,14 +160,26 @@ pub fn run_scenario(
     opts: &RunOptions,
     out: &Path,
 ) -> Result<RunManifest, RunError> {
-    let spec = resolve_scenario(scenario, opts)?;
+    let inputs = Inputs::load(opts.params_dir.as_deref(), opts.calibration_dir.as_deref())?;
+    let spec = inputs.resolve(scenario, &opts.overrides, opts.allow_fix_override)?;
+    run_spec(&spec, &inputs.calibration.stages, opts, out)
+}
+
+/// Run an already resolved spec and write its run folder to `out`.
+pub fn run_spec(
+    spec: &ResolvedSpec,
+    calibration_stages: &[u8],
+    opts: &RunOptions,
+    out: &Path,
+) -> Result<RunManifest, RunError> {
+    let scenario = &spec.scenario;
     std::fs::create_dir_all(out)?;
     std::fs::write(out.join("spec.resolved.yaml"), spec.to_yaml()?)?;
-    write_batch(&out.join("params.parquet"), &params_batch(&spec)?)?;
+    write_batch(&out.join("params.parquet"), &params_batch(spec)?)?;
 
     let run_hash = spec.run_hash(opts.seed, marg_core::VERSION);
     let start = Instant::now();
-    let mut sim = Simulation::new(&spec, opts.seed, opts.threads)?;
+    let mut sim = Simulation::new(spec, opts.seed, opts.threads)?;
     if spec.scenario.outputs.trajectories.is_some() {
         let ribbons = spec
             .scenario
@@ -141,7 +202,7 @@ pub fn run_scenario(
         run_hash,
         scenario: scenario.name.clone(),
         seed: opts.seed,
-        rng_scheme: "philox4x32-10/v1".into(),
+        rng_scheme: RNG_SCHEME.into(),
         marg_version,
         git_sha,
         git_dirty,
@@ -153,6 +214,9 @@ pub fn run_scenario(
         output_hash: summary.output_hash,
         steps: summary.steps,
         agent_steps: summary.agent_steps,
+        experiment: opts.meta.clone(),
+        calibration_stages: calibration_stages.to_vec(),
+        error: None,
     };
     manifest.write(out)?;
     Ok(manifest)

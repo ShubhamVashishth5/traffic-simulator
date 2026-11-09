@@ -13,6 +13,8 @@ crate-type = ["cdylib"]
 marg-params.workspace = true
 marg-core.workspace = true
 marg-io.workspace = true
+indexmap.workspace = true
+serde_json.workspace = true
 pyo3 = { version = "0.30", features = ["abi3-py311"] }
 
 [lints]

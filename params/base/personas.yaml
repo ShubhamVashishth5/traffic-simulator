@@ -23,6 +23,16 @@ entries:
     register_row: 9.3/aggressiveness
     range: [0.0, 3.0]
     notes: "How kappa spread combines with per-class parameter spreads is decided in the P8.1 ADR."
+  cooperative.squeeze_kappa_quantile:
+    value: null
+    unit: "1"
+    grade: C
+    role: scenario
+    source: "Plan P3.3: cooperative twin arm (social efficiency deficit, G§8.4)"
+    guide: "§3.1, §8.4"
+    register_row: core/experiment_switches
+    range: [0.0, 1.0]
+    notes: "Unset = squeezing uses each agent's own kappa. When set (the cooperative twin), squeezing decisions use the kappa at this quantile of the population distribution instead. Read by the squeezing rule from P5; which quantile is pending (ADR-0007)."
   traits.time_pressure:
     value: {dist: normal, mean: 0, sd: 1}
     unit: "1"

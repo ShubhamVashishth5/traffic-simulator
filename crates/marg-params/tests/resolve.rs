@@ -214,3 +214,29 @@ fn resolved_spec_round_trips_through_yaml() {
     assert_eq!(back.params, spec.params);
     assert_eq!(back.run_hash(1, "v"), spec.run_hash(1, "v"));
 }
+
+#[test]
+fn calibration_layer_sits_between_register_and_scenario() {
+    let reg = register();
+    let path = "interaction.following.time_gap.car";
+    let mut cal = none();
+    cal.insert(path.to_string(), ParamValue::Scalar(1.1));
+    cal.insert(
+        "interaction.following.time_gap.bus".to_string(),
+        ParamValue::Scalar(1.3),
+    );
+    let mut sc = scenario("corridor_2km.yaml");
+    sc.overrides
+        .insert(path.to_string(), ParamValue::Scalar(0.9));
+    let spec =
+        marg_params::resolve_layers(&reg, &cal, &sc, &none(), ResolveOptions::default()).unwrap();
+    // The scenario wins over calibration; untouched calibrated values stay.
+    assert_eq!(spec.params[path].set_by, Layer::Scenario);
+    assert_eq!(spec.params[path].si, Some(ParamValue::Scalar(0.9)));
+    let bus = &spec.params["interaction.following.time_gap.bus"];
+    assert_eq!(bus.set_by, Layer::Calibration);
+    assert_eq!(bus.si, Some(ParamValue::Scalar(1.3)));
+    // Calibration changes the run's identity.
+    let plain = resolve(&reg, &sc, &none(), ResolveOptions::default()).unwrap();
+    assert_ne!(plain.run_hash(1, "v"), spec.run_hash(1, "v"));
+}

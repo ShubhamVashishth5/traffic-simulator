@@ -33,3 +33,8 @@ Option 3:
 - Output is bitwise-identical for any thread count, tested in CI.
 - Twins and the population swap get variance reduction for free.
 - Spawn order must not affect draws, so agent IDs come from the demand stream.
+- Each of an agent's parameter draws reads its own block of the agent's stream (block `k · 2³²` for
+  draw `k`, P3.3). A sampler that consumes a variable number of values (rejection for truncated
+  normals) therefore cannot shift the other draws: an arm that changes one distribution changes only
+  that parameter. Found by the P3.3 twin test, where a desired-speed arm changed every car's time
+  gap. The fix changed every agent's draws for a given seed, so the P2 milestone was re-run.

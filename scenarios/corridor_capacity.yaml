@@ -1,0 +1,39 @@
+name: corridor_capacity
+description: >
+  The reference corridor (2 km, 10.5 m, Delhi-arterial composition) loaded above capacity:
+  demand 4,500 veh/h against a discharge capacity near 2,750 veh/h, so a queue forms at the
+  entry and the throughput at s1900 measures the corridor's capacity. Used for the P3 milestone
+  (Morris screen of the following parameters on capacity, G§8.4).
+duration_s: 3600
+warmup_s: 600
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [2000, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 4500}
+      composition:
+        motorcycle: 0.12
+        scooter: 0.12
+        moped: 0.03
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.02
+        hatchback: 0.30
+        sedan: 0.12
+        suv: 0.08
+        lcv: 0.03
+        bus: 0.02
+        truck: 0.01
+        bicycle: 0.01
+detectors:
+  - {kind: screenline, id: s1000, ribbon: main, s: 1000, interval_s: 300}
+  - {kind: screenline, id: s1900, ribbon: main, s: 1900, interval_s: 300}
+  - {kind: area, id: a500_1500, ribbon: main, s_from: 500, s_to: 1500, interval_s: 300}
+kpi:
+  throughput_detector: s1900

@@ -29,8 +29,8 @@ pub struct Arrival {
     pub draws: Option<Draws>,
 }
 
-/// Per-agent parameter draws. **Append new draws at the end**: changing the
-/// order changes every agent's values for a given seed.
+/// Per-agent parameter draws. **Give a new draw the next block index**:
+/// reusing an index changes every agent's values for a given seed.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Draws {
     pub length: f64,
@@ -50,28 +50,33 @@ fn positive(x: f64, mean: f64) -> f64 {
     if x > 0.0 { x } else { mean }
 }
 
+/// Counter blocks reserved for each draw in an agent's stream. Draw `k` reads
+/// from block `k * DRAW_BLOCK`, so a sampler that consumes a variable number
+/// of values (rejection for truncated normals) never shifts the other draws:
+/// changing one distribution in an arm changes only that parameter
+/// (common random numbers, ADR-0003).
+const DRAW_BLOCK: u64 = 1 << 32;
+
 impl Draws {
     /// Draw an agent's parameters from its own stream.
     pub fn sample(seed: u64, id: u64, vtype: VehicleType, p: &CoreParams) -> Self {
-        let mut rng = StreamRng::new(seed, StreamKind::AgentDraws, id);
+        let rng = |k: u64| StreamRng::at(seed, StreamKind::AgentDraws, id, k * DRAW_BLOCK);
         let tp = &p.types[vtype.index()];
         let cp = &p.classes[vtype.class().index()];
+        let draw = |k: u64, d: &marg_params::Dist| positive(d.sample(&mut rng(k)), d.mean());
         Draws {
-            length: positive(tp.length.sample(&mut rng), tp.length.mean()),
-            width: positive(tp.width.sample(&mut rng), tp.width.mean()),
-            v0: positive(
-                tp.free_flow_speed.sample(&mut rng),
-                tp.free_flow_speed.mean(),
-            ),
-            time_gap: positive(cp.time_gap.sample(&mut rng), cp.time_gap.mean()),
-            standstill_gap: positive(cp.standstill_gap.sample(&mut rng), cp.standstill_gap.mean()),
-            max_accel: positive(cp.max_accel.sample(&mut rng), cp.max_accel.mean()),
-            comfortable_decel: positive(
-                cp.comfortable_decel.sample(&mut rng),
-                cp.comfortable_decel.mean(),
-            ),
-            lateral_fraction: cp.entry_lateral_position.sample(&mut rng).clamp(0.0, 1.0),
-            median_band_bonus: p.median_band_bonus.sample(&mut rng),
+            length: draw(0, &tp.length),
+            width: draw(1, &tp.width),
+            v0: draw(2, &tp.free_flow_speed),
+            time_gap: draw(3, &cp.time_gap),
+            standstill_gap: draw(4, &cp.standstill_gap),
+            max_accel: draw(5, &cp.max_accel),
+            comfortable_decel: draw(6, &cp.comfortable_decel),
+            lateral_fraction: cp
+                .entry_lateral_position
+                .sample(&mut rng(7))
+                .clamp(0.0, 1.0),
+            median_band_bonus: p.median_band_bonus.sample(&mut rng(8)),
         }
     }
 }

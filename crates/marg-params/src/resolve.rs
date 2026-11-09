@@ -16,6 +16,8 @@ use std::sync::Mutex;
 #[serde(rename_all = "snake_case")]
 pub enum Layer {
     Base,
+    /// A frozen calibration stage (`calibration/stage_<k>.yaml`).
+    Calibration,
     Scenario,
     Experiment,
     Live,
@@ -25,6 +27,7 @@ impl Layer {
     pub fn label(self) -> &'static str {
         match self {
             Layer::Base => "base",
+            Layer::Calibration => "calibration",
             Layer::Scenario => "scenario",
             Layer::Experiment => "experiment",
             Layer::Live => "live",
@@ -111,11 +114,24 @@ pub fn resolve(
     experiment: &IndexMap<String, ParamValue>,
     opts: ResolveOptions,
 ) -> Result<ResolvedSpec, ResolveError> {
+    resolve_layers(register, &IndexMap::new(), scenario, experiment, opts)
+}
+
+/// Resolve with every layer: register ← frozen calibration stages ←
+/// scenario overrides ← experiment overrides (all in register units).
+pub fn resolve_layers(
+    register: &Register,
+    calibration: &IndexMap<String, ParamValue>,
+    scenario: &Scenario,
+    experiment: &IndexMap<String, ParamValue>,
+    opts: ResolveOptions,
+) -> Result<ResolvedSpec, ResolveError> {
     let mut params: IndexMap<String, ResolvedParam> = register
         .iter()
         .map(|(path, e)| (path.clone(), base_param(e)))
         .collect();
     for (layer, overrides) in [
+        (Layer::Calibration, calibration),
         (Layer::Scenario, &scenario.overrides),
         (Layer::Experiment, experiment),
     ] {

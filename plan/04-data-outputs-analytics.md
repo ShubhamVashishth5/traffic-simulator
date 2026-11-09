@@ -8,7 +8,7 @@ directly. Reports are generated from those datasets, never assembled by hand.
 ## 1. Run folder
 
 ```
-runs/<experiment_id>/scenario=<scenario_id>/arm=<arm>/rep=<k>/<run_hash>/
+runs/<experiment_id>/scenario=<scenario_id>/point=<p>/arm=<arm>/rep=<k>/run=<run_hash>/
   manifest.json          run identity and provenance
   spec.resolved.yaml     full resolved run spec (register + scenario + overrides)
   params.parquet         resolved register, one row per parameter
@@ -21,6 +21,13 @@ runs/<experiment_id>/scenario=<scenario_id>/arm=<arm>/rep=<k>/<run_hash>/
   trajectories.parquet   optional; rate and spatial windows set in the scenario
   commands.parquet       live sessions only: timed command log
 ```
+
+`point=<p>` is the design point (P3: every design point is a variant of the scenario), and the
+leaf folder is named `run=<hash>` so the whole tree reads as Hive partitions. The experiment folder
+also holds `experiment.yaml` (the definition), `runs.jsonl` (the run list with hashes),
+`design.parquet` (one row per point), `params/` (the register snapshot the hashes were computed
+with), `scenarios/`, `calibration/` (if used), `replications.json` (why sequential replications
+stopped) and `index.parquet` (written by `marg collect`).
 
 **`manifest.json`** records:
 

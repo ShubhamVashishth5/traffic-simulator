@@ -1005,10 +1005,12 @@ dependencies = [
 name = "marg-py"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "marg-core",
  "marg-io",
  "marg-params",
  "pyo3",
+ "serde_json",
 ]
 
 [[package]]

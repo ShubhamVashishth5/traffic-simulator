@@ -53,6 +53,57 @@ enum Command {
         /// Allow overriding `fix` (measured) parameters.
         #[arg(long)]
         allow_fix_override: bool,
+        /// Calibration directory: frozen `stage_<k>.yaml` files are applied.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+    },
+    /// Run entries of an experiment's run list (`<experiment>/runs.jsonl`).
+    /// Finished runs (same hash, status ok) are skipped, so this is resumable.
+    Batch {
+        /// Experiment folder (holds `runs.jsonl`, `params/`, scenarios).
+        experiment: PathBuf,
+        /// First entry to run (0-based position in the run list).
+        #[arg(long, conflicts_with_all = ["chunk", "ids"])]
+        start: Option<usize>,
+        /// Number of entries to run from `--start`.
+        #[arg(long, requires = "start")]
+        count: Option<usize>,
+        /// Run chunk `K` of `--chunk-size` entries (e.g. `$SLURM_ARRAY_TASK_ID`).
+        #[arg(long, requires = "chunk_size", conflicts_with = "ids")]
+        chunk: Option<usize>,
+        #[arg(long)]
+        chunk_size: Option<usize>,
+        /// Comma-separated run ids.
+        #[arg(long, value_delimiter = ',')]
+        ids: Option<Vec<u64>>,
+        /// Threads per run (0 = all cores).
+        #[arg(long, default_value_t = 1)]
+        threads: usize,
+        /// Re-run finished runs.
+        #[arg(long)]
+        force: bool,
+        /// Register directory (default: `<experiment>/params`).
+        #[arg(long)]
+        params: Option<PathBuf>,
+    },
+    /// Validate an experiment's run folders and write `index.parquet`.
+    Collect {
+        experiment: PathBuf,
+        /// Exit successfully even if some runs are missing or failed.
+        #[arg(long)]
+        allow_incomplete: bool,
+        /// Delete leftover `*.partial-*` folders of interrupted runs.
+        #[arg(long)]
+        clean_partials: bool,
+    },
+    /// Render a report (delegates to `python -m marg report`; the interpreter is
+    /// `$MARG_PYTHON`, else the active virtualenv's, else `python3`).
+    Report {
+        /// run, experiment, sensitivity, calibration-stage or params.
+        kind: String,
+        path: PathBuf,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        rest: Vec<String>,
     },
     /// Time a scenario headless (trajectories off): wall time and ns per agent-step.
     Bench {
@@ -173,6 +224,71 @@ fn main() -> Result<()> {
                 serde_json::to_string_pretty(&bench::run(&spec, threads, repeat)?)?
             );
         }
+        Command::Batch {
+            experiment,
+            start,
+            count,
+            chunk,
+            chunk_size,
+            ids,
+            threads,
+            force,
+            params,
+        } => {
+            let selection = match (start, chunk, ids) {
+                (Some(start), _, _) => marg_io::Selection::Range {
+                    start,
+                    count: count.unwrap_or(usize::MAX),
+                },
+                (_, Some(index), _) => marg_io::Selection::Chunk {
+                    index,
+                    size: chunk_size.context("--chunk needs --chunk-size")?,
+                },
+                (_, _, Some(ids)) => marg_io::Selection::Ids(ids),
+                _ => marg_io::Selection::All,
+            };
+            let opts = marg_io::BatchOptions {
+                params_dir: params,
+                selection,
+                threads,
+                force,
+                ..Default::default()
+            };
+            let summary = marg_io::run_batch(&experiment, &opts)?;
+            println!("{}", serde_json::to_string(&summary)?);
+            if summary.failed > 0 {
+                bail!("{} run(s) failed; see their manifest.json", summary.failed);
+            }
+        }
+        Command::Collect {
+            experiment,
+            allow_incomplete,
+            clean_partials,
+        } => {
+            let report = marg_io::collect(&experiment, clean_partials)?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if !report.complete() && !allow_incomplete {
+                bail!(
+                    "experiment incomplete: {} of {} runs ok (rerun `marg batch`, or pass --allow-incomplete)",
+                    report.ok,
+                    report.total
+                );
+            }
+        }
+        Command::Report { kind, path, rest } => {
+            let python = std::env::var("MARG_PYTHON")
+                .or_else(|_| std::env::var("VIRTUAL_ENV").map(|v| format!("{v}/bin/python")))
+                .unwrap_or_else(|_| "python3".into());
+            let status = std::process::Command::new(&python)
+                .args(["-m", "marg", "report", &kind])
+                .arg(&path)
+                .args(&rest)
+                .status()
+                .with_context(|| format!("starting {python} (set MARG_PYTHON)"))?;
+            if !status.success() {
+                bail!("report failed ({status})");
+            }
+        }
         Command::DataDictionary { out } => {
             if let Some(dir) = out.parent() {
                 std::fs::create_dir_all(dir)?;
@@ -188,6 +304,7 @@ fn main() -> Result<()> {
             params,
             set,
             allow_fix_override,
+            calibration,
         } => {
             let text = std::fs::read_to_string(&scenario)
                 .with_context(|| format!("reading {}", scenario.display()))?;
@@ -196,6 +313,7 @@ fn main() -> Result<()> {
                 threads,
                 params_dir: params,
                 allow_fix_override,
+                calibration_dir: calibration,
                 ..Default::default()
             };
             for s in set {

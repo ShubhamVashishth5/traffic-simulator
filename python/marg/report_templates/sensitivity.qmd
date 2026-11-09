@@ -1,0 +1,13 @@
+---
+title: "Sensitivity report: $name"
+subtitle: "$subtitle"
+format:
+  html:
+    embed-resources: true
+    toc: true
+  typst: default
+---
+
+$intro
+
+$sections
