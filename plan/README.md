@@ -19,7 +19,7 @@ Status: **draft for review** (2026-11-09). No code yet.
    the order right for your thesis?*
 2. [02-architecture.md](02-architecture.md): stack, components, performance targets. *Anything you'd
    veto?*
-3. [open-questions.md](open-questions.md): ten questions, each with a default. *Answer what you can.*
+3. [open-questions.md](open-questions.md): eleven questions, each with a default. *Answer what you can.*
 4. Skim [03-model-design.md](03-model-design.md): items marked ⚑ are proposed formulations where the
    guide leaves room. P5 and P8 open with review gates on the two biggest ones.
 5. [04-data-outputs-analytics.md](04-data-outputs-analytics.md): output tables, metrics, the
@@ -42,6 +42,7 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Design factors on distributions set the mean at fixed CV | proposed (P3.2) | [ADR-0006](decisions/ADR-0006-design-factors-on-distributions.md) |
 | What the cooperative twin switches off | **needs your decision** (P3.3, open question 1) | [ADR-0007](decisions/ADR-0007-cooperative-twin.md) |
 | Live sessions: commands act between steps, resample keeps each agent's quantile, run hash covers the commands | proposed (P4.1, P4.5) | [ADR-0008](decisions/ADR-0008-live-sessions.md) |
+| Roundabouts: ring of ribbons, junction box, or out of scope | **needs your decision** (P7, open question 11) | [ADR-0009](decisions/ADR-0009-roundabouts.md) |
 
 ## Folder map
 

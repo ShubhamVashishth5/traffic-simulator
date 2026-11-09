@@ -15,3 +15,4 @@ is the first phase that depends on it.
 | 8 | **Emissions** for GRAP or air-quality questions? | Would add an emissions observer (out of scope now) | Not planned | — |
 | 9 | **An RL / Gym interface** (e.g. signal control or enforcement placement)? | Cheap add-on over the Python API | Not planned | — |
 | 10 | **Who else will use the viewer?** (supervisors, a public demo) | Decides whether replay should be hostable as a static site with sample runs | Local only | P4 |
+| 11 | **Roundabouts.** Model them as a ring of ribbons with yield-at-entry gap acceptance, as a plain junction box, or leave them out? See [ADR-0009](decisions/ADR-0009-roundabouts.md). The guide gives no roundabout numbers, so new parameters start as grade C | Lutyens'-type zones (open question 7) are full of roundabouts; without them the Lutyens' vs Shahdara comparison cannot use real Lutyens' networks | A ring of ribbons, as new task P7.8 (ADR-0009 option 1) | P7 |

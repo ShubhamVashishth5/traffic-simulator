@@ -55,6 +55,7 @@ Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say wh
 | P5 | P5.1 Lateral ADR (review gate) | todo | | |
 | P5 | P5.2–P5.9 | todo | | |
 | P6 | P6.1–P6.8 | todo | | |
+| P7 | P7.0 Roundabouts ADR (review gate) | todo | | ADR-0009 drafted; needs your decision (open question 11) |
 | P7 | P7.1–P7.7 | todo | | |
 | P8 | P8.1 Decision-timing ADR (review gate) | todo | | |
 | P8 | P8.2–P8.8 | todo | | |

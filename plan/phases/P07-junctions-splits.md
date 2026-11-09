@@ -11,6 +11,12 @@ of these mechanisms.
 
 ## Tasks
 
+### P7.0 Roundabouts (review gate, approved by the user)
+- **Do:** decide [ADR-0009](../decisions/ADR-0009-roundabouts.md) (open question 11): a ring of
+  ribbons (proposed), a plain junction box, or out of scope. The guide gives no roundabout
+  numbers. If the ring is chosen, task P7.8 is added after P7.7, following the ADR's outline.
+- **Done when:** ADR-0009 is accepted, and this card and P11.1 say how roundabouts are built.
+
 ### P7.1 Junction geometry
 - **Do:**
   - Movement ribbons inside the junction box (wide, lane-free), and automatic conflict areas where
