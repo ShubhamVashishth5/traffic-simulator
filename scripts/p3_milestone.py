@@ -9,6 +9,9 @@ vehicle types in the corridor's composition, on `scenarios/corridor_capacity.yam
 the sensitivity, experiment and parameter-appendix reports into the experiment
 folder and writes reports/phases/P3.md. Nothing is tuned here.
 
+The "Reading it" bullets interpret this run's ranking; revisit them whenever
+the screen is re-run on a changed model (after P5 at the latest).
+
 Usage: uv run python scripts/p3_milestone.py [--trajectories 10] [--reps 2] [--workers 4]
 """
 
@@ -84,11 +87,11 @@ def main() -> None:
         replications=marg.Replications(n=a.reps), root=a.root, params_dir=REPO / "params/base",
     )
     t0 = time.perf_counter()
-    exp.run(marg.backends.Local(workers=a.workers))
-    wall = time.perf_counter() - t0
+    exp.run(marg.backends.Local(workers=a.workers))  # finished runs are skipped
+    print(f"run step: {time.perf_counter() - t0:.0f} s")
     data = exp.data()
     idx = data.index()
-    print(f"{idx.height} runs in {wall:.0f} s")
+    cpu_min = float(idx["wall_time_s"].sum()) / 60
     for kind in ("sensitivity", "experiment", "params"):
         for p in report.render(kind, exp.dir, metrics=OUTPUTS):
             print(p)
@@ -101,12 +104,15 @@ def main() -> None:
         f = out / f"P3_morris_{o}"
         style.save(plots.morris_plot(m.filter(pl.col("output") == o), o, label_top=10), str(f))
         figs[o] = f.name + ".png"
-    wide = (m.pivot(on="output", index="factor", values="mu_star_rel")
-            .with_columns(pl.max_horizontal(pl.exclude("factor")).alias("max_rel"))
-            .sort("max_rel", descending=True))
-    wide.write_csv(out / "P3_morris_screen.csv")
+    screen = marg.sensitivity.morris_screen(m)
+    m.write_csv(out / "P3_morris_screen.csv")
     thr = m.filter(pl.col("output") == "throughput_veh_h").sort("mu_star", descending=True)
-    quiet = wide.filter(pl.col("max_rel") < 0.05)["factor"].to_list()
+    floors = m.group_by("output", maintain_order=True).agg(
+        pl.col("noise_floor").first(), pl.col("mu_star").max().alias("top_mu_star")
+    ).with_columns((pl.col("noise_floor") / pl.col("top_mu_star")).alias("floor_share_of_top"))
+    classes = {c: screen.filter(pl.col("class") == c)["factor"].to_list()
+               for c in ("influential", "unresolved", "within noise")}
+    thr_floor = float(thr["noise_floor"][0])
     cap = k["throughput_veh_h"]
 
     def group(f: str) -> str:
@@ -132,8 +138,9 @@ def main() -> None:
         "# P3 milestone: Morris screen of the P2 fit parameters on corridor capacity",
         "",
         f"**{len(fs)} factors, {data.design().height} design points x {a.reps} replications = "
-        f"{idx.height} runs** of `scenarios/corridor_capacity.yaml`, on {a.workers} local workers "
-        f"in {wall / 60:.1f} min. Every run finished `ok`. Nothing was tuned.",
+        f"{idx.height} runs** of `scenarios/corridor_capacity.yaml`: {cpu_min:.0f} CPU-minutes "
+        f"of simulation (about {cpu_min / a.workers:.0f} min on {a.workers} local workers). "
+        f"{(idx['status'] == 'ok').sum()} of {idx.height} runs finished `ok`. Nothing was tuned.",
         "",
         "The scenario is the P2 reference corridor (2 km, 10.5 m, Delhi-arterial composition) with "
         "demand above capacity (4,500 veh/h). A queue forms at the entry, so the throughput at "
@@ -164,8 +171,9 @@ def main() -> None:
         "",
         f"![Morris mu*-sigma for throughput]({figs['throughput_veh_h']})",
         "",
-        "Top factors by μ* (effect on throughput, veh/h, of moving the factor across its screening "
-        "range in one step of the 4-level grid; `mu_star_conf` is the bootstrap 95% half-width):",
+        "Top factors by μ*, the mean absolute elementary effect on throughput in veh/h per factor's "
+        "whole screening range (SALib divides each output change by the step as a fraction of the "
+        "range, 2/3 for a 4-level grid); `mu_star_conf` is its bootstrap 95% half-width:",
         "",
         md(thr, ["factor", "mu_star", "mu_star_conf", "sigma", "mu_star_rel"]),
         "",
@@ -177,17 +185,50 @@ def main() -> None:
         "",
         "## Screening summary",
         "",
-        f"{len(quiet)} of {len(fs)} factors stay below 5% of the most influential factor's μ* for "
-        "**every** output. They are candidates to hold at their base values in stage 2 (the 5% "
-        "cut-off is a reporting convention for this screen, not a model parameter; the decision "
-        "is yours):",
+        "Every μ* carries simulation noise: even with common random numbers, changing a parameter "
+        "changes the realisation. The noise floor is the μ* a factor with no effect would show, "
+        "estimated from the spread of each elementary effect across the two replications "
+        "(`marg.sensitivity.morris_noise_floor`):",
         "",
-        *(f"- `{q}`" for q in quiet),
+        md(floors, ["output", "noise_floor", "top_mu_star", "floor_share_of_top"]),
         "",
-        "Relative μ* for every factor and output: `reports/phases/P3_morris_screen.csv`.",
+        f"With the floor at {thr_floor:.0f} veh/h for throughput, the screen sorts the {len(fs)} "
+        "factors as follows (influential: μ* above twice the floor for at least one output; within "
+        "noise: below the floor for every output; these cut-offs are reporting conventions, not "
+        "model parameters):",
+        "",
+        f"- **Influential ({len(classes['influential'])}):** "
+        + ", ".join(f"`{f}`" for f in classes["influential"]) + ".",
+        f"- **Unresolved ({len(classes['unresolved'])}):** above the floor for some output but "
+        "not by a factor of two; more replications (the floor shrinks as 1/√R) or more "
+        "trajectories would separate them.",
+        f"- **Within noise ({len(classes['within noise'])}):** "
+        + ", ".join(f"`{f}`" for f in classes["within noise"]) + ".",
+        "",
+        "This screen therefore identifies the few parameters that clearly drive capacity and "
+        "delay; it does **not** yet justify fixing the rest, because at two replications the floor "
+        "is a large share of the effects. Before choosing the stage-2 parameter set, repeat it "
+        "with more replications (after P5).",
+        "",
+        "μ*, σ, noise floor and signal-to-noise ratio for every factor and output: "
+        "`reports/phases/P3_morris_screen.csv`.",
         "",
         "## Reading it",
         "",
+        "- **Standstill gaps and car acceleration lead.** The shared standstill-gap multiplier "
+        "and the car class's `s0` and `a` rank highest; the car time gap ranks well below its "
+        "`s0`, and the shared time-gap multiplier below the shared standstill-gap one. A likely "
+        "reason, not yet checked with a dedicated test: the queue enters from a standing start, "
+        "where the standstill gap and acceleration dominate the IDM desired gap. Global "
+        "multipliers outrank per-class parameters partly because they act on every pair.",
+        "- **The bicycle desired speed is most likely a P2 artefact.** Bicycles are 1% of "
+        "vehicles, yet their desired speed ranks third on throughput: with no lateral movement, every bicycle is a moving bottleneck "
+        "for the vehicles behind it in its band. Expect this to fall away once filtering and "
+        "overtaking exist (P5).",
+        "- **The clearance intercept matters, its slope does not (yet).** The intercept decides "
+        "which vehicles count as leaders at low speed, so it moves capacity even before lateral "
+        "movement exists; the speed-dependent slope is within noise here, and the braking scale is "
+        "unresolved. All three are stage-3 parameters, fitted after stage 2 (G§8.3).",
         "- This is the P2 model: no lateral movement yet (P5), so a fast vehicle that catches a "
         "slow one in its lateral band stays behind it. Capacity is set by platoons behind the "
         "slowest vehicles, which is why slow-vehicle parameters can matter more here than they will "

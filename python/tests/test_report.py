@@ -92,7 +92,7 @@ def test_experiment_and_sensitivity_reports(tmp_path: Path, tiny) -> None:
         params_dir=PARAMS,
     ).run(marg.backends.Local(workers=4))
     html = check(report.render("sensitivity", screen.dir, formats=["html"]))
-    assert "Screening summary" in html and "morris_screen" not in html
+    assert "Screening summary" in html and "noise floor" in html
     assert (screen.dir / "report" / "sensitivity" / "tables" / "morris_screen.csv").exists()
     check(report.render("experiment", screen.dir, formats=["html"]))
 

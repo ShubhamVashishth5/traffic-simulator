@@ -12,6 +12,7 @@ before the analysis; with several arms, ``arm`` picks one (default: the first).
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -61,6 +62,62 @@ def design_outputs(
     return x, ys, problem
 
 
+def morris_noise_floor(
+    exp: Any, outputs: Sequence[str], arm: str | None = None
+) -> dict[str, float]:
+    """The simulation-noise floor of μ* per output, from replications.
+
+    With common random numbers, both points of an elementary effect share a
+    seed, but any parameter change still alters the realisation, so every μ*
+    carries noise. Computing each elementary effect separately in every
+    replication, the spread across replications at the same step is pure noise;
+    pooled over all steps it gives the noise SD ``s`` of one elementary effect,
+    and the analysis (which averages ``R`` replications) has a noise-only μ* of
+    ``sqrt(2/π) · s / sqrt(R)``: what a factor with no effect would show.
+    Needs at least two replications at every point; otherwise NaN.
+    """
+    data = _data(exp)
+    d = data.definition["design"]
+    if d["type"] != "morris":
+        raise ValueError(f"the Morris noise floor needs a Morris design, not `{d['type']}`")
+    arms = list(data.definition.get("arms", {"base": {}}))
+    k = data.results("kpis", filters={"arm": arm or arms[0]}, columns=list(outputs))
+    problem = data.problem()
+    names = problem["names"]
+    lo = np.array([b[0] for b in problem["bounds"]], dtype=float)
+    hi = np.array([b[1] for b in problem["bounds"]], dtype=float)
+    x = data.design().sort("point").select(names).to_numpy()
+    nk = len(names)
+    n_points = x.shape[0]
+    reps = sorted(set(k["rep"].to_list()))
+    complete = [r for r in reps if k.filter(pl.col("rep") == r)["point"].n_unique() == n_points]
+    out: dict[str, float] = {}
+    for o in outputs:
+        if len(complete) < 2:
+            out[o] = math.nan
+            continue
+        y = (
+            k.filter(pl.col("rep").is_in(complete))
+            .pivot(on="rep", index="point", values=o)
+            .sort("point")
+            .select([str(r) for r in complete])
+            .to_numpy()
+            .astype(float)
+        )
+        variances = []
+        for t in range(n_points // (nk + 1)):
+            for j in range(nk):
+                a, b = t * (nk + 1) + j, t * (nk + 1) + j + 1
+                dx = (x[b] - x[a]) / (hi - lo)
+                f = int(np.argmax(np.abs(dx)))
+                if dx[f] == 0:
+                    continue
+                variances.append(np.var((y[b] - y[a]) / dx[f], ddof=1))
+        s2 = float(np.mean(variances)) if variances else math.nan
+        out[o] = math.sqrt(2 / math.pi) * math.sqrt(s2 / len(complete))
+    return out
+
+
 def morris(
     exp: Any,
     outputs: Sequence[str],
@@ -70,8 +127,13 @@ def morris(
     seed: int = 1,
 ) -> pl.DataFrame:
     """Morris indices per output and factor: ``mu``, ``mu_star`` (with CI
-    half-width ``mu_star_conf``), ``sigma``, and ``mu_star_rel`` (μ* over the
-    largest μ* for that output). Needs a :class:`marg.design.Morris` design."""
+    half-width ``mu_star_conf``), ``sigma``, ``mu_star_rel`` (μ* over the
+    largest μ* for that output), and, with two or more replications, the
+    output's ``noise_floor`` (:func:`morris_noise_floor`) and
+    ``snr = mu_star / noise_floor``. Needs a :class:`marg.design.Morris` design.
+
+    μ* is in output units per factor's whole design range: SALib divides each
+    output change by the step as a fraction of the range."""
     from SALib.analyze import morris as sa
 
     data = _data(exp)
@@ -79,6 +141,7 @@ def morris(
     if d["type"] != "morris":
         raise ValueError(f"Morris analysis needs a Morris design, not `{d['type']}`")
     x, ys, problem = design_outputs(data, outputs, arm)
+    floors = morris_noise_floor(data, outputs, arm)
     rows = []
     for o, y in ys.items():
         r = sa.analyze(
@@ -92,18 +155,55 @@ def morris(
         )
         top = float(np.max(r["mu_star"])) or 1.0
         for i, name in enumerate(problem["names"]):
+            mu_star = float(r["mu_star"][i])
             rows.append(
                 {
                     "output": o,
                     "factor": name,
                     "mu": float(r["mu"][i]),
-                    "mu_star": float(r["mu_star"][i]),
+                    "mu_star": mu_star,
                     "mu_star_conf": float(r["mu_star_conf"][i]),
                     "sigma": float(r["sigma"][i]),
-                    "mu_star_rel": float(r["mu_star"][i]) / top,
+                    "mu_star_rel": mu_star / top,
+                    "noise_floor": floors[o],
+                    "snr": mu_star / floors[o] if floors[o] > 0 else math.nan,
                 }
             )
     return pl.DataFrame(rows).sort(["output", "mu_star"], descending=[False, True])
+
+
+#: Reporting convention for :func:`morris_screen` (not a model parameter): a
+#: factor is "influential" if its μ* exceeds twice the noise floor for some
+#: output, and "within noise" if it stays below the floor for every output.
+SCREEN_SNR = 2.0
+
+
+def morris_screen(m: pl.DataFrame) -> pl.DataFrame:
+    """One row per factor from :func:`morris` output: its largest relative μ*
+    and largest signal-to-noise ratio over the outputs, the output where that
+    happens, and a class: ``influential`` (μ* > 2 × noise floor for some
+    output), ``within noise`` (μ* < noise floor for every output) or
+    ``unresolved`` (in between: more replications would separate it). Without
+    replications the floor is unknown and the class is ``no noise estimate``."""
+    best = (
+        m.sort("snr", descending=True, nulls_last=True)
+        .group_by("factor", maintain_order=True)
+        .agg(
+            pl.col("snr").first().alias("max_snr"),
+            pl.col("output").first().alias("strongest_output"),
+            pl.col("mu_star_rel").max().alias("max_mu_star_rel"),
+        )
+    )
+    cls = (
+        pl.when(pl.col("max_snr").is_nan() | pl.col("max_snr").is_null())
+        .then(pl.lit("no noise estimate"))
+        .when(pl.col("max_snr") > SCREEN_SNR)
+        .then(pl.lit("influential"))
+        .when(pl.col("max_snr") < 1.0)
+        .then(pl.lit("within noise"))
+        .otherwise(pl.lit("unresolved"))
+    )
+    return best.with_columns(cls.alias("class")).sort("max_snr", descending=True, nulls_last=True)
 
 
 def sobol(

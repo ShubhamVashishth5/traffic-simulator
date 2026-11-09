@@ -107,13 +107,32 @@ def effect_plot(effects: pl.DataFrame, ylabel: str = "", ncols: int = 3) -> Any:
 
 
 def morris_plot(m: pl.DataFrame, output: str = "", label_top: int = 8) -> Any:
-    """Morris screening: μ* against σ per factor; the top factors by μ* are
-    labelled. The diagonal σ = μ* separates mostly-linear effects (below) from
-    non-linear or interacting ones (above)."""
+    """Morris screening: μ* against σ per factor. The diagonal σ = μ* separates
+    mostly-linear effects (below) from non-linear or interacting ones (above).
+    With replications, the band left of the noise floor (``noise_floor`` column)
+    is where a factor with no effect would sit; only factors beyond twice the
+    floor are labelled (at most ``label_top``)."""
+    import math
+
     fig, ax = _fig(6.0, 4.2)
     ax = ax[0][0]
     d = m.sort("mu_star", descending=True)
     hi = max(float(d["mu_star"].max() or 0), float(d["sigma"].max() or 0)) * 1.08 or 1.0
+    floor = float(d["noise_floor"][0]) if "noise_floor" in d.columns else math.nan
+    if math.isfinite(floor) and floor > 0:
+        ax.axvspan(0, floor, color=style.BAND, lw=0, zorder=0)
+        ax.text(
+            floor / 2,
+            hi * 0.97,
+            "noise\nfloor",
+            color=style.MUTED,
+            fontsize=7,
+            ha="center",
+            va="top",
+        )
+        labelled = d.filter(pl.col("mu_star") > 2 * floor).head(label_top)
+    else:
+        labelled = d.head(label_top)
     ax.plot([0, hi], [0, hi], color=style.REFERENCE, lw=0.8)
     ax.text(hi * 0.98, hi * 0.98, "σ = μ*", color=style.MUTED, fontsize=7, ha="right", va="top")
     ax.errorbar(
@@ -129,17 +148,15 @@ def morris_plot(m: pl.DataFrame, output: str = "", label_top: int = 8) -> Any:
         ecolor=style.AXIS,
         capsize=0,
     )
-    for r in d.head(label_top).iter_rows(named=True):
-        ax.annotate(
-            _short(r["factor"]),
-            (r["mu_star"], r["sigma"]),
-            xytext=(4, 3),
-            textcoords="offset points",
-            fontsize=7,
-            color=style.INK_2,
-        )
     ax.set_xlim(0, hi)
     ax.set_ylim(0, hi)
+    _place_labels(
+        fig,
+        ax,
+        labelled["mu_star"].to_list(),
+        labelled["sigma"].to_list(),
+        [_short(f) for f in labelled["factor"].to_list()],
+    )
     ax.set_xlabel(f"μ* (mean |elementary effect|){' of ' + output if output else ''}")
     ax.set_ylabel("σ (SD of elementary effects)")
     ax.set_title(f"Morris screening{': ' + output if output else ''}")
@@ -202,6 +219,38 @@ def timeseries(
     if len(groups) > 1:
         ax.legend(loc="best")
     return fig
+
+
+def _place_labels(fig: Any, ax: Any, xs: list, ys: list, texts: list[str]) -> None:
+    """Label points to their right, trying offsets above and below until a
+    label's rendered box overlaps no earlier label; a moved label gets a
+    leader line back to its point."""
+    renderer = fig.canvas.get_renderer()
+    placed = []
+    for x, y, t in zip(xs, ys, texts, strict=True):
+        for dy in (2, 11, -9, 20, -18, 29, -27, 38):
+            a = ax.annotate(
+                t,
+                (x, y),
+                xytext=(5, dy),
+                textcoords="offset points",
+                fontsize=7,
+                color=style.INK_2,
+                va="center",
+            )
+            box = a.get_window_extent(renderer).expanded(1.05, 1.15)
+            if not any(box.overlaps(b) for b in placed):
+                break
+            a.remove()
+        if dy != 2:  # moved: draw a leader line back to the point
+            ax.annotate(
+                "",
+                (x, y),
+                xytext=(5, dy),
+                textcoords="offset points",
+                arrowprops={"arrowstyle": "-", "color": style.AXIS, "lw": 0.6},
+            )
+        placed.append(box)
 
 
 def _short(path: str, keep: int = 2) -> str:

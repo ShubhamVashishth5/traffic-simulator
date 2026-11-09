@@ -102,3 +102,34 @@ def test_analysis_checks_the_design(tmp_path: Path) -> None:
         marg.sensitivity.morris(exp, ["y"])
     with pytest.raises(ValueError, match="Saltelli design"):
         marg.sensitivity.sobol(exp, ["y"])
+
+
+def test_morris_noise_floor(tmp_path: Path) -> None:
+    """With known simulation noise, the estimated floor matches the analytic
+    one, a dummy factor sits near it, and a real factor sits far above it."""
+    sd = 0.5
+    reg = synthetic_register(
+        tmp_path, {"x1": (-PI, PI), "x2": (-PI, PI), "x3": (-PI, PI), "dummy": (0.0, 1.0)}
+    )
+
+    def noisy(e: dict) -> dict[str, float]:
+        noise = np.random.default_rng([e["seed"], e["point"]]).standard_normal()
+        return {"y": ishigami(e)["y"] + sd * noise}
+
+    exp = marg.Experiment(
+        "noise",
+        marg.Scenario.from_yaml(TINY),
+        design=Morris([*FACTORS, "t.dummy"], trajectories=40, levels=4, seed=2),
+        replications=marg.Replications(n=3),
+        root=tmp_path,
+        params_dir=reg,
+    ).run(marg.backends.Function(noisy, workers=4))
+    m = marg.sensitivity.morris(exp, ["y"])
+    floor = m["noise_floor"][0]
+    # A noise-only elementary effect averaged over R = 3 replications has SD sqrt(2/R)·σ/Δ
+    # (Δ = 2/3 of the range for 4 levels), so its expected absolute value is sqrt(2/π) times that.
+    expected = math.sqrt(2 / math.pi) * math.sqrt(2 / 3) * sd / (4 / 6)
+    print(m.select("factor", "mu_star", "noise_floor", "snr"))
+    assert floor == pytest.approx(expected, rel=0.1)
+    snr = dict(zip(m["factor"], m["snr"], strict=True))
+    assert snr["t.dummy"] < 2 and snr["t.x1"] > 5

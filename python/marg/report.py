@@ -410,24 +410,30 @@ def build_sensitivity(path: Path, out: Out, metrics: Sequence[str] | None) -> di
             f"Morris elementary-effects screening (G§8.4) over {len(data.factors)} factors, "
             f"{d['design']['trajectories']} trajectories on a {d['design']['levels']}-level grid "
             f"({d.get('points')} points × replications). μ* ranks influence; σ above the diagonal "
-            "σ = μ* marks non-linear or interacting effects. Effects are per unit of each factor "
-            "(register unit; the mean for distributions, ADR-0006); `mu_star_rel` compares "
-            "factors within one output."
+            "σ = μ* marks non-linear or interacting effects. μ* is in output units per factor's "
+            "whole design range (each elementary effect divides the output change by the step as "
+            "a fraction of the range); `mu_star_rel` compares factors within one output."
         )
-        wide = (
-            m.pivot(on="output", index="factor", values="mu_star_rel")
-            .with_columns(pl.max_horizontal(pl.exclude("factor")).alias("max_rel"))
-            .sort("max_rel", descending=True)
+        screen = sensitivity.morris_screen(m)
+        counts = screen.group_by("class").agg(pl.len().alias("factors")).sort("class")
+        floors = m.group_by("output", maintain_order=True).agg(
+            pl.col("noise_floor").first(), pl.col("mu_star").max().alias("top_mu_star")
         )
-        cut = 0.05
-        quiet = wide.filter(pl.col("max_rel") < cut)["factor"].to_list()
         sections.append(
             "## Screening summary\n\n"
-            f"Relative μ* (μ* over the largest μ* of each output). {len(quiet)} of "
-            f"{wide.height} factors stay below {cut:.0%} of the most influential factor for every "
-            "output: candidates to hold fixed in the next stage. The cut-off is a reporting "
-            "convention for this screen, not a model parameter.\n\n"
-            + out.table(wide, "morris_screen", caption="Relative μ* by output", max_rows=80)
+            "Every μ* carries simulation noise: even with common random numbers, changing a "
+            "parameter changes the realisation. The noise floor is the μ* a factor with no effect "
+            "would show, estimated from the spread of each elementary effect across replications "
+            "(`marg.sensitivity.morris_noise_floor`). Factors are *influential* when μ* exceeds "
+            f"{sensitivity.SCREEN_SNR:g} × the floor for some output, *within noise* when μ* "
+            "stays below the floor for every output, and *unresolved* in between (more "
+            "replications shrink the floor as 1/√R). These cut-offs are reporting conventions, "
+            "not model parameters.\n\n"
+            + out.table(floors, "morris_noise_floor", caption="Noise floor of μ* by output")
+            + "\n\n"
+            + out.table(counts, "morris_classes")
+            + "\n\n"
+            + out.table(screen, "morris_screen", caption="Screen by factor", max_rows=80)
         )
         for o in ms:
             mo = m.filter(pl.col("output") == o)
