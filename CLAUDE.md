@@ -4,10 +4,13 @@ Guidance for AI sessions working in this repository.
 
 ## Start here
 
+- **Goal:** a general-purpose, realistic, highly tunable, CPU- and memory-efficient lane-free
+  traffic simulator that anyone can use. Delhi (the parameter guide) is its first calibrated
+  setting; the code must not assume one study, site or city.
 - The design and roadmap are in `plan/` (start at `plan/README.md`).
 - Work one task card at a time (`plan/phases/Pxx-*.md`). Track progress in `plan/STATUS.md`.
 - The model's numbers come from the *Simulator Parameter Guide: Delhi Disordered Traffic*
-  (Claude Doc linked in `plan/reference/parameter-guide-summary.md`), cited as "G§n".
+  (full copy in `plan/reference/parameter-guide.md`), cited as "G§n".
 - Modelling choices not settled in `plan/03-model-design.md` or an ADR in `plan/decisions/`:
   write an ADR draft with options and stop; do not choose silently.
 

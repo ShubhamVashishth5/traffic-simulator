@@ -1,6 +1,7 @@
 # Simulator Parameter Guide: summary
 
-Full guide (Claude Doc): https://claude.ai/artifact/3jViwPq85Tf1Adcr7Nad38
+Full guide: [parameter-guide.md](parameter-guide.md) (exported from the Claude Doc,
+https://claude.ai/artifact/3jViwPq85Tf1Adcr7Nad38).
 Companion to `claude/literature-review-summary.md`. Written November 2026.
 
 ## Design rules

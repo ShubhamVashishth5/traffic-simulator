@@ -43,7 +43,7 @@ P9 is finished.
   - If it doesn't, the fix goes to stage 3 or 5 per the guide, never back to free flow.
 
 ### P10.4 Sensitivity analysis
-- **Do:** Morris over all Fit and Sweep parameters on the thesis outputs (throughput, mean and p95
+- **Do:** Morris over all Fit and Sweep parameters on the headline outputs (throughput, mean and p95
   delay, sed, conflicts, gridlock share); then Sobol on the 10–20 survivors, with a GP surrogate if
   the run budget requires it.
 - **Done when:** the sensitivity report shows S1 and ST with CIs. Parameters with negligible effect
@@ -56,7 +56,7 @@ P9 is finished.
   plots. Failures are recorded honestly, with a diagnosis.
 
 ## Milestone check
-A calibration-and-validation report suitable as a thesis chapter or appendix:
+A calibration-and-validation report for the shipped defaults, suitable for publication with them:
 
 - data, stages, recovery tests, frozen values with uncertainty;
 - sensitivity indices;

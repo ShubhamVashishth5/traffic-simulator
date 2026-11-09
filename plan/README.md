@@ -1,29 +1,33 @@
 # Simulator plan: lane-free Delhi mixed traffic
 
-**This folder is the plan for a research traffic simulator that implements the
-[Simulator Parameter Guide](https://claude.ai/artifact/3jViwPq85Tf1Adcr7Nad38)** (summary in
-[reference/](reference/parameter-guide-summary.md)).
+**This folder is the plan for a general-purpose, lane-free mixed-traffic simulator:
+realistic, highly tunable, and CPU- and memory-efficient, for anyone to use.** Its first
+calibrated setting is Delhi, through the
+[Simulator Parameter Guide](reference/parameter-guide.md) (summary in
+[reference/](reference/parameter-guide-summary.md)). It is not tied to one research project.
 
-- **Core:** Rust, built for many fast runs on a laptop or HPC.
+- **Core:** Rust, built for many fast runs on a desktop now and on clusters later.
 - **Research layer:** Python, for experiments, calibration, sensitivity and reports.
 - **Viewer:** web, for live runs with parameter tweaking, replays and twin comparisons.
 - **Output:** every result is Parquet, carrying the resolved parameter register (value, grade, role,
   source).
 - **Build:** 13 phases, each split into tasks sized for an AI session.
 
-Status: **draft for review** (2026-11-09). No code yet.
+Status: **draft for review** (2026-11-09). P0–P4 are implemented ahead of the review; see
+[STATUS.md](STATUS.md).
 
 ## How to review (about 30 minutes)
 
 1. [05-roadmap.md](05-roadmap.md): the phase order and the milestone experiment for each phase. *Is
-   the order right for your thesis?*
+   the order right for the situations users need first?*
 2. [02-architecture.md](02-architecture.md): stack, components, performance targets. *Anything you'd
    veto?*
-3. [open-questions.md](open-questions.md): eleven questions, each with a default. *Answer what you can.*
+3. [open-questions.md](open-questions.md): six open questions, each with a default (six more
+   answered). *Answer what you can.*
 4. Skim [03-model-design.md](03-model-design.md): items marked ⚑ are proposed formulations where the
    guide leaves room. P5 and P8 open with review gates on the two biggest ones.
 5. [04-data-outputs-analytics.md](04-data-outputs-analytics.md): output tables, metrics, the
-   validation scorecard and reports. *Is anything missing for your papers?*
+   validation scorecard and reports. *Is anything missing that users will need?*
 6. [01-feature-survey.md](01-feature-survey.md) is background. It covers what SUMO, Vissim, Aimsun,
    MATSim, CityFlow, A/B Street and others offer as applications, and which features we adopt.
 
@@ -42,7 +46,7 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Design factors on distributions set the mean at fixed CV | proposed (P3.2) | [ADR-0006](decisions/ADR-0006-design-factors-on-distributions.md) |
 | What the cooperative twin switches off | **needs your decision** (P3.3, open question 1) | [ADR-0007](decisions/ADR-0007-cooperative-twin.md) |
 | Live sessions: commands act between steps, resample keeps each agent's quantile, run hash covers the commands | proposed (P4.1, P4.5) | [ADR-0008](decisions/ADR-0008-live-sessions.md) |
-| Roundabouts: ring of ribbons, junction box, or out of scope | **needs your decision** (P7, open question 11) | [ADR-0009](decisions/ADR-0009-roundabouts.md) |
+| Roundabouts are in scope; ring of ribbons or junction box | in scope (your answer); the model is chosen at the P7.0 gate | [ADR-0009](decisions/ADR-0009-roundabouts.md) |
 
 ## Folder map
 

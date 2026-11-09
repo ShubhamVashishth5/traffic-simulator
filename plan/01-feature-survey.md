@@ -70,7 +70,7 @@ application features are borrowed.
   effective width, pothole offsets. A strip grid would add resolution artefacts to exactly the
   quantities we validate.
 - **Behaviour is open and decomposable.** Every decision can be explained term by term (feature 9).
-  That matters for a thesis whose claim is "roads × behaviour".
+  That matters for a simulator whose central claim is that roads and behaviour interact.
 - **Research workflow first, GUI second.** Commercial tools are GUI-first and scripted as an
   afterthought. Here the headless runner and output schema are the product, and the viewer reads the
   same data.

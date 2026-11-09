@@ -1,15 +1,15 @@
 # ADR-0009: Roundabouts
 
-- **Status:** proposed: **needs the user's decision** (open question 11)
+- **Status:** proposed. **Roundabouts are in scope** (the user, 2026-11-09: the simulator should
+  handle most real situations). The choice between options 1 and 2 is deferred to the P7.0 gate
 - **Date:** 2026-11-09
 - **Phase / task:** P7 (review gate P7.0), read by P11
 
 ## Context
-Open question 7 names Lutyens'-type patches as study sites, and guide §5.3 describes that zone
-type as "wide roads, continuous medians, roundabouts". The Lutyens' vs Shahdara contrast is one of
-the thesis comparisons, so a model of Lutyens' Delhi without roundabouts would leave out the
-junction type that defines it. P7 as written covers signalised and uncontrolled junctions,
-median openings and splits, but not roundabouts.
+The simulator should handle most real road situations, and roundabouts are common: guide §5.3
+describes Lutyens'-type zones as "wide roads, continuous medians, roundabouts", and OSM imports
+(P11) will contain them. P7 as written covers signalised and uncontrolled junctions, median
+openings and splits, but not roundabouts.
 
 The guide gives no roundabout behaviour or numbers. Its only mention is the §5.3 zone-profile
 row. Its critical gaps (§2.4) come from uncontrolled intersections in Warangal (Abhigna et al.
@@ -50,10 +50,8 @@ Three things therefore need a decision, not just an implementation:
    - *Cons:* there is no circulating stream, so priority to the ring and weaving between entry and
      exit cannot appear. Movement ribbons through a large rotary overlap almost everywhere, giving
      huge conflict areas. Adequate for small mini-roundabouts at most.
-3. **Out of scope.** The P11 importer flags roundabouts as unsupported, and Lutyens'-type studies
-   use patches without them.
-   - *Pros:* no work.
-   - *Cons:* the Lutyens' vs Shahdara comparison can no longer be run on real Lutyens' networks.
+3. **Out of scope.** The P11 importer flags roundabouts as unsupported. **Ruled out by the user
+   (2026-11-09).**
 4. **A capacity formula** (a roundabout capacity equation, e.g. from Indian design guidance such
    as IRC:65 or the HCM, to be checked). **Rejected:** ADR-0005 forbids capacity formulas as model
    inputs. Such equations can serve as validation checks under options 1 and 2.
@@ -86,5 +84,3 @@ Option 1, as a new task P7.8 after P7.4 and P7.6, because it builds on both. Its
   stop once the distance along the chain passes the look-ahead.
 - The register gains a `junctions` group with about five grade C entries, which the Lutyens'
   zone studies would sweep.
-- If option 3 is chosen instead, open question 7 should say that Lutyens'-type study patches
-  exclude roundabouts.

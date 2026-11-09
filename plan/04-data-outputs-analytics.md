@@ -81,11 +81,12 @@ cross-check the two implementations.
   - PET is measured in junction conflict areas, and DRAC is also recorded.
 - **Gridlock share:** the share of measured time in which any monitored area has space-mean speed
   below `v_grid` (register, e.g. 5 km/h) for at least `τ_grid` with spillback into an upstream
-  junction box. The first-onset time is also recorded; it is the key output for the thesis (G§8.4).
+  junction box. The first-onset time is also recorded; it is a key output (G§8.4).
 - **Social efficiency deficit (`sed`)** ⚑: the relative excess of total delay in an arm over its
   *cooperative twin*. The twin has the same seed, demand and agents, with violation hazards and
-  κ-driven squeezing switched to the cooperative setting. The exact definition must match the
-  literature review — see [open questions](open-questions.md).
+  κ-driven squeezing switched to the cooperative setting. It is an optional metric: the formula and
+  the twin's switches are user settings with documented defaults ([open question 1](open-questions.md),
+  ADR-0007).
 - **Effective width:** a time-averaged free lateral span at sampled `s`, the observer for the
   width–capacity check (G§6.2).
 - **Dynamic PCU:** estimated from detector speeds and areas with the Chandra method. Checked against

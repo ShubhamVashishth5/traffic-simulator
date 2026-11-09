@@ -12,9 +12,9 @@ of these mechanisms.
 ## Tasks
 
 ### P7.0 Roundabouts (review gate, approved by the user)
-- **Do:** decide [ADR-0009](../decisions/ADR-0009-roundabouts.md) (open question 11): a ring of
-  ribbons (proposed), a plain junction box, or out of scope. The guide gives no roundabout
-  numbers. If the ring is chosen, task P7.8 is added after P7.7, following the ADR's outline.
+- **Do:** decide [ADR-0009](../decisions/ADR-0009-roundabouts.md): roundabouts are in scope (the
+  user's answer to open question 11); choose a ring of ribbons (proposed) or a plain junction box.
+  The guide gives no roundabout numbers. Either way, task P7.8 is added after P7.7 to build them.
 - **Done when:** ADR-0009 is accepted, and this card and P11.1 say how roundabouts are built.
 
 ### P7.1 Junction geometry
@@ -75,7 +75,8 @@ of these mechanisms.
 ## Milestone check
 **The split experiment.** Sweep the late-realiser share × the two-wheeler share on a corridor with a
 split. Report throughput, the stop-and-wait count and gridlock onset with CIs. This addresses a gap
-the guide flags in the Indian literature, and it can later be checked against the user's own video.
+the guide flags in the Indian literature, and it can be checked against video of a real split once
+any is available.
 
 ## Out of scope
 Red-light running, forced entry as a violation, blinker, dark and police states (all P8).
