@@ -149,6 +149,16 @@ impl DetectorSpec {
             DetectorSpec::Screenline { ribbon, .. } | DetectorSpec::Area { ribbon, .. } => ribbon,
         }
     }
+    /// The same detector with another aggregation interval.
+    pub fn with_interval(&self, interval: f64) -> Self {
+        let mut d = self.clone();
+        match &mut d {
+            DetectorSpec::Screenline { interval_s, .. } | DetectorSpec::Area { interval_s, .. } => {
+                *interval_s = interval
+            }
+        }
+        d
+    }
     pub fn interval_s(&self) -> f64 {
         match self {
             DetectorSpec::Screenline { interval_s, .. } | DetectorSpec::Area { interval_s, .. } => {

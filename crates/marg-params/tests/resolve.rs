@@ -240,3 +240,53 @@ fn calibration_layer_sits_between_register_and_scenario() {
     let plain = resolve(&reg, &sc, &none(), ResolveOptions::default()).unwrap();
     assert_ne!(plain.run_hash(1, "v"), spec.run_hash(1, "v"));
 }
+
+#[test]
+fn live_changes_need_live_entries_and_respect_ranges() {
+    let reg = register();
+    let mut spec = resolve(
+        &reg,
+        &scenario("corridor_2km.yaml"),
+        &none(),
+        ResolveOptions::default(),
+    )
+    .unwrap();
+    let hash = spec.run_hash(1, "v");
+    // A live entry: value and provenance change, the SI value follows the unit.
+    let path = "vehicles.free_flow_speed.hatchback";
+    let v: ParamValue =
+        serde_norway::from_str("{dist: trunc_normal, mean: 72, sd: 15.52, min: 15, max: 120}")
+            .unwrap();
+    spec.set_live(&reg, path, &v).unwrap();
+    let p = spec.get(path).unwrap();
+    assert_eq!(p.set_by, Layer::Live);
+    assert!((p.si.as_ref().unwrap().mean() - 72.0 / 3.6).abs() < 0.05); // truncation moves it a little
+    assert_ne!(
+        spec.run_hash(1, "v"),
+        hash,
+        "a live change is a different spec"
+    );
+    // Not live: refused, even though an experiment could set it.
+    let e = spec
+        .set_live(&reg, "core.lookahead_distance", &ParamValue::Scalar(100.0))
+        .unwrap_err();
+    assert!(matches!(e, ResolveError::NotLive(_)), "{e}");
+    // Out of range: refused like any override.
+    let e = spec
+        .set_live(&reg, path, &ParamValue::Scalar(500.0))
+        .unwrap_err();
+    assert!(matches!(e, ResolveError::Invalid { .. }), "{e}");
+    assert!(matches!(
+        spec.set_live(&reg, "no.such.path", &ParamValue::Scalar(1.0)),
+        Err(ResolveError::Unknown(_))
+    ));
+}
+
+#[test]
+fn register_files_keep_their_groups() {
+    let files = Register::load_files(&repo().join("params/base")).unwrap();
+    let reg = register();
+    let n: usize = files.iter().map(|f| f.entries.len()).sum();
+    assert_eq!(n, reg.len());
+    assert!(files.iter().any(|f| f.group == "vehicles"));
+}

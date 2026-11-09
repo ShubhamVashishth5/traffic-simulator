@@ -15,6 +15,7 @@ Run identity and provenance (JSON, not Parquet).
 | status, error | string |  | ok / failed / timeout; why a run failed |
 | experiment | object? |  | experiment, run_id, point, arm, rep (absent for ad-hoc runs) |
 | calibration_stages | list<u8> |  | frozen calibration stages applied (`calibration` layer) |
+| live | object? |  | live sessions only: session, initial_run_hash, commands, state_commands, replay_verified |
 | seed, threads, git_sha, git_dirty, marg_version, wall_time_s, … |  |  | see `marg_io::RunManifest` (run format version 2) |
 
 ## params.parquet
@@ -94,6 +95,19 @@ Headline KPIs (one row) and sampled trajectories.
 | trajectories: t, agent_id, ribbon, s, y | f64, u64, utf8, f64, f64 | s, m | ribbon frame |
 | trajectories: x_world, y_world, heading | f64 | m, rad | world frame |
 | trajectories: v, a | f64 | m/s, m/s² | speed and acceleration |
+
+## commands.parquet (live sessions)
+
+One row per command of a live viewer session (plan P4.1). With `scenario.yaml`, `params/` and the seed it is the whole session: `marg replay` re-runs it headless and checks the output hash. Only accepted `set_param` and `resample` rows change the run.
+
+| Column | Type | Unit | Meaning |
+| --- | --- | --- | --- |
+| seq | u64 |  | position in the log |
+| step, t | u64, f64 | s | steps completed and simulated time when it took effect (acts before step `step + 1`) |
+| wall_s | f64 | s | wall-clock time since the session started (informational) |
+| cmd | utf8 |  | set_param, resample, play, pause, step, speed, select_agent, breakpoint, … |
+| args | utf8 (JSON) |  | arguments; values in register units |
+| accepted, message | bool, utf8 |  | outcome or refusal reason |
 
 ## index.parquet (experiment folder)
 

@@ -41,6 +41,7 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Built for corridors first, structured for zones of 20–100 junctions | accepted (your answer) | [02 §1](02-architecture.md#1-space-ribbons-not-lanes), [P11](phases/P11-network-scale.md) |
 | Design factors on distributions set the mean at fixed CV | proposed (P3.2) | [ADR-0006](decisions/ADR-0006-design-factors-on-distributions.md) |
 | What the cooperative twin switches off | **needs your decision** (P3.3, open question 1) | [ADR-0007](decisions/ADR-0007-cooperative-twin.md) |
+| Live sessions: commands act between steps, resample keeps each agent's quantile, run hash covers the commands | proposed (P4.1, P4.5) | [ADR-0008](decisions/ADR-0008-live-sessions.md) |
 
 ## Folder map
 

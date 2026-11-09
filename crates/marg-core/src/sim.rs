@@ -8,13 +8,15 @@
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
 use crate::agents::{AgentStore, NewAgent, REMOVED};
-use crate::demand::{Arrival, Demand, Draws};
+use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::model::coverage::Coverage;
 use crate::model::lateral::{clearance, lateral_gap, leader_weight};
 use crate::model::longitudinal::{Idm, combine};
 use crate::observe::Detectors;
-use crate::output::{AgentRecord, EventRecord, RunOutputs, TrajectoryChunk, TrajectorySink};
-use crate::params::CoreParams;
+use crate::output::{
+    AgentRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk, TrajectorySink,
+};
+use crate::params::{CoreParams, Drawn};
 use marg_net::Network;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
 use rayon::prelude::*;
@@ -38,6 +40,35 @@ pub enum SimError {
     Params(#[from] marg_params::ResolveError),
     #[error("thread pool: {0}")]
     ThreadPool(String),
+    #[error("cannot resample `{0}`: {1}")]
+    Resample(String, &'static str),
+}
+
+/// Detectors with their own (short) interval, observed alongside the
+/// scenario's, for the live viewer's dashboards.
+struct LiveDetectors {
+    det: Detectors,
+    interval: f64,
+}
+
+/// One other agent considered by an agent's leader scan: the terms of
+/// plan/03-model-design.md §2, for the live inspector.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Interaction {
+    /// Store index of the other agent.
+    pub j: u32,
+    /// Distance between centres along the ribbon chain (m).
+    pub ds: f64,
+    /// Bumper-to-bumper gap (m); ≤ 0 means level with the agent (a side neighbour).
+    pub gap_s: f64,
+    /// Edge-to-edge lateral gap (m); < 0 means the footprints overlap laterally.
+    pub lateral_gap: f64,
+    /// Speed-dependent lateral clearance `c(v̄)` (m).
+    pub clearance: f64,
+    /// Leader weight ω; NaN for side neighbours.
+    pub weight: f64,
+    /// IDM acceleration toward this leader alone (m/s²); NaN for side neighbours.
+    pub leader_accel: f64,
 }
 
 /// Headline numbers for a finished run.
@@ -93,6 +124,7 @@ pub struct Simulation {
     trajectories: Option<TrajectoryConfig>,
     traj: TrajectoryChunk,
     sink: Option<Box<dyn TrajectorySink>>,
+    live: Option<LiveDetectors>,
 }
 
 impl Simulation {
@@ -180,6 +212,7 @@ impl Simulation {
             trajectories,
             traj: TrajectoryChunk::default(),
             sink: None,
+            live: None,
         })
     }
 
@@ -221,6 +254,10 @@ impl Simulation {
         self.phase_apply();
         self.detectors
             .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
+        if let Some(live) = &mut self.live {
+            live.det
+                .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
+        }
         self.collision_guard(t0 + self.dt);
         self.step += 1;
         self.t = self.step as f64 * self.dt;
@@ -249,6 +286,192 @@ impl Simulation {
             agent_steps: self.agent_steps,
             output_hash: self.hasher.clone().finalize().to_hex().to_string(),
         }
+    }
+
+    // ----------------------------------------------------------------- live
+
+    /// Steps taken so far.
+    pub fn step_index(&self) -> u64 {
+        self.step
+    }
+
+    /// Time step (s).
+    pub fn dt(&self) -> f64 {
+        self.dt
+    }
+
+    /// Master seed.
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+
+    /// The scenario being simulated (overrides already folded into the parameters).
+    pub fn scenario(&self) -> &Scenario {
+        &self.scenario
+    }
+
+    /// The built road network.
+    pub fn network(&self) -> &Network {
+        &self.net
+    }
+
+    /// The parameters in use.
+    pub fn params(&self) -> &CoreParams {
+        &self.p
+    }
+
+    /// Every event so far, in order.
+    pub fn events(&self) -> &[EventRecord] {
+        &self.events
+    }
+
+    /// Replace the parameters during a run (the live viewer's `set_param`;
+    /// `spec` is the run's spec with the `live` layer applied). From the next
+    /// step, population-level values (pair multipliers, clearance, λ) act on
+    /// every agent; per-agent draws apply to agents that have not entered
+    /// yet, including those waiting in an entry queue (their cached draws are
+    /// dropped and re-drawn from the same random numbers). Agents already in
+    /// the network keep their draws unless [`Self::resample`] is called.
+    pub fn update_params(&mut self, spec: &ResolvedSpec) -> Result<(), SimError> {
+        self.p = CoreParams::from_spec(spec)?;
+        for e in &mut self.demand.entries {
+            for arr in &mut e.pending {
+                arr.draws = None;
+            }
+        }
+        Ok(())
+    }
+
+    /// Re-draw the per-agent parameter read from register `path` for every
+    /// agent in the network that draws it, from the current distribution and
+    /// the agent's own random numbers (so each agent keeps its quantile).
+    /// Returns how many agents changed. Dimensions are refused (a vehicle
+    /// cannot change size on the road), as are parameters that are not
+    /// per-agent draws (they already act on everyone).
+    pub fn resample(&mut self, path: &str) -> Result<usize, SimError> {
+        let sources: Vec<(Drawn, usize)> = self
+            .p
+            .draw_sources
+            .iter()
+            .filter(|d| d.path == path)
+            .map(|d| (d.drawn, d.vtype))
+            .collect();
+        if sources.is_empty() {
+            return Err(SimError::Resample(
+                path.to_string(),
+                "not a per-agent draw; changes to it already apply to every agent",
+            ));
+        }
+        if sources
+            .iter()
+            .any(|(d, _)| matches!(d, Drawn::Length | Drawn::Width))
+        {
+            return Err(SimError::Resample(
+                path.to_string(),
+                "vehicle dimensions cannot change on the road",
+            ));
+        }
+        let mut n = 0;
+        for i in 0..self.agents.len() {
+            let vt = usize::from(self.agents.vtype[i]);
+            for &(drawn, _) in sources.iter().filter(|(_, t)| *t == vt) {
+                let a = &mut self.agents;
+                let x = draw_one(self.seed, a.id[i], VehicleType::ALL[vt], &self.p, drawn);
+                match drawn {
+                    Drawn::V0 => a.v0[i] = x + a.v0_bonus[i],
+                    Drawn::TimeGap => a.time_gap[i] = x,
+                    Drawn::StandstillGap => a.standstill_gap[i] = x,
+                    Drawn::MaxAccel => a.max_accel[i] = x,
+                    Drawn::ComfortableDecel => a.comfortable_decel[i] = x,
+                    Drawn::Length | Drawn::Width => unreachable!("refused above"),
+                }
+                n += 1;
+            }
+        }
+        Ok(n)
+    }
+
+    /// Observe the scenario's detectors a second time with interval
+    /// `interval_s` (the live viewer's dashboard window). Results equal a
+    /// headless run whose detectors use that interval.
+    pub fn enable_live_detectors(&mut self, interval_s: f64) -> Result<(), SimError> {
+        let specs: Vec<_> = self
+            .scenario
+            .detectors
+            .iter()
+            .map(|d| d.with_interval(interval_s))
+            .collect();
+        let net = &self.net;
+        let det = Detectors::new(
+            &specs,
+            |id| net.index(id).ok(),
+            |r, s| net.ribbon(r).y_bounds(s),
+            self.scenario.duration_s,
+            self.scenario.warmup_s,
+            self.p.lateral_histogram_bin,
+        )
+        .map_err(SimError::InvalidScenario)?;
+        self.live = Some(LiveDetectors {
+            det,
+            interval: interval_s,
+        });
+        Ok(())
+    }
+
+    /// Number of live-detector intervals that have closed.
+    pub fn live_intervals_closed(&self) -> usize {
+        match &self.live {
+            Some(l) => ((self.t + 0.5 * self.dt) / l.interval).floor() as usize,
+            None => 0,
+        }
+    }
+
+    /// Live-detector records of intervals `k0..k1`.
+    pub fn live_detector_records(&self, k0: usize, k1: usize) -> Vec<DetectorRecord> {
+        match &self.live {
+            Some(l) => l.det.records_in(self.scenario.duration_s, k0, k1),
+            None => Vec::new(),
+        }
+    }
+
+    /// Store index of agent `id`, if it is in the network.
+    pub fn agent_index(&self, id: u64) -> Option<usize> {
+        self.agents.id.iter().position(|&x| x == id)
+    }
+
+    /// The `agents.parquet` row agent `i` would get if the run ended now.
+    pub fn agent_record(&self, i: usize) -> AgentRecord {
+        self.record(i, None)
+    }
+
+    /// Every agent the leader scan of agent `i` considers this step (leaders
+    /// and side neighbours), with the terms of its acceleration.
+    pub fn interactions(&self, i: usize) -> Vec<Interaction> {
+        let r = self.agents.ribbon[i] as usize;
+        let Some(k) = self.orders[r].iter().position(|&x| x as usize == i) else {
+            return Vec::new();
+        };
+        let ctx = MoveCtx {
+            a: &self.agents,
+            orders: &self.orders,
+            net: &self.net,
+            p: &self.p,
+            cut: self.p.interaction_cutoff_distance(),
+            l_max: self.agents.length.iter().copied().fold(0.0, f64::max),
+        };
+        let mut out = Vec::new();
+        ctx.accel_with(r, k, i, |x| out.push(x));
+        out
+    }
+
+    /// Headline KPIs if the run ended now (the same computation as `finish`).
+    pub fn kpis_now(&self) -> Vec<(&'static str, f64)> {
+        let mut agents = self.records.clone();
+        for i in 0..self.agents.len() {
+            agents.push(self.record(i, None));
+        }
+        agents.sort_by_key(|r| r.agent_id);
+        self.kpis(&agents)
     }
 
     // ---------------------------------------------------------------- move
@@ -573,12 +796,12 @@ impl Simulation {
         let free_width = (y_max - y_min - d.width).max(0.0);
         let y = y_min + 0.5 * d.width.min(y_max - y_min) + d.lateral_fraction * free_width;
         let in_band = y - y_min < self.p.median_band_width;
-        let v0 = d.v0
-            + if in_band {
-                d.median_band_bonus.max(0.0)
-            } else {
-                0.0
-            };
+        let v0_bonus = if in_band {
+            d.median_band_bonus.max(0.0)
+        } else {
+            0.0
+        };
+        let v0 = d.v0 + v0_bonus;
         let class = arr.vtype.class();
         let idm = Idm {
             v0,
@@ -606,6 +829,7 @@ impl Simulation {
             length: d.length,
             width: d.width,
             v0,
+            v0_bonus,
             time_gap: d.time_gap,
             standstill_gap: d.standstill_gap,
             max_accel: d.max_accel,
@@ -842,7 +1066,21 @@ struct MoveCtx<'a> {
 impl MoveCtx<'_> {
     /// Acceleration of agent `i` at position `k` of ribbon `r`, and its nearest
     /// physically overlapping leader (plan/03-model-design.md §2).
+    #[inline]
     fn accel(&self, r: usize, k: usize, i: usize) -> (f64, u32) {
+        self.accel_with(r, k, i, |_| {})
+    }
+
+    /// [`Self::accel`], reporting every agent the scan considers to `seen`
+    /// (the live inspector). With a no-op `seen` it compiles to the same code.
+    #[inline(always)]
+    fn accel_with(
+        &self,
+        r: usize,
+        k: usize,
+        i: usize,
+        mut seen: impl FnMut(Interaction),
+    ) -> (f64, u32) {
         let (a, p) = (self.a, self.p);
         let ci = usize::from(a.class[i]);
         let idm = Idm {
@@ -877,6 +1115,15 @@ impl MoveCtx<'_> {
                 }
                 let gap_s = ds - 0.5 * (l + a.length[j]);
                 if gap_s <= 0.0 {
+                    seen(Interaction {
+                        j: j as u32,
+                        ds,
+                        gap_s,
+                        lateral_gap: gy,
+                        clearance: c,
+                        weight: f64::NAN,
+                        leader_accel: f64::NAN,
+                    });
                     // Level with us: a side neighbour, unless the bodies overlap.
                     if gy < 0.0 {
                         acc = -p.emergency_decel;
@@ -897,7 +1144,17 @@ impl MoveCtx<'_> {
                     p.mult_time_gap[ci][cj],
                     p.mult_standstill_gap[ci][cj],
                 );
-                acc = combine(acc, free, leader, leader_weight(excess, p.braking_scale));
+                let weight = leader_weight(excess, p.braking_scale);
+                seen(Interaction {
+                    j: j as u32,
+                    ds,
+                    gap_s,
+                    lateral_gap: gy,
+                    clearance: c,
+                    weight,
+                    leader_accel: leader,
+                });
+                acc = combine(acc, free, leader, weight);
                 if excess <= 0.0 && horizon == p.lookahead {
                     cov.add(a.y[j] - 0.5 * a.width[j] - c, a.y[j] + 0.5 * a.width[j] + c);
                     if cov.full() {

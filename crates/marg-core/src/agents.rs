@@ -19,6 +19,8 @@ pub struct AgentStore {
     pub length: Vec<f64>,
     pub width: Vec<f64>,
     pub v0: Vec<f64>,
+    /// Median-band speed bonus included in `v0` (0 outside the band).
+    pub v0_bonus: Vec<f64>,
     pub time_gap: Vec<f64>,
     pub standstill_gap: Vec<f64>,
     pub max_accel: Vec<f64>,
@@ -49,6 +51,7 @@ pub struct NewAgent {
     pub length: f64,
     pub width: f64,
     pub v0: f64,
+    pub v0_bonus: f64,
     pub time_gap: f64,
     pub standstill_gap: f64,
     pub max_accel: f64,
@@ -75,6 +78,7 @@ macro_rules! for_each_column {
         $self.length.$f($($arg),*);
         $self.width.$f($($arg),*);
         $self.v0.$f($($arg),*);
+        $self.v0_bonus.$f($($arg),*);
         $self.time_gap.$f($($arg),*);
         $self.standstill_gap.$f($($arg),*);
         $self.max_accel.$f($($arg),*);
@@ -115,6 +119,7 @@ impl AgentStore {
         self.length.push(a.length);
         self.width.push(a.width);
         self.v0.push(a.v0);
+        self.v0_bonus.push(a.v0_bonus);
         self.time_gap.push(a.time_gap);
         self.standstill_gap.push(a.standstill_gap);
         self.max_accel.push(a.max_accel);
@@ -168,6 +173,7 @@ impl AgentStore {
         retain_col!(self.length);
         retain_col!(self.width);
         retain_col!(self.v0);
+        retain_col!(self.v0_bonus);
         retain_col!(self.time_gap);
         retain_col!(self.standstill_gap);
         retain_col!(self.max_accel);
@@ -206,6 +212,7 @@ mod tests {
             length: 4.0,
             width: 1.8,
             v0: 10.0,
+            v0_bonus: 0.0,
             time_gap: 1.0,
             standstill_gap: 2.0,
             max_accel: 1.0,

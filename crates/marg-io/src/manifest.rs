@@ -65,6 +65,9 @@ pub struct RunManifest {
     /// Why the run failed (status `failed`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Live-viewer session facts (absent for headless runs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub live: Option<crate::live::LiveMeta>,
 }
 
 impl RunManifest {
@@ -116,6 +119,7 @@ impl RunManifest {
             experiment: meta,
             calibration_stages: Vec::new(),
             error: Some(error),
+            live: None,
         }
     }
 

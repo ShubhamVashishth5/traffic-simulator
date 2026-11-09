@@ -30,6 +30,23 @@ uv sync && uv run maturin develop --release && uv run pytest
 cargo run --release -p marg-cli -- run scenarios/corridor_2km.yaml --seed 1 --out runs/reference
 ```
 
+## Web viewer
+
+```bash
+(cd web && npm ci && npm run build)
+cargo run --release -p marg-cli -- serve --runs runs     # http://127.0.0.1:8080
+```
+
+- **Live:** start a scenario; play, step, time warp, breakpoints; click a vehicle to inspect it;
+  change `live` parameters while it runs; save the session. A saved session is scenario + seed +
+  command log, and `marg replay runs/live/<id>` reproduces it bitwise.
+- **Replay:** open any run folder under `--runs` (or a URL, or a local folder); scrub, filter with
+  SQL (DuckDB-WASM), with the same dashboards from the stored tables.
+- **Compare twins:** two arms of an experiment on one clock, side by side or overlaid.
+
+For development, `npm run dev` in `web/` proxies to a running `marg serve`. The protocol is in
+[`docs/viewer-protocol.md`](docs/viewer-protocol.md).
+
 ## Builds
 
 Every push to `master`, every pull request and every `v*` tag runs the

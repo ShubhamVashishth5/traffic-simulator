@@ -115,6 +115,43 @@ enum Command {
         #[arg(long)]
         params: Option<PathBuf>,
     },
+    /// Serve the web viewer: live sessions over WebSocket, run folders for replay.
+    Serve {
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        #[arg(long, default_value_t = 8080)]
+        port: u16,
+        /// Register directory (default: $MARG_PARAMS_DIR or ./params/base).
+        #[arg(long)]
+        params: Option<PathBuf>,
+        /// Calibration directory: frozen `stage_<k>.yaml` files are applied.
+        #[arg(long)]
+        calibration: Option<PathBuf>,
+        #[arg(long, default_value = "scenarios")]
+        scenarios: PathBuf,
+        /// Run folders to list and serve; live sessions are saved to `<runs>/live/`.
+        #[arg(long, default_value = "runs")]
+        runs: PathBuf,
+        /// Built web app (default: web/dist if it exists).
+        #[arg(long)]
+        web: Option<PathBuf>,
+        /// Live dashboard window (s).
+        #[arg(long, default_value_t = 30.0)]
+        live_window: f64,
+        /// Worker threads per session.
+        #[arg(long, default_value_t = 1)]
+        threads: usize,
+    },
+    /// Replay a saved live session headless and check its output hash.
+    Replay {
+        /// Session folder (holds `scenario.yaml`, `commands.parquet`, `manifest.json`).
+        session: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        threads: usize,
+        /// Only check the hash; do not write the output tables.
+        #[arg(long)]
+        check_only: bool,
+    },
     /// Write the output data dictionary (Markdown).
     DataDictionary {
         #[arg(long, default_value = "docs/data-dictionary.md")]
@@ -177,6 +214,7 @@ fn main() -> Result<()> {
                     "register_file",
                     schemars::schema_for!(marg_params::RegisterFile),
                 ),
+                ("viewer_protocol", marg_server::protocol_schema()),
             ] {
                 let path = out_dir.join(format!("{name}.schema.json"));
                 std::fs::write(&path, serde_json::to_string_pretty(&schema)? + "\n")?;
@@ -287,6 +325,51 @@ fn main() -> Result<()> {
                 .with_context(|| format!("starting {python} (set MARG_PYTHON)"))?;
             if !status.success() {
                 bail!("report failed ({status})");
+            }
+        }
+        Command::Serve {
+            host,
+            port,
+            params,
+            calibration,
+            scenarios,
+            runs,
+            web,
+            live_window,
+            threads,
+        } => {
+            let params = params
+                .or_else(marg_io::find_params_dir)
+                .context("no register found: pass --params or set MARG_PARAMS_DIR")?;
+            let mut cfg = marg_server::ServerConfig::new(params);
+            cfg.calibration_dir = calibration;
+            cfg.scenarios_dir = scenarios;
+            std::fs::create_dir_all(&runs)?;
+            cfg.runs_dir = runs;
+            cfg.web_dir = web.or_else(|| {
+                let d = PathBuf::from("web/dist");
+                d.join("index.html").is_file().then_some(d)
+            });
+            cfg.live_window_s = live_window;
+            cfg.threads = threads;
+            let addr: std::net::SocketAddr = format!("{host}:{port}")
+                .parse()
+                .with_context(|| format!("bad address {host}:{port}"))?;
+            tokio::runtime::Runtime::new()?.block_on(marg_server::serve(cfg, addr))?;
+        }
+        Command::Replay {
+            session,
+            threads,
+            check_only,
+        } => {
+            let report = marg_io::replay(&session, threads, !check_only)?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            if !report.matches {
+                bail!(
+                    "replay gave output hash {}, the live session {}",
+                    report.output_hash,
+                    report.expected_output_hash
+                );
             }
         }
         Command::DataDictionary { out } => {

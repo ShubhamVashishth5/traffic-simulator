@@ -231,13 +231,19 @@ impl Detectors {
 
     /// Detector records, one per detector × interval × vehicle type with data.
     pub fn records(&self, duration: f64) -> Vec<DetectorRecord> {
+        self.records_in(duration, 0, usize::MAX)
+    }
+
+    /// Records of intervals `k0..k1` of every detector (the live viewer reads
+    /// each interval once it has closed).
+    pub fn records_in(&self, duration: f64, k0: usize, k1: usize) -> Vec<DetectorRecord> {
         let mut out = Vec::new();
         for d in &self.list {
             let n = match &d.kind {
                 Kind::Screen { stats, .. } => stats.len(),
                 Kind::Area { stats, .. } => stats.len(),
             };
-            for k in 0..n {
+            for k in k0.min(n)..k1.min(n) {
                 let t_start = k as f64 * d.interval;
                 let t_end = ((k + 1) as f64 * d.interval).min(duration);
                 let span = (t_end - t_start).max(f64::MIN_POSITIVE);

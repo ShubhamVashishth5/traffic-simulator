@@ -58,6 +58,16 @@ pub struct RegisterFilter {
 impl Register {
     /// Load every `*.yaml` file in `dir`, in file-name order.
     pub fn load_dir(dir: &Path) -> Result<Self, RegisterError> {
+        let mut reg = Register::default();
+        for file in Self::load_files(dir)? {
+            reg.add_file(file)?;
+        }
+        Ok(reg)
+    }
+
+    /// Parse every `*.yaml` file in `dir`, in file-name order, keeping the
+    /// grouping (the live viewer's parameter panel is grouped like this).
+    pub fn load_files(dir: &Path) -> Result<Vec<RegisterFile>, RegisterError> {
         let io = |e| RegisterError::Io {
             path: dir.display().to_string(),
             source: e,
@@ -71,15 +81,20 @@ impl Register {
         if files.is_empty() {
             return Err(RegisterError::Empty(dir.display().to_string()));
         }
-        let mut reg = Register::default();
-        for path in files {
-            let text = std::fs::read_to_string(&path).map_err(|e| RegisterError::Io {
-                path: path.display().to_string(),
-                source: e,
-            })?;
-            reg.add_yaml(&text, &path.display().to_string())?;
-        }
-        Ok(reg)
+        files
+            .iter()
+            .map(|path| {
+                let origin = path.display().to_string();
+                let text = std::fs::read_to_string(path).map_err(|e| RegisterError::Io {
+                    path: origin.clone(),
+                    source: e,
+                })?;
+                serde_norway::from_str(&text).map_err(|e| RegisterError::Yaml {
+                    path: origin,
+                    source: e,
+                })
+            })
+            .collect()
     }
 
     /// Add the entries of one register file given as YAML text.

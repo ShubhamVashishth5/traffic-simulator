@@ -8,11 +8,20 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "gen:schema": "json2ts -i ../schema/scenario.schema.json -o src/schema.ts --bannerComment \"/* Generated from schema/scenario.schema.json by scripts/gen-schema.sh. Do not edit. */\" && json2ts -i ../schema/register_file.schema.json -o src/register.ts --bannerComment \"/* Generated from schema/register_file.schema.json by scripts/gen-schema.sh. Do not edit. */\""
+    "gen:schema": "json2ts -i ../schema/scenario.schema.json -o src/schema.ts --bannerComment \"/* Generated from schema/scenario.schema.json by scripts/gen-schema.sh. Do not edit. */\" && json2ts -i ../schema/register_file.schema.json -o src/register.ts --bannerComment \"/* Generated from schema/register_file.schema.json by scripts/gen-schema.sh. Do not edit. */\" && json2ts -i ../schema/viewer_protocol.schema.json -o src/protocol.gen.ts --bannerComment \"/* Generated from schema/viewer_protocol.schema.json by scripts/gen-schema.sh. Do not edit. */\""
   },
   "dependencies": {
+    "@deck.gl/core": "^9.4.1",
+    "@deck.gl/layers": "^9.4.1",
+    "@duckdb/duckdb-wasm": "^1.32.0",
+    "@luma.gl/core": "^9.4.2",
+    "@luma.gl/engine": "^9.4.2",
+    "apache-arrow": "^21.2.0",
+    "echarts": "^6.0.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "uplot": "^1.6.32",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

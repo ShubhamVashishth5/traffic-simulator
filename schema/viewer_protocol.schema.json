@@ -1,0 +1,2430 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ViewerProtocol",
+  "description": "Both directions, for the JSON Schema that generates the TypeScript types.",
+  "type": "object",
+  "properties": {
+    "client": {
+      "$ref": "#/$defs/ClientMessage"
+    },
+    "server": {
+      "$ref": "#/$defs/ServerMessage"
+    }
+  },
+  "required": [
+    "client",
+    "server"
+  ],
+  "$defs": {
+    "AgentRow": {
+      "description": "One row of `agents.parquet`, as it would be if the run ended now.",
+      "type": "object",
+      "properties": {
+        "agent_id": {
+          "type": "string"
+        },
+        "class": {
+          "type": "string"
+        },
+        "comfortable_decel": {
+          "type": "number",
+          "format": "double"
+        },
+        "delay": {
+          "type": "number",
+          "format": "double"
+        },
+        "distance": {
+          "type": "number",
+          "format": "double"
+        },
+        "entry": {
+          "type": "string"
+        },
+        "entry_y": {
+          "type": "number",
+          "format": "double"
+        },
+        "exited": {
+          "type": "boolean"
+        },
+        "free_flow_time": {
+          "type": "number",
+          "format": "double"
+        },
+        "length": {
+          "type": "number",
+          "format": "double"
+        },
+        "max_accel": {
+          "type": "number",
+          "format": "double"
+        },
+        "spawn_delay": {
+          "type": "number",
+          "format": "double"
+        },
+        "standstill_gap": {
+          "type": "number",
+          "format": "double"
+        },
+        "stops": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "t_arrival": {
+          "type": "number",
+          "format": "double"
+        },
+        "t_entry": {
+          "type": "number",
+          "format": "double"
+        },
+        "t_exit": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "time_gap": {
+          "type": "number",
+          "format": "double"
+        },
+        "travel_time": {
+          "type": "number",
+          "format": "double"
+        },
+        "v0": {
+          "type": "number",
+          "format": "double"
+        },
+        "vehicle_type": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "agent_id",
+        "vehicle_type",
+        "class",
+        "entry",
+        "t_arrival",
+        "t_entry",
+        "spawn_delay",
+        "distance",
+        "travel_time",
+        "free_flow_time",
+        "delay",
+        "stops",
+        "exited",
+        "entry_y",
+        "length",
+        "width",
+        "v0",
+        "time_gap",
+        "standstill_gap",
+        "max_accel",
+        "comfortable_decel"
+      ]
+    },
+    "AgentState": {
+      "type": "object",
+      "properties": {
+        "acc": {
+          "type": "number",
+          "format": "double"
+        },
+        "heading": {
+          "type": "number",
+          "format": "double"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "type": "number",
+          "format": "double"
+        },
+        "v": {
+          "type": "number",
+          "format": "double"
+        },
+        "x_world": {
+          "description": "World position relative to `origin`, and heading (rad).",
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        },
+        "y_world": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "ribbon",
+        "s",
+        "y",
+        "v",
+        "acc",
+        "x_world",
+        "y_world",
+        "heading"
+      ]
+    },
+    "BreakpointOn": {
+      "description": "When to pause automatically.",
+      "oneOf": [
+        {
+          "description": "The first event of this kind (`events.parquet` `kind`, e.g. `collision_guard`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string"
+            },
+            "on": {
+              "type": "string",
+              "const": "event"
+            }
+          },
+          "required": [
+            "on",
+            "kind"
+          ]
+        },
+        {
+          "description": "Simulated time reaches `t` (s).",
+          "type": "object",
+          "properties": {
+            "on": {
+              "type": "string",
+              "const": "time"
+            },
+            "t": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "on",
+            "t"
+          ]
+        }
+      ]
+    },
+    "ChangeView": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "$ref": "#/$defs/ParamValue"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParamValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "seq": {
+          "description": "Position in the command log.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "step": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "t": {
+          "type": "number",
+          "format": "double"
+        },
+        "undone": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "seq",
+        "step",
+        "t",
+        "path",
+        "after",
+        "undone"
+      ]
+    },
+    "ClassHist": {
+      "description": "Speeds of the agents in the network now, by class.",
+      "type": "object",
+      "properties": {
+        "bin_width": {
+          "description": "Bin width (m/s); bin `k` is `[k·w, (k+1)·w)`.",
+          "type": "number",
+          "format": "double"
+        },
+        "class": {
+          "type": "string"
+        },
+        "counts": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        }
+      },
+      "required": [
+        "class",
+        "bin_width",
+        "counts"
+      ]
+    },
+    "ClientMessage": {
+      "description": "A message from the viewer.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "play"
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "pause"
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "description": "Advance `n` steps, then pause.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "step"
+            },
+            "n": {
+              "type": "integer",
+              "format": "uint64",
+              "default": 1,
+              "minimum": 0
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "description": "Time warp: simulated seconds per wall second (0 = as fast as possible).",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "speed"
+            },
+            "x": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "cmd",
+            "x"
+          ]
+        },
+        {
+          "description": "Change a `live: true` register entry, in its register unit. With\n`resample`, also re-draw it for agents already in the network.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "set_param"
+            },
+            "path": {
+              "type": "string"
+            },
+            "resample": {
+              "type": "boolean",
+              "default": false
+            },
+            "value": {
+              "$ref": "#/$defs/ParamValue"
+            }
+          },
+          "required": [
+            "cmd",
+            "path",
+            "value"
+          ]
+        },
+        {
+          "description": "Re-draw a per-agent parameter for every agent in the network.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "resample"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cmd",
+            "path"
+          ]
+        },
+        {
+          "description": "Revert the latest parameter change not yet undone.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "undo"
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "description": "Inspect an agent (`null` to stop).",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "select_agent"
+            },
+            "id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "breakpoint"
+            },
+            "on": {
+              "$ref": "#/$defs/BreakpointOn"
+            }
+          },
+          "required": [
+            "cmd",
+            "on"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "clear_breakpoints"
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "description": "Signals arrive in P8; refused until then.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "toggle_signal_state"
+            },
+            "junction": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cmd",
+            "junction",
+            "state"
+          ]
+        },
+        {
+          "description": "Road objects arrive in P6; refused until then.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "add_object"
+            },
+            "object": true
+          },
+          "required": [
+            "cmd",
+            "object"
+          ]
+        },
+        {
+          "description": "Road objects arrive in P6; refused until then.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "remove_object"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "cmd",
+            "id"
+          ]
+        },
+        {
+          "description": "Write the session folder and verify it by a headless replay.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "save"
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        },
+        {
+          "description": "Viewer settings ([`ViewSettings`]): not logged, no effect on the run.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "view"
+            },
+            "colour": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ColourBy"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "fps": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double",
+              "default": null
+            },
+            "ts_ribbon": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "default": null
+            },
+            "viewport": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "default": null,
+              "items": {
+                "type": "number",
+                "format": "double"
+              },
+              "maxItems": 4,
+              "minItems": 4
+            }
+          },
+          "required": [
+            "cmd"
+          ]
+        }
+      ]
+    },
+    "ColourBy": {
+      "description": "What the per-agent `colour` value of a frame holds.",
+      "oneOf": [
+        {
+          "description": "Vehicle class index (`VehicleClass::ALL`).",
+          "type": "string",
+          "const": "class"
+        },
+        {
+          "description": "Speed (m/s).",
+          "type": "string",
+          "const": "speed"
+        },
+        {
+          "description": "Speed over desired speed.",
+          "type": "string",
+          "const": "speed_ratio"
+        },
+        {
+          "description": "Acceleration (m/s²).",
+          "type": "string",
+          "const": "accel"
+        },
+        {
+          "description": "Lateral position in the ribbon frame (m, + left of travel).",
+          "type": "string",
+          "const": "lateral"
+        },
+        {
+          "description": "Desired speed v0 (m/s).",
+          "type": "string",
+          "const": "desired_speed"
+        },
+        {
+          "description": "Persona (P8).",
+          "type": "string",
+          "const": "persona"
+        },
+        {
+          "description": "Aggressiveness κ (P8).",
+          "type": "string",
+          "const": "kappa"
+        },
+        {
+          "description": "Violation state (P8).",
+          "type": "string",
+          "const": "violation"
+        },
+        {
+          "description": "Zone (P9).",
+          "type": "string",
+          "const": "zone"
+        }
+      ]
+    },
+    "ColourMode": {
+      "type": "object",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "categorical": {
+          "description": "`true` if the value is categorical (an index into `classes`).",
+          "type": "boolean"
+        },
+        "key": {
+          "$ref": "#/$defs/ColourBy"
+        },
+        "label": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "unit",
+        "categorical",
+        "available",
+        "note"
+      ]
+    },
+    "DemandSpec": {
+      "description": "Demand at the network's entries.",
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntrySpec"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "DetectorRow": {
+      "description": "One row of `detectors.parquet` (see the data dictionary); `null` = not measured.",
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "density": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "detector_id": {
+          "type": "string"
+        },
+        "flow": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "in_warmup": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "lateral_bin": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "lateral_hist": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "lateral_mean": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "lateral_sd": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "lateral_y0": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "space_mean_speed": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "t_end": {
+          "type": "number",
+          "format": "double"
+        },
+        "t_start": {
+          "type": "number",
+          "format": "double"
+        },
+        "time_mean_speed": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "ttd": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "tts": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "vehicle_type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "detector_id",
+        "kind",
+        "t_start",
+        "t_end",
+        "in_warmup",
+        "vehicle_type",
+        "class",
+        "count"
+      ]
+    },
+    "DetectorSpec": {
+      "description": "A virtual detector.",
+      "oneOf": [
+        {
+          "description": "Counts vehicles crossing station `s`.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "interval_s": {
+              "type": "number",
+              "format": "double",
+              "default": 60.0
+            },
+            "kind": {
+              "type": "string",
+              "const": "screenline"
+            },
+            "ribbon": {
+              "type": "string"
+            },
+            "s": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "ribbon",
+            "s"
+          ]
+        },
+        {
+          "description": "Measures density, flow and space-mean speed over `[s_from, s_to]`\n(Edie's generalised definitions).",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "interval_s": {
+              "type": "number",
+              "format": "double",
+              "default": 60.0
+            },
+            "kind": {
+              "type": "string",
+              "const": "area"
+            },
+            "ribbon": {
+              "type": "string"
+            },
+            "s_from": {
+              "type": "number",
+              "format": "double"
+            },
+            "s_to": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "ribbon",
+            "s_from",
+            "s_to"
+          ]
+        }
+      ]
+    },
+    "DetectorView": {
+      "description": "A detector, for drawing.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "description": "`screenline` or `area`.",
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s_from": {
+          "type": "number",
+          "format": "double"
+        },
+        "s_to": {
+          "type": "number",
+          "format": "double"
+        },
+        "shape": {
+          "description": "Line (screenline) or polygon (area), relative to `origin`.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "ribbon",
+        "s_from",
+        "s_to",
+        "shape"
+      ]
+    },
+    "Dist": {
+      "description": "A univariate distribution.\n\nSeveral lognormal forms are accepted for readability in the register; they\nare converted to `(mu, sigma)` of `ln X` by [`Dist::canonical`].",
+      "oneOf": [
+        {
+          "description": "Always the same value.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "constant"
+            },
+            "value": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "value"
+          ]
+        },
+        {
+          "description": "Normal with mean and standard deviation.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "normal"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd"
+          ]
+        },
+        {
+          "description": "Normal restricted to `[min, max]` (rejection sampling).",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "trunc_normal"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "description": "Lognormal by the mean and SD of `ln X`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal"
+            },
+            "mu": {
+              "type": "number",
+              "format": "double"
+            },
+            "sigma": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mu",
+            "sigma"
+          ]
+        },
+        {
+          "description": "Lognormal by its median and the SD of `ln X`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_median"
+            },
+            "median": {
+              "type": "number",
+              "format": "double"
+            },
+            "sigma": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "median",
+            "sigma"
+          ]
+        },
+        {
+          "description": "Lognormal by the mean and SD of `X` itself.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_moments"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd"
+          ]
+        },
+        {
+          "description": "Lognormal through two quantiles: `P(X ≤ x_lo) = p_lo`, `P(X ≤ x_hi) = p_hi`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_quantiles"
+            },
+            "p_hi": {
+              "type": "number",
+              "format": "double"
+            },
+            "p_lo": {
+              "type": "number",
+              "format": "double"
+            },
+            "x_hi": {
+              "type": "number",
+              "format": "double"
+            },
+            "x_lo": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "p_lo",
+            "x_lo",
+            "p_hi",
+            "x_hi"
+          ]
+        },
+        {
+          "description": "Gamma with shape `k` and scale `θ` (mean `kθ`).",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "gamma"
+            },
+            "scale": {
+              "type": "number",
+              "format": "double"
+            },
+            "shape": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "shape",
+            "scale"
+          ]
+        },
+        {
+          "description": "Exponential with the given mean.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "exponential"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean"
+          ]
+        },
+        {
+          "description": "`shift + Exponential`, parameterised by the shift and the overall mean.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "shifted_exponential"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "shift": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "shift",
+            "mean"
+          ]
+        },
+        {
+          "description": "Uniform on `[min, max]`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "uniform"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "description": "Piecewise-linear inverse CDF through `[p, x]` points, `p` rising from 0 to 1.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "empirical"
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "maxItems": 2,
+                "minItems": 2
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "points"
+          ]
+        },
+        {
+          "description": "Finite mixture; weights need not sum to 1 (they are normalised).",
+          "type": "object",
+          "properties": {
+            "components": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MixtureComponent"
+              }
+            },
+            "dist": {
+              "type": "string",
+              "const": "mixture"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "components"
+          ]
+        }
+      ]
+    },
+    "EntrySpec": {
+      "description": "One entry: a flow profile and a vehicle composition (G§7.1–7.3).",
+      "type": "object",
+      "properties": {
+        "composition": {
+          "description": "Share of each vehicle type in the stream (normalised; count it at the\nsite — registration shares are not the stream, G§7.1).",
+          "type": "object",
+          "properties": {
+            "auto_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "bicycle": {
+              "type": "number",
+              "format": "double"
+            },
+            "bus": {
+              "type": "number",
+              "format": "double"
+            },
+            "cycle_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "e_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "e_two_wheeler": {
+              "type": "number",
+              "format": "double"
+            },
+            "hatchback": {
+              "type": "number",
+              "format": "double"
+            },
+            "lcv": {
+              "type": "number",
+              "format": "double"
+            },
+            "moped": {
+              "type": "number",
+              "format": "double"
+            },
+            "motorcycle": {
+              "type": "number",
+              "format": "double"
+            },
+            "scooter": {
+              "type": "number",
+              "format": "double"
+            },
+            "sedan": {
+              "type": "number",
+              "format": "double"
+            },
+            "suv": {
+              "type": "number",
+              "format": "double"
+            },
+            "tractor": {
+              "type": "number",
+              "format": "double"
+            },
+            "truck": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false
+        },
+        "flow": {
+          "description": "Piecewise-constant flow: each interval applies from `from_s` until the next.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FlowInterval"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "description": "Station of the entry on the ribbon.",
+          "type": "number",
+          "format": "double",
+          "default": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "flow",
+        "composition"
+      ]
+    },
+    "EventRow": {
+      "type": "object",
+      "properties": {
+        "agent_id": {
+          "type": "string"
+        },
+        "attrs": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "type": "number",
+          "format": "double"
+        },
+        "t": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "t",
+        "kind",
+        "agent_id",
+        "ribbon",
+        "s",
+        "y",
+        "attrs"
+      ]
+    },
+    "FlowInterval": {
+      "description": "Flow from time `from_s` onwards.",
+      "type": "object",
+      "properties": {
+        "from_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "veh_per_h": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from_s",
+        "veh_per_h"
+      ]
+    },
+    "Hello": {
+      "description": "First message of every connection.",
+      "type": "object",
+      "properties": {
+        "bounds": {
+          "description": "Network bounds `[x0, y0, x1, y1]`, relative to `origin`.",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "classes": {
+          "description": "Class keys in index order.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "colour_modes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ColourMode"
+          }
+        },
+        "detectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DetectorView"
+          }
+        },
+        "dt_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "duration_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "frame_columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "initial_run_hash": {
+          "description": "Run hash of the scenario and seed before any command.",
+          "type": "string"
+        },
+        "live_window_s": {
+          "description": "Interval of the live detector windows in `Kpi.windows` (s).",
+          "type": "number",
+          "format": "double"
+        },
+        "marg_version": {
+          "type": "string"
+        },
+        "origin": {
+          "description": "World coordinates of the frame origin: every position sent is relative to it.",
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "protocol": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "ribbons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RibbonView"
+          }
+        },
+        "scenario": {
+          "$ref": "#/$defs/Scenario"
+        },
+        "seed": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "session": {
+          "type": "string"
+        },
+        "vehicle_types": {
+          "description": "Vehicle types in index order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TypeView"
+          }
+        },
+        "warmup_s": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "protocol",
+        "marg_version",
+        "session",
+        "seed",
+        "scenario",
+        "initial_run_hash",
+        "origin",
+        "bounds",
+        "ribbons",
+        "detectors",
+        "classes",
+        "vehicle_types",
+        "colour_modes",
+        "live_window_s",
+        "dt_s",
+        "duration_s",
+        "warmup_s",
+        "frame_columns"
+      ]
+    },
+    "Inspector": {
+      "type": "object",
+      "properties": {
+        "found": {
+          "description": "`false` if the agent is not in the network (not entered yet, or exited).",
+          "type": "boolean"
+        },
+        "free_accel": {
+          "description": "Free acceleration `a[1 − (v/v0)^δ]` (m/s²).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "id": {
+          "type": "string"
+        },
+        "neighbours": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Neighbour"
+          }
+        },
+        "note": {
+          "description": "Persona, traits and decision explanations arrive with P8.",
+          "type": "string"
+        },
+        "record": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentRow"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AgentState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "t": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "found",
+        "t",
+        "neighbours",
+        "note"
+      ]
+    },
+    "Kpi": {
+      "description": "Sent once per wall second (and after steps while paused).",
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "kpis": {
+          "description": "Headline KPIs if the run ended now (the computation of `kpis.parquet`).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KpiValue"
+          }
+        },
+        "speed_hist": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClassHist"
+          }
+        },
+        "step": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "t": {
+          "type": "number",
+          "format": "double"
+        },
+        "ts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TsSamples"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "waiting": {
+          "description": "Vehicles waiting at entries.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "windows": {
+          "description": "Live detector windows that closed since the last message.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DetectorRow"
+          }
+        }
+      },
+      "required": [
+        "t",
+        "step",
+        "kpis",
+        "windows",
+        "speed_hist",
+        "agents",
+        "waiting"
+      ]
+    },
+    "KpiSpec": {
+      "description": "Headline KPI settings.",
+      "type": "object",
+      "properties": {
+        "throughput_detector": {
+          "description": "Screenline whose count is the throughput KPI.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "KpiValue": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "description": "`null` = not measured yet.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "MixtureComponent": {
+      "description": "One weighted component of a [`Dist::Mixture`].",
+      "type": "object",
+      "properties": {
+        "dist": {
+          "$ref": "#/$defs/Dist"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "weight",
+        "dist"
+      ]
+    },
+    "Neighbour": {
+      "description": "One agent the inspected agent's leader scan considers (plan/03 §2).",
+      "type": "object",
+      "properties": {
+        "clearance": {
+          "type": "number",
+          "format": "double"
+        },
+        "ds": {
+          "type": "number",
+          "format": "double"
+        },
+        "gap_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "id": {
+          "type": "string"
+        },
+        "lateral_gap": {
+          "type": "number",
+          "format": "double"
+        },
+        "leader_accel": {
+          "description": "IDM acceleration toward this leader alone (null for side neighbours).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "role": {
+          "description": "`leader` or `side` (level with the agent).",
+          "type": "string"
+        },
+        "vehicle_type": {
+          "type": "string"
+        },
+        "weight": {
+          "description": "Leader weight ω (null for side neighbours).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "required": [
+        "id",
+        "vehicle_type",
+        "role",
+        "ds",
+        "gap_s",
+        "lateral_gap",
+        "clearance"
+      ]
+    },
+    "NetworkSpec": {
+      "description": "Road geometry as a set of ribbons (ADR-0002).",
+      "type": "object",
+      "properties": {
+        "ribbons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RibbonSpec"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ribbons"
+      ]
+    },
+    "OutputSpec": {
+      "description": "Optional outputs.",
+      "type": "object",
+      "properties": {
+        "trajectories": {
+          "description": "Trajectory sampling; omit to write no trajectories.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrajectorySpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParamValue": {
+      "description": "A parameter value: a plain number or a distribution.",
+      "anyOf": [
+        {
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "$ref": "#/$defs/Dist"
+        }
+      ]
+    },
+    "RibbonSpec": {
+      "description": "A ribbon: a reference polyline with a lateral width profile. `y` is\npositive to the left of the direction of travel; for left-hand traffic the\nkerb is on the left (`y_max`) and the median on the right (`y_min`).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "next": {
+          "description": "The ribbon traffic continues onto at the end, if any.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "polyline": {
+          "description": "Reference line vertices in world metres (UTM or local), at least two.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "width": {
+          "description": "Width profile: lateral bounds at stations along the ribbon\n(piecewise linear between stations, constant beyond the ends).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WidthPoint"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "polyline",
+        "width"
+      ]
+    },
+    "RibbonView": {
+      "description": "A ribbon, for drawing.",
+      "type": "object",
+      "properties": {
+        "centre": {
+          "description": "Reference line, relative to `origin`.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "length": {
+          "type": "number",
+          "format": "double"
+        },
+        "median_band": {
+          "description": "Median-side band of width `vehicles.median_band.width` (polygon).",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "next": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outline": {
+          "description": "Carriageway polygon (right edge forward, left edge back), relative to `origin`.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      },
+      "required": [
+        "id",
+        "length",
+        "centre",
+        "outline",
+        "median_band"
+      ]
+    },
+    "Scenario": {
+      "description": "A scenario: what to simulate, for how long, and what to record.",
+      "type": "object",
+      "properties": {
+        "demand": {
+          "description": "Arrivals at network entries.",
+          "$ref": "#/$defs/DemandSpec"
+        },
+        "description": {
+          "description": "Free-text description.",
+          "type": "string",
+          "default": ""
+        },
+        "detectors": {
+          "description": "Virtual detectors (screenlines and areas).",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DetectorSpec"
+          }
+        },
+        "dt_s": {
+          "description": "Time step in seconds.",
+          "type": "number",
+          "format": "double",
+          "default": 0.1
+        },
+        "duration_s": {
+          "description": "Simulated duration including warm-up, in seconds.",
+          "type": "number",
+          "format": "double"
+        },
+        "kpi": {
+          "description": "Which detectors the headline KPIs use.",
+          "$ref": "#/$defs/KpiSpec",
+          "default": {
+            "throughput_detector": null
+          }
+        },
+        "name": {
+          "description": "Short identifier, used in run folder names.",
+          "type": "string"
+        },
+        "network": {
+          "description": "Road geometry.",
+          "$ref": "#/$defs/NetworkSpec"
+        },
+        "outputs": {
+          "description": "Optional outputs.",
+          "$ref": "#/$defs/OutputSpec",
+          "default": {
+            "trajectories": null
+          }
+        },
+        "overrides": {
+          "description": "Parameter overrides by register path, in the register entry's unit.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ParamValue"
+          },
+          "default": {}
+        },
+        "warmup_s": {
+          "description": "Initial period excluded from KPIs and detector summaries, in seconds.",
+          "type": "number",
+          "format": "double",
+          "default": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "duration_s",
+        "network",
+        "demand"
+      ]
+    },
+    "ServerMessage": {
+      "description": "A message from the server: `{\"type\": …, \"data\": …}`.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/Hello"
+            },
+            "type": {
+              "type": "string",
+              "const": "hello"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/Status"
+            },
+            "type": {
+              "type": "string",
+              "const": "status"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "description": "Outcome of a command; `seq` is its position in the command log.",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "cmd": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "seq": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint64",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "cmd",
+                "ok",
+                "message"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "ack"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/Kpi"
+            },
+            "type": {
+              "type": "string",
+              "const": "kpi"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/$defs/Inspector"
+            },
+            "type": {
+              "type": "string",
+              "const": "inspector"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/ChangeView"
+                  }
+                }
+              },
+              "required": [
+                "changes"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "history"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "description": "The session paused at a breakpoint.",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "event": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/EventRow"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "step": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                },
+                "t": {
+                  "type": "number",
+                  "format": "double"
+                }
+              },
+              "required": [
+                "reason",
+                "t",
+                "step"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "breakpoint"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "description": "The session folder was written and replayed headless.",
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "output_hash": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "replay_matches": {
+                  "type": "boolean"
+                },
+                "replay_output_hash": {
+                  "type": "string"
+                },
+                "run_hash": {
+                  "type": "string"
+                },
+                "steps": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "path",
+                "run_hash",
+                "output_hash",
+                "replay_output_hash",
+                "replay_matches",
+                "steps"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "saved"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "error"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ]
+        }
+      ]
+    },
+    "Status": {
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "breakpoints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BreakpointOn"
+          }
+        },
+        "finished": {
+          "type": "boolean"
+        },
+        "playing": {
+          "type": "boolean"
+        },
+        "real_time_factor": {
+          "description": "Measured simulated seconds per wall second over the last second.",
+          "type": "number",
+          "format": "double"
+        },
+        "run_hash": {
+          "description": "Run identity including the commands so far.",
+          "type": "string"
+        },
+        "speed": {
+          "description": "Simulated seconds per wall second (0 = as fast as possible).",
+          "type": "number",
+          "format": "double"
+        },
+        "step": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "t": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "playing",
+        "speed",
+        "t",
+        "step",
+        "finished",
+        "agents",
+        "real_time_factor",
+        "breakpoints",
+        "run_hash"
+      ]
+    },
+    "TrajectorySpec": {
+      "description": "Trajectory sampling rate and window.",
+      "type": "object",
+      "properties": {
+        "every_s": {
+          "description": "Sampling interval in seconds (a multiple of `dt_s`).",
+          "type": "number",
+          "format": "double"
+        },
+        "from_t": {
+          "description": "Only record from this time on (default: end of warm-up).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        },
+        "s_from": {
+          "description": "Only record agents with `s` in `[s_from, s_to]` (any ribbon).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        },
+        "s_to": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "every_s"
+      ]
+    },
+    "TsSamples": {
+      "description": "Time–space samples of one ribbon (positions rounded to 1 cm, speeds to 0.01 m/s).",
+      "type": "object",
+      "properties": {
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "t": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "v": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "required": [
+        "ribbon",
+        "t",
+        "s",
+        "v"
+      ]
+    },
+    "TypeView": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "class"
+      ]
+    },
+    "WidthPoint": {
+      "description": "Lateral bounds of the carriageway at station `s`.",
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "number",
+          "format": "double"
+        },
+        "y_max": {
+          "type": "number",
+          "format": "double"
+        },
+        "y_min": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "s",
+        "y_min",
+        "y_max"
+      ]
+    }
+  }
+}

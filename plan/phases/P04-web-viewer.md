@@ -81,3 +81,14 @@ the fundamental diagram respond; then open a P3 experiment run in replay and fil
 
 ## Out of scope
 Scenario editing (P12).
+
+## Notes from implementation (P4)
+- Command semantics and the live run hash: ADR-0008. Commands act between steps and are stamped
+  with the step count. A session folder replays with `marg replay`.
+- At 1× real time and dt = 0.1 s the simulation produces 10 states a second; the viewer
+  interpolates between the last two frames. The P4.2 benchmark therefore measures 30 fps at 5×.
+- The time–space diagram is drawn on a canvas: ECharts' large-scatter mode cannot colour points
+  individually. There is no MapLibre basemap until a geo-referenced scenario exists (P11).
+- Ten vehicle classes fold into seven colour groups (the palette has eight validated slots).
+  There is no colour by vehicle type.
+- Evidence and numbers: `reports/phases/P4.md`. The 60 fps check (P4.3) needs a laptop GPU.

@@ -1,11 +1,31 @@
 [package]
 name = "marg-server"
-description = "Live WebSocket sessions for the marg web viewer (implemented in phase P4)"
+description = "Live WebSocket sessions, frame protocol and run-file serving for the marg web viewer"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+marg-params.workspace = true
+marg-core.workspace = true
+marg-io.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_norway.workspace = true
+schemars.workspace = true
+indexmap.workspace = true
+thiserror.workspace = true
+arrow.workspace = true
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal"] }
+tower-http = { version = "0.7", features = ["fs"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+[dev-dependencies]
+# Exact float parsing, so values compare bit for bit with the Parquet tables.
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+tokio-tungstenite = "0.30"
+parquet.workspace = true
 
 [lints]
 workspace = true

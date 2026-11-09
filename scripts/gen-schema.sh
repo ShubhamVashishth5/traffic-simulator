@@ -23,4 +23,4 @@ gen_py schema/scenario.schema.json python/marg/_schema.py
 gen_py schema/register_file.schema.json python/marg/_register_schema.py
 
 (cd web && npm run -s gen:schema)
-echo "schema/, python/marg/_*schema.py and web/src/{schema,register}.ts regenerated"
+echo "schema/, python/marg/_*schema.py and web/src/{schema,register,protocol.gen}.ts regenerated"

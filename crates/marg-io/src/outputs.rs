@@ -313,7 +313,7 @@ type TableDoc = (&'static str, &'static str, &'static [Column]);
 
 /// The data dictionary in Markdown: every output table, column, type and meaning.
 pub fn data_dictionary() -> String {
-    let tables: [TableDoc; 7] = [
+    let tables: [TableDoc; 8] = [
         (
             "manifest.json",
             "Run identity and provenance (JSON, not Parquet).",
@@ -347,6 +347,13 @@ pub fn data_dictionary() -> String {
                     "list<u8>",
                     "",
                     "frozen calibration stages applied (`calibration` layer)",
+                ),
+                (
+                    "live",
+                    "object?",
+                    "",
+                    "live sessions only: session, initial_run_hash, commands, state_commands, \
+                     replay_verified",
                 ),
                 (
                     "seed, threads, git_sha, git_dirty, marg_version, wall_time_s, …",
@@ -541,6 +548,45 @@ pub fn data_dictionary() -> String {
                     "f64",
                     "m/s, m/s²",
                     "speed and acceleration",
+                ),
+            ],
+        ),
+        (
+            "commands.parquet (live sessions)",
+            "One row per command of a live viewer session (plan P4.1). With `scenario.yaml`, \
+             `params/` and the seed it is the whole session: `marg replay` re-runs it headless \
+             and checks the output hash. Only accepted `set_param` and `resample` rows change the run.",
+            &[
+                ("seq", "u64", "", "position in the log"),
+                (
+                    "step, t",
+                    "u64, f64",
+                    "s",
+                    "steps completed and simulated time when it took effect (acts before step `step + 1`)",
+                ),
+                (
+                    "wall_s",
+                    "f64",
+                    "s",
+                    "wall-clock time since the session started (informational)",
+                ),
+                (
+                    "cmd",
+                    "utf8",
+                    "",
+                    "set_param, resample, play, pause, step, speed, select_agent, breakpoint, …",
+                ),
+                (
+                    "args",
+                    "utf8 (JSON)",
+                    "",
+                    "arguments; values in register units",
+                ),
+                (
+                    "accepted, message",
+                    "bool, utf8",
+                    "",
+                    "outcome or refusal reason",
                 ),
             ],
         ),
