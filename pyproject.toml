@@ -42,7 +42,7 @@ testpaths = ["python/tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["python/marg/_schema.py"]
+extend-exclude = ["python/marg/_schema.py", "python/marg/_register_schema.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

@@ -1,0 +1,228 @@
+group: violations
+description: "One logistic decision rule for every violation (G§4, §9.4). Used from phase P8."
+entries:
+  red_light.intercept:
+    value: null
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 6
+    source: "TRR 2017 (Mumbai)"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  early_start.intercept:
+    value: null
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 6
+    source: "Sharma et al. 2012 (Chennai)"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  amber_go.intercept:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Pathivada & Perumal 2019"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  stopline_seepage.intercept:
+    value: null
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 6
+    source: "Ramireddy et al. 2020"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  wrong_way.intercept:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Vellore field study 2026"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/wrong_way_propensity
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  footpath.intercept:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Bengaluru police 2024 (counts only)"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/footpath_riding
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  forced_entry.intercept:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 4
+    source: "Dutta & Ahmed 2018; Dutta et al. 2022"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/forced_entry
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  late_merge.intercept:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Nakata et al. 2010 (lane-based)"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  box_blocking.intercept:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No Indian measurement"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/box_blocking_encroachment
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  opposite_encroachment.intercept:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No study found"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/box_blocking_encroachment
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  stop_anywhere.intercept:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Business Standard 2025 (challan shares)"
+    guide: "§4.1, §4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "beta_0 of the logistic rule. Fit to observed rates where they exist; challans only rank violations."
+  coefficients.aggressiveness:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/intercepts
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_kappa. Shared by all violation types unless a per-type entry is added."
+  coefficients.time_saved:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/time_waiting_coefficients
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_t, per second saved. Shared by all violation types unless a per-type entry is added."
+  coefficients.waiting_time:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/time_waiting_coefficients
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_w, per second waited. Shared by all violation types unless a per-type entry is added."
+  coefficients.imitation_violators:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/imitation_coefficient
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_s+: violators moving in view (Pele et al. 2017). Shared by all violation types unless a per-type entry is added."
+  coefficients.imitation_compliers:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/imitation_coefficient
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_s-: compliers waiting in view (Fraboni et al. 2016). Shared by all violation types unless a per-type entry is added."
+  coefficients.enforcement:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/enforcement_coefficient
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_e: perceived enforcement. Shared by all violation types unless a per-type entry is added."
+  coefficients.risk:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §4.1"
+    guide: "§4.1, §4.3"
+    register_row: 9.4/intercepts
+    range: [-10.0, 10.0]
+    live: true
+    notes: "beta_r: perceived risk. Shared by all violation types unless a per-type entry is added."
+  imitation.fov_radius:
+    value: null
+    unit: "m"
+    grade: C
+    role: sweep
+    source: "Guide §4.3"
+    guide: "§4.3"
+    register_row: 9.4/imitation_coefficient
+    range: [0.0, 100.0]
+    notes: "Field-of-view radius for imitation counts."
+  imitation.fov_half_angle:
+    value: null
+    unit: "rad"
+    grade: C
+    role: sweep
+    source: "Guide §4.3"
+    guide: "§4.3"
+    register_row: 9.4/imitation_coefficient
+    range: [0.0, 3.1416]
+  pedestrian_red.intercept:
+    value: null
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 6
+    source: "Kumar & Ghosh 2022 (12 Indian signals)"
+    guide: "§4.3"
+    register_row: 9.4/pedestrian_red_crossing
+    range: [-15.0, 15.0]
+    notes: "Fit so 44.6% of pedestrians arriving on red cross against the signal."

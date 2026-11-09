@@ -6,7 +6,7 @@
 //! the thread pool and the determinism harness; phase P2 replaces it.
 
 use crate::rng::{StreamKind, StreamRng};
-use marg_params::Scenario;
+use marg_params::{ResolvedSpec, Scenario};
 use rayon::prelude::*;
 
 /// Length of the toy road in the P0 skeleton.
@@ -64,6 +64,7 @@ pub struct RunSummary {
 /// A running simulation.
 pub struct Simulation {
     spec: Scenario,
+    rate: f64,
     seed: u64,
     t: f64,
     step: u64,
@@ -81,15 +82,17 @@ pub struct Simulation {
 impl Simulation {
     /// Build a simulation for `spec` with master seed `seed`, using `threads`
     /// worker threads (0 = rayon default).
-    pub fn new(spec: Scenario, seed: u64, threads: usize) -> Result<Self, SimError> {
+    pub fn new(resolved: &ResolvedSpec, seed: u64, threads: usize) -> Result<Self, SimError> {
+        let spec = resolved.scenario.clone();
         if !(spec.dt_s > 0.0 && spec.duration_s > 0.0) {
             return Err(SimError::InvalidScenario(
                 "dt_s and duration_s must be positive".into(),
             ));
         }
-        if spec.toy_arrivals_per_h < 0.0 {
+        let rate = toy_rate(&spec);
+        if rate < 0.0 {
             return Err(SimError::InvalidScenario(
-                "toy_arrivals_per_h must be non-negative".into(),
+                "flows must be non-negative".into(),
             ));
         }
         let pool = rayon::ThreadPoolBuilder::new()
@@ -97,9 +100,10 @@ impl Simulation {
             .build()
             .map_err(|e| SimError::ThreadPool(e.to_string()))?;
         let mut demand = StreamRng::new(seed, StreamKind::Demand, 0);
-        let first = next_headway(&mut demand, spec.toy_arrivals_per_h);
+        let first = next_headway(&mut demand, rate);
         Ok(Self {
             spec,
+            rate,
             seed,
             t: 0.0,
             step: 0,
@@ -171,7 +175,7 @@ impl Simulation {
             let v0 = (10.0 + 5.0 * draws.standard_normal()).max(1.0);
             self.agents.push(id, 0.0, v0);
             self.spawned += 1;
-            self.next_arrival_t += next_headway(&mut self.demand, self.spec.toy_arrivals_per_h);
+            self.next_arrival_t += next_headway(&mut self.demand, self.rate);
         }
     }
 
@@ -215,6 +219,16 @@ impl Simulation {
     }
 }
 
+/// Skeleton demand: total flow of the first interval of every entry.
+fn toy_rate(spec: &Scenario) -> f64 {
+    spec.demand
+        .entries
+        .iter()
+        .filter_map(|e| e.flow.first())
+        .map(|f| f.veh_per_h)
+        .sum()
+}
+
 fn next_headway(rng: &mut StreamRng, per_hour: f64) -> f64 {
     if per_hour <= 0.0 {
         return f64::INFINITY;
@@ -225,22 +239,31 @@ fn next_headway(rng: &mut StreamRng, per_hour: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use indexmap::IndexMap;
 
-    fn toy() -> Scenario {
-        Scenario {
-            name: "toy".into(),
-            description: String::new(),
-            duration_s: 600.0,
-            dt_s: 0.1,
-            toy_arrivals_per_h: 1800.0,
-        }
+    fn toy() -> ResolvedSpec {
+        let yaml = r#"
+name: toy
+duration_s: 600
+network: {ribbons: [{id: r, polyline: [[0, 0], [1000, 0]], width: [{s: 0, y_min: -3.5, y_max: 3.5}]}]}
+demand: {entries: [{id: e, ribbon: r, flow: [{from_s: 0, veh_per_h: 1800}], composition: {hatchback: 1.0}}]}
+"#;
+        let scenario = Scenario::from_yaml(yaml).unwrap();
+        marg_params::resolve(
+            &marg_params::Register::default(),
+            &scenario,
+            &IndexMap::new(),
+            Default::default(),
+        )
+        .unwrap()
     }
 
     #[test]
     fn deterministic_across_threads_and_reruns() {
-        let h1 = Simulation::new(toy(), 7, 1).unwrap().run_to_end();
-        let h1b = Simulation::new(toy(), 7, 1).unwrap().run_to_end();
-        let h4 = Simulation::new(toy(), 7, 4).unwrap().run_to_end();
+        let spec = toy();
+        let h1 = Simulation::new(&spec, 7, 1).unwrap().run_to_end();
+        let h1b = Simulation::new(&spec, 7, 1).unwrap().run_to_end();
+        let h4 = Simulation::new(&spec, 7, 4).unwrap().run_to_end();
         assert_eq!(h1, h1b);
         assert_eq!(h1, h4);
         assert!(h1.spawned > 200, "spawned {}", h1.spawned);
@@ -248,15 +271,16 @@ mod tests {
 
     #[test]
     fn different_seeds_differ() {
-        let a = Simulation::new(toy(), 1, 1).unwrap().run_to_end();
-        let b = Simulation::new(toy(), 2, 1).unwrap().run_to_end();
+        let spec = toy();
+        let a = Simulation::new(&spec, 1, 1).unwrap().run_to_end();
+        let b = Simulation::new(&spec, 2, 1).unwrap().run_to_end();
         assert_ne!(a.output_hash, b.output_hash);
     }
 
     #[test]
     fn rejects_bad_scenarios() {
-        let mut s = toy();
-        s.dt_s = 0.0;
-        assert!(Simulation::new(s, 1, 1).is_err());
+        let mut spec = toy();
+        spec.scenario.dt_s = 0.0;
+        assert!(Simulation::new(&spec, 1, 1).is_err());
     }
 }

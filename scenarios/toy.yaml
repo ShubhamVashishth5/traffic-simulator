@@ -1,4 +1,0 @@
-name: toy
-description: Phase-P0 skeleton scenario (Poisson arrivals, constant speeds)
-duration_s: 600
-toy_arrivals_per_h: 1800

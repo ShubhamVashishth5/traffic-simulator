@@ -1,0 +1,223 @@
+group: demand
+description: "Arrivals and entry positions (G§7, §9.7). Flows, composition and turning shares are scenario data."
+entries:
+  min_headway.bicycle:
+    value: 0.5
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.cycle_rickshaw:
+    value: 1.0
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.two_wheeler:
+    value: 0.2
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.e_rickshaw:
+    value: 0.8
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.auto_rickshaw:
+    value: 0.6
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.car:
+    value: 0.5
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.lcv:
+    value: 0.8
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.bus:
+    value: 2.0
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.truck:
+    value: 2.0
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  min_headway.tractor:
+    value: 2.0
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Placeholder; refit to counts (Arasan & Koshy: near-exponential headways)"
+    guide: "§7.3"
+    register_row: 9.7/arrival_headways
+    range: [0.0, 10.0]
+    notes: "Minimum headway of the shifted-exponential arrival process for this class at one entry (across the whole width)."
+  entry_lateral_position.bicycle:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.cycle_rickshaw:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.two_wheeler:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.e_rickshaw:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.auto_rickshaw:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.car:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.lcv:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.bus:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.truck:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  entry_lateral_position.tractor:
+    value: {dist: uniform, min: 0, max: 1}
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Placeholder until video (grade A once measured)"
+    guide: "§7.3"
+    register_row: 9.7/entry_lateral_position
+    range: [0.0, 1.0]
+    notes: "Fraction of the free width from the median side (0) to the kerb (1)."
+  day_to_day_variation:
+    value: {dist: normal, mean: 0, sd: 0.1}
+    unit: "1"
+    grade: B
+    role: sweep
+    source: "Guide §7.4"
+    guide: "§7.4"
+    register_row: 9.7/day_to_day_variation
+    range: [-0.3, 0.3]
+    notes: "Relative demand multiplier per run; sweep +-10-15% for robustness."

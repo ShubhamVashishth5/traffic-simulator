@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "gen:schema": "json2ts -i ../schema/scenario.schema.json -o src/schema.ts --bannerComment \"/* Generated from schema/scenario.schema.json by scripts/gen-schema.sh. Do not edit. */\""
+    "gen:schema": "json2ts -i ../schema/scenario.schema.json -o src/schema.ts --bannerComment \"/* Generated from schema/scenario.schema.json by scripts/gen-schema.sh. Do not edit. */\" && json2ts -i ../schema/register_file.schema.json -o src/register.ts --bannerComment \"/* Generated from schema/register_file.schema.json by scripts/gen-schema.sh. Do not edit. */\""
   },
   "dependencies": {
     "react": "^19.3.1",

@@ -1,0 +1,633 @@
+group: vehicles
+description: "Vehicle dimensions, desired (free-flow) speeds and kinematic limits by type (G§1, §9.1)."
+entries:
+  length.bicycle:
+    value: {dist: normal, mean: 1.9, sd: 0.08}
+    unit: "m"
+    grade: B
+    role: fix
+    source: "Typical dimensions (guide §1)"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.5, 20.0]
+    notes: "Guide: about 1.9 x 0.5 m, grade B; SDs assumed."
+  width.bicycle:
+    value: {dist: normal, mean: 0.5, sd: 0.04}
+    unit: "m"
+    grade: B
+    role: fix
+    source: "Typical dimensions (guide §1)"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.3, 3.5]
+    notes: "Guide: about 1.9 x 0.5 m, grade B; SDs assumed."
+  length.cycle_rickshaw:
+    value: {dist: normal, mean: 2.2, sd: 0.15}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed (not measured recently)"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.5, 20.0]
+    notes: "Not measured recently (guide §1); typical size assumed. Sweep if it matters."
+  width.cycle_rickshaw:
+    value: {dist: normal, mean: 1.1, sd: 0.08}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed (not measured recently)"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.3, 3.5]
+    notes: "Not measured recently (guide §1); typical size assumed. Sweep if it matters."
+  length.moped:
+    value: {dist: normal, mean: 1.87, sd: 0.1}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks); Agrawal et al. 2026"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.5, 20.0]
+    notes: "All-2W mean 1.87 x 0.64 m; SDs assumed (guide: small spread)."
+  width.moped:
+    value: {dist: normal, mean: 0.64, sd: 0.05}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks); Agrawal et al. 2026"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.3, 3.5]
+    notes: "All-2W mean 1.87 x 0.64 m; SDs assumed (guide: small spread)."
+  length.scooter:
+    value: {dist: normal, mean: 1.87, sd: 0.1}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks); Agrawal et al. 2026"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.5, 20.0]
+    notes: "All-2W mean 1.87 x 0.64 m; SDs assumed (guide: small spread)."
+  width.scooter:
+    value: {dist: normal, mean: 0.64, sd: 0.05}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks); Agrawal et al. 2026"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.3, 3.5]
+    notes: "All-2W mean 1.87 x 0.64 m; SDs assumed (guide: small spread)."
+  length.motorcycle:
+    value: {dist: normal, mean: 1.87, sd: 0.1}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks); Agrawal et al. 2026"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.5, 20.0]
+    notes: "All-2W mean 1.87 x 0.64 m; SDs assumed (guide: small spread)."
+  width.motorcycle:
+    value: {dist: normal, mean: 0.64, sd: 0.05}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks); Agrawal et al. 2026"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.3, 3.5]
+    notes: "All-2W mean 1.87 x 0.64 m; SDs assumed (guide: small spread)."
+  length.e_two_wheeler:
+    value: {dist: normal, mean: 1.87, sd: 0.1}
+    unit: "m"
+    grade: B
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks) (petrol 2W)"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.5, 20.0]
+    notes: "Assumed equal to petrol two-wheelers."
+  width.e_two_wheeler:
+    value: {dist: normal, mean: 0.64, sd: 0.05}
+    unit: "m"
+    grade: B
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks) (petrol 2W)"
+    guide: "§1"
+    register_row: 9.1/two_wheeler_dimensions
+    range: [0.3, 3.5]
+    notes: "Assumed equal to petrol two-wheelers."
+  length.e_rickshaw:
+    value: {dist: trunc_normal, mean: 2.55, sd: 0.05, min: 2.3, max: 2.6}
+    unit: "m"
+    grade: B
+    role: fix
+    source: "CMVR Rule 2(cb) legal envelope"
+    guide: "§1"
+    register_row: 9.1/e_rickshaw_envelope
+    range: [0.5, 20.0]
+    notes: "Legal envelope <= 2.6 x 1.0 m; observed sizes not measured, spread assumed below the cap."
+  width.e_rickshaw:
+    value: {dist: trunc_normal, mean: 0.98, sd: 0.02, min: 0.9, max: 1.0}
+    unit: "m"
+    grade: B
+    role: fix
+    source: "CMVR Rule 2(cb) legal envelope"
+    guide: "§1"
+    register_row: 9.1/e_rickshaw_envelope
+    range: [0.3, 3.5]
+    notes: "Legal envelope <= 2.6 x 1.0 m; observed sizes not measured, spread assumed below the cap."
+  length.auto_rickshaw:
+    value: {dist: normal, mean: 3.2, sd: 0.08}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks) (Delhi)"
+    guide: "§1"
+    register_row: 9.1/auto_rickshaw_dimensions
+    range: [0.5, 20.0]
+    notes: "Delhi 3.20 x 1.40 m; Chennai median 2.92 x 1.35 (Agrawal 2026). SDs assumed."
+  width.auto_rickshaw:
+    value: {dist: normal, mean: 1.4, sd: 0.04}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks) (Delhi)"
+    guide: "§1"
+    register_row: 9.1/auto_rickshaw_dimensions
+    range: [0.3, 3.5]
+    notes: "Delhi 3.20 x 1.40 m; Chennai median 2.92 x 1.35 (Agrawal 2026). SDs assumed."
+  length.hatchback:
+    value: {dist: normal, mean: 3.72, sd: 0.15}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/hatchback_dimensions
+    range: [0.5, 20.0]
+    notes: "SDs assumed."
+  width.hatchback:
+    value: {dist: normal, mean: 1.44, sd: 0.05}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/hatchback_dimensions
+    range: [0.3, 3.5]
+    notes: "SDs assumed."
+  length.sedan:
+    value: {dist: normal, mean: 4.46, sd: 0.42}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/all_car_dimensions
+    range: [0.5, 20.0]
+    notes: "The all-car distribution (4.46 +- 0.42 x 1.85 +- 0.12 m) is used for sedans."
+  width.sedan:
+    value: {dist: normal, mean: 1.85, sd: 0.12}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/all_car_dimensions
+    range: [0.3, 3.5]
+    notes: "The all-car distribution (4.46 +- 0.42 x 1.85 +- 0.12 m) is used for sedans."
+  length.suv:
+    value: {dist: normal, mean: 4.58, sd: 0.2}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/suv_dimensions
+    range: [0.5, 20.0]
+    notes: "SDs assumed."
+  width.suv:
+    value: {dist: normal, mean: 1.77, sd: 0.06}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/suv_dimensions
+    range: [0.3, 3.5]
+    notes: "SDs assumed."
+  length.lcv:
+    value: {dist: normal, mean: 4.3, sd: 0.4}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed (not separated in the source)"
+    guide: "§1"
+    register_row: 9.1/all_car_dimensions
+    range: [0.5, 20.0]
+    notes: "Small goods pickup assumed; LCVs are not separated in the source."
+  width.lcv:
+    value: {dist: normal, mean: 1.7, sd: 0.1}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed (not separated in the source)"
+    guide: "§1"
+    register_row: 9.1/all_car_dimensions
+    range: [0.3, 3.5]
+    notes: "Small goods pickup assumed; LCVs are not separated in the source."
+  length.bus:
+    value: {dist: constant, value: 10.1}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/bus_dimensions
+    range: [0.5, 20.0]
+    notes: "Fixed by fleet: one size."
+  width.bus:
+    value: {dist: constant, value: 2.43}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Dhamaniya & Chandra 2017 (Delhi midblocks)"
+    guide: "§1"
+    register_row: 9.1/bus_dimensions
+    range: [0.3, 3.5]
+    notes: "Fixed by fleet: one size."
+  length.truck:
+    value: {dist: normal, mean: 11.97, sd: 1.0}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Agrawal et al. 2026 (heavy commercial, median)"
+    guide: "§1"
+    register_row: 9.1/heavy_commercial_dimensions
+    range: [0.5, 20.0]
+    notes: "Median 11.97 x 2.92 m; the empirical spread is not reported, SDs assumed."
+  width.truck:
+    value: {dist: normal, mean: 2.92, sd: 0.1}
+    unit: "m"
+    grade: A
+    role: fix
+    source: "Agrawal et al. 2026 (heavy commercial, median)"
+    guide: "§1"
+    register_row: 9.1/heavy_commercial_dimensions
+    range: [0.3, 3.5]
+    notes: "Median 11.97 x 2.92 m; the empirical spread is not reported, SDs assumed."
+  length.tractor:
+    value: {dist: normal, mean: 6.0, sd: 1.0}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed"
+    guide: "§1"
+    register_row: 9.1/heavy_commercial_dimensions
+    range: [0.5, 20.0]
+    notes: "Tractor with trailer; not measured."
+  width.tractor:
+    value: {dist: normal, mean: 2.0, sd: 0.15}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed"
+    guide: "§1"
+    register_row: 9.1/heavy_commercial_dimensions
+    range: [0.3, 3.5]
+    notes: "Tractor with trailer; not measured."
+  free_flow_speed.bicycle:
+    value: {dist: trunc_normal, mean: 15, sd: 3, min: 6, max: 30}
+    unit: "km/h"
+    grade: B
+    role: fit
+    stage: 1
+    source: "Khan & Dass 2025 (Sonipat model)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Speed in traffic about 15 km/h; SD assumed. Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.cycle_rickshaw:
+    value: {dist: trunc_normal, mean: 10, sd: 2, min: 4, max: 18}
+    unit: "km/h"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Assumed"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Not measured. Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.moped:
+    value: {dist: trunc_normal, mean: 36.0, sd: 7.98, min: 10, max: 80}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.scooter:
+    value: {dist: trunc_normal, mean: 43.6, sd: 10.44, min: 10, max: 100}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.motorcycle:
+    value: {dist: trunc_normal, mean: 49.19, sd: 12.43, min: 10, max: 110}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.e_two_wheeler:
+    value: {dist: trunc_normal, mean: 43.6, sd: 10.44, min: 10, max: 100}
+    unit: "km/h"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Assumed equal to scooters"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Not measured; many low-speed e-2W are limited to 25 km/h, so sweep this with the EV-shift bundle. Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.e_rickshaw:
+    value: {dist: trunc_normal, mean: 21, sd: 3, min: 8, max: 25}
+    unit: "km/h"
+    grade: B
+    role: fit
+    stage: 1
+    source: "Khan & Dass 2025 (Sonipat); CMVR legal cap 25 km/h"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Observed about 21 km/h at one site; truncated at the legal cap. Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.auto_rickshaw:
+    value: {dist: trunc_normal, mean: 39.81, sd: 9.16, min: 10, max: 80}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.hatchback:
+    value: {dist: trunc_normal, mean: 60.61, sd: 15.52, min: 15, max: 120}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.sedan:
+    value: {dist: trunc_normal, mean: 62.0, sd: 15.76, min: 15, max: 120}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.suv:
+    value: {dist: trunc_normal, mean: 61.82, sd: 15.85, min: 15, max: 120}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.lcv:
+    value: {dist: trunc_normal, mean: 50.49, sd: 11.89, min: 10, max: 100}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Goods LCV (passenger LCV: 57.43 +- 15.45). Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.bus:
+    value: {dist: trunc_normal, mean: 42.33, sd: 9.86, min: 10, max: 80}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "City bus (interstate 53.28 +- 10.67; institutional 48.63 +- 12.04). Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.truck:
+    value: {dist: trunc_normal, mean: 45.88, sd: 10.42, min: 10, max: 90}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  free_flow_speed.tractor:
+    value: {dist: trunc_normal, mean: 25, sd: 5, min: 8, max: 40}
+    unit: "km/h"
+    grade: C
+    role: fit
+    stage: 1
+    source: "Assumed"
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    range: [3.0, 130.0]
+    live: true
+    notes: "Not measured. Truncation bounds are 3+ SD from the mean, so they barely move the mean."
+  median_band.speed_bonus:
+    value: {dist: uniform, min: 4.35, max: 5.78}
+    unit: "km/h"
+    grade: A
+    role: fit
+    stage: 1
+    source: "Balakrishnan & Sivanandan 2015 (Chennai, ~17,800 vehicles, early-morning free flow)"
+    guide: "§7.3"
+    register_row: 9.1/median_lane_speed_bonus
+    range: [0.0, 10.0]
+    notes: "Median-side vehicles ran 4.35-5.78 km/h faster; added to v0 for agents entering in the median band."
+  median_band.width:
+    value: 3.5
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Assumed: one notional lane"
+    guide: "§7.3"
+    register_row: 9.1/median_lane_speed_bonus
+    range: [0.0, 10.0]
+    notes: "Width of the median-side band where the bonus applies; the source reports a median-side lane."
+  gradient_speed_loss.car:
+    value: 2.96
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps."
+  gradient_speed_loss.two_wheeler:
+    value: 2.5
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps."
+  gradient_speed_loss.bus:
+    value: 2.43
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps."
+  gradient_speed_loss.truck:
+    value: 2.06
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps. Tractor-trailer value used for trucks."
+  gradient_speed_loss.lcv:
+    value: 1.26
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps."
+  gradient_speed_loss.bicycle:
+    value: 0.51
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps."
+  gradient_speed_loss.cycle_rickshaw:
+    value: 0.36
+    unit: "(km/h)/%"
+    grade: B
+    role: fix
+    source: "Chandra & Goyal 2001, via Arasan & Arkatkar 2010"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Intercity two-lane roads, so grade B for Delhi ramps."
+  gradient_speed_loss.auto_rickshaw:
+    value: null
+    unit: "(km/h)/%"
+    grade: C
+    role: fix
+    source: "Not measured"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Missing from the source. For e-rickshaws derive the climbing speed from the power cap and loaded mass (P6.6)."
+  gradient_speed_loss.e_rickshaw:
+    value: null
+    unit: "(km/h)/%"
+    grade: C
+    role: fix
+    source: "Not measured"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Missing from the source. For e-rickshaws derive the climbing speed from the power cap and loaded mass (P6.6)."
+  gradient_speed_loss.tractor:
+    value: null
+    unit: "(km/h)/%"
+    grade: C
+    role: fix
+    source: "Not measured"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [0.0, 5.0]
+    notes: "Missing from the source. For e-rickshaws derive the climbing speed from the power cap and loaded mass (P6.6)."
+  e_rickshaw.max_speed:
+    value: 25
+    unit: "km/h"
+    grade: B
+    role: fix
+    source: "CMVR Rule 2(cb)"
+    guide: "§1"
+    register_row: 9.1/e_rickshaw_envelope
+    range: [10.0, 40.0]
+    notes: "Legal limit, not observed behaviour."
+  e_rickshaw.max_power:
+    value: 2
+    unit: "kW"
+    grade: B
+    role: fix
+    source: "CMVR Rule 2(cb)"
+    guide: "§1"
+    register_row: 9.1/e_rickshaw_envelope
+    range: [0.5, 5.0]
+  e_rickshaw.max_passengers:
+    value: 4
+    unit: "1"
+    grade: B
+    role: fix
+    source: "CMVR Rule 2(cb); 2014 notification"
+    guide: "§1"
+    register_row: 9.1/e_rickshaw_envelope
+    range: [0.0, 10.0]
+    notes: "Plus the driver."

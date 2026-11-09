@@ -23,11 +23,17 @@ def run(
     seed: int = 1,
     out: str | Path = "runs/adhoc",
     threads: int = 1,
+    params_dir: str | Path | None = None,
 ) -> RunResult:
-    """Run ``scenario`` (a YAML file path or YAML text) and write its run folder."""
+    """Run ``scenario`` (a YAML file path or YAML text) and write its run folder.
+
+    ``params_dir`` is the parameter register directory; by default
+    ``$MARG_PARAMS_DIR`` or the nearest ``params/base`` above the working directory.
+    """
     text = Path(scenario).read_text() if _looks_like_path(scenario) else str(scenario)
     out_path = Path(out)
-    manifest = json.loads(_core.run_yaml(text, seed, str(out_path), threads))
+    pdir = None if params_dir is None else str(params_dir)
+    manifest = json.loads(_core.run_yaml(text, seed, str(out_path), threads, pdir))
     return RunResult(path=out_path, manifest=manifest)
 
 

@@ -1,0 +1,101 @@
+# Every row of the guide's master parameter register (G§9) and where it is implemented.
+# covered_by: register   -> at least one entry in params/base has this register_row
+#             validation -> at least one target in validation/targets has this register_row
+#             scenario   -> scenario data (see `where`), not a register entry
+#             bundle     -> a scenario bundle of existing parameters (built in the phase named)
+# A test (crates/marg-params/tests/register.rs) checks these claims.
+rows:
+  # 9.1 Vehicles
+  - {id: 9.1/two_wheeler_dimensions, covered_by: register}
+  - {id: 9.1/auto_rickshaw_dimensions, covered_by: register}
+  - {id: 9.1/hatchback_dimensions, covered_by: register}
+  - {id: 9.1/all_car_dimensions, covered_by: register}
+  - {id: 9.1/suv_dimensions, covered_by: register}
+  - {id: 9.1/bus_dimensions, covered_by: register}
+  - {id: 9.1/heavy_commercial_dimensions, covered_by: register}
+  - {id: 9.1/e_rickshaw_envelope, covered_by: register}
+  - {id: 9.1/discharge_accel_decel, covered_by: validation}
+  - {id: 9.1/free_flow_speed, covered_by: register}
+  - {id: 9.1/median_lane_speed_bonus, covered_by: register}
+  - {id: 9.1/dynamic_pcu, covered_by: validation}
+  - {id: 9.1/upgrade_speed_loss, covered_by: register}
+  # 9.2 Interaction
+  - {id: 9.2/desired_time_gap, covered_by: register}
+  - {id: 9.2/standstill_gap, covered_by: register}
+  - {id: 9.2/max_accel_comfortable_decel, covered_by: register}
+  - {id: 9.2/emergency_braking_cap, covered_by: register}
+  - {id: 9.2/leader_follower_multipliers, covered_by: register}
+  - {id: 9.2/lateral_clearance, covered_by: register}
+  - {id: 9.2/lateral_interaction_scales, covered_by: register}
+  - {id: 9.2/max_heading_lateral_time_constant, covered_by: register}
+  - {id: 9.2/mobil_politeness, covered_by: register}
+  - {id: 9.2/reaction_time, covered_by: register}
+  - {id: 9.2/critical_gap_uncontrolled, covered_by: register}
+  - {id: 9.2/u_turn_gap_path, covered_by: register}
+  # 9.3 Personas
+  - {id: 9.3/aggressiveness, covered_by: register}
+  - {id: 9.3/time_pressure, covered_by: register}
+  - {id: 9.3/risk_conformity_norm, covered_by: register}
+  - {id: 9.3/skill_distraction, covered_by: register}
+  - {id: 9.3/within_trip_kappa, covered_by: register}
+  - {id: 9.3/persona_shares, covered_by: register}
+  - {id: 9.3/delivery_rider_violation_propensity, covered_by: register}
+  - {id: 9.3/e_rickshaw_stop_propensity, covered_by: register}
+  # 9.4 Violations
+  - {id: 9.4/intercepts, covered_by: register}
+  - {id: 9.4/time_waiting_coefficients, covered_by: register}
+  - {id: 9.4/imitation_coefficient, covered_by: register}
+  - {id: 9.4/enforcement_coefficient, covered_by: register}
+  - {id: 9.4/red_light_share, covered_by: validation}
+  - {id: 9.4/countdown_effect, covered_by: validation}
+  - {id: 9.4/pedestrian_red_crossing, covered_by: register}
+  - {id: 9.4/wrong_way_propensity, covered_by: register}
+  - {id: 9.4/footpath_riding, covered_by: register}
+  - {id: 9.4/forced_entry, covered_by: register}
+  - {id: 9.4/box_blocking_encroachment, covered_by: register}
+  # 9.5 Zones
+  - {id: 9.5/detection_probability, covered_by: register}
+  - {id: 9.5/effective_penalty, covered_by: register}
+  - {id: 9.5/enforcement_halo, covered_by: register}
+  - {id: 9.5/median_opening_spacing, covered_by: register}
+  - {id: 9.5/footpath_bollards, covered_by: scenario, where: "network: per-strip access flags (P6, P9)"}
+  - {id: 9.5/kerb_occupancy, covered_by: register}
+  - {id: 9.5/land_use_intensity, covered_by: register}
+  - {id: 9.5/starting_violation_share, covered_by: register}
+  # 9.6 Road situations
+  - {id: 9.6/pothole_density_size_depth, covered_by: register}
+  - {id: 9.6/pothole_response, covered_by: register}
+  - {id: 9.6/roughness_effect, covered_by: register}
+  - {id: 9.6/parked_offset_double_parking, covered_by: register}
+  - {id: 9.6/parking_manoeuvres, covered_by: register}
+  - {id: 9.6/bus_dwell_offset, covered_by: register}
+  - {id: 9.6/pedestrian_flow_gap, covered_by: register}
+  - {id: 9.6/animal_events, covered_by: register}
+  - {id: 9.6/signal_state, covered_by: register}
+  - {id: 9.6/officer_cycle_bias_compliance, covered_by: register}
+  - {id: 9.6/route_awareness, covered_by: register}
+  - {id: 9.6/stop_and_wait, covered_by: register}
+  - {id: 9.6/hump_crossing_speed, covered_by: register}
+  - {id: 9.6/rain_bundle, covered_by: validation}
+  - {id: 9.6/waterlogging, covered_by: register}
+  # 9.7 Demand and environment
+  - {id: 9.7/composition, covered_by: scenario, where: "demand.entries[].composition"}
+  - {id: 9.7/flow_15min, covered_by: scenario, where: "demand.entries[].flow"}
+  - {id: 9.7/arrival_headways, covered_by: register}
+  - {id: 9.7/entry_lateral_position, covered_by: register}
+  - {id: 9.7/turning_shares, covered_by: scenario, where: "routes (P7)"}
+  - {id: 9.7/day_to_day_variation, covered_by: register}
+  - {id: 9.7/night_bundle, covered_by: bundle, where: "P9.4"}
+  - {id: 9.7/ev_erickshaw_scenarios, covered_by: bundle, where: "P9.4"}
+  # 9.8 Validation targets
+  - {id: 9.8/partial_densities, covered_by: validation}
+  - {id: 9.8/capacity_vs_speed, covered_by: validation}
+  - {id: 9.8/width_vs_capacity, covered_by: validation}
+  - {id: 9.8/bus_stop, covered_by: validation}
+  - {id: 9.8/pothole_speed_loss, covered_by: validation}
+  - {id: 9.8/pedestrian_threshold, covered_by: validation}
+  - {id: 9.8/corridor_speeds, covered_by: validation}
+  - {id: 9.8/fit_accuracy, covered_by: validation}
+  # Simulator settings that are not guide rows
+  - {id: core/numerics, covered_by: register}
+  - {id: core/observers, covered_by: register}

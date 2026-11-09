@@ -15,13 +15,13 @@ Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say wh
 | P0 | P0.6 Step loop + determinism harness | done | implementation-v1 | Toy agents; 1 vs 4 threads bitwise identical (Rust and Python tests) |
 | P0 | P0.7 Benchmark harness | done | implementation-v1 | Criterion benches + `scripts/bench-compare.sh` (base vs head on one runner). CI job not yet observed running |
 | P0 | P0.8 CI, CLAUDE.md | done | implementation-v1 | `.github/workflows/ci.yml` written, not yet observed on GitHub; pre-commit config deferred |
-| P1 | P1.1 Param entry type | todo | | |
-| P1 | P1.2 Distributions | todo | | |
-| P1 | P1.3 Transcribe register (§9) | todo | | Needs the full guide (Claude Doc or exported copy) |
-| P1 | P1.4 Scenario schema + resolver | todo | | |
-| P1 | P1.5 Run identity, params.parquet | todo | | |
-| P1 | P1.6 Typed handles, no-magic-numbers check | todo | | |
-| P1 | P1.7 `marg params` CLI | todo | | |
+| P1 | P1.1 Param entry type | done | implementation-v1 | `ParamEntry` with grade, role, stage, source, guide, register row, range, live, notes; 20 units with SI conversion. `Check` rows go to `validation/targets/`, not the register |
+| P1 | P1.2 Distributions | done | implementation-v1 | 13 forms incl. three lognormal parameterisations, empirical, mixture; `libm`-only sampling. Wong & Goh: quantiles exact, mean 0.977 vs 1.02 s (criterion revised, see notes in the card) |
+| P1 | P1.3 Transcribe register (§9) | done | implementation-v1 | 249 entries in `params/base/` (72 A, 52 B, 121 C) + `validation/targets/`. All 83 §9 rows traced (`params/guide_rows.yaml`, tested). No-number rows are `null`, not invented |
+| P1 | P1.4 Scenario schema + resolver | done | implementation-v1 | Network, demand, detectors, outputs, KPIs, overrides; layers base ← scenario ← experiment with provenance; `fix` guarded |
+| P1 | P1.5 Run identity, params.parquet | done | implementation-v1 | Canonical JSON (sorted keys) → blake3; order- and layer-independent (tested); `spec.resolved.yaml`, `params.parquet` |
+| P1 | P1.6 Typed handles, no-magic-numbers check | doing | | Access-tracked accessors done (`ResolvedSpec::unused()`); literal scanner lands with the first model code in P2 |
+| P1 | P1.7 `marg params` CLI | done | implementation-v1 | `list` (grade, role, stage, group filters), `explain` (SI value, provenance), `run --set path=value` |
 | P2 | P2.1–P2.10 | todo | | See card |
 | P3 | P3.1–P3.9 | todo | | See card |
 | P4 | P4.1–P4.8 | todo | | See card |

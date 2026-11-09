@@ -1,0 +1,778 @@
+group: interaction
+description: "Following, lateral clearance, reaction and gap acceptance (G§2, §9.2)."
+entries:
+  following.time_gap.bicycle:
+    value: {dist: log_normal_median, median: 0.383, sigma: 0.3}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to two-wheelers"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.cycle_rickshaw:
+    value: {dist: log_normal_median, median: 0.9, sigma: 0.3}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to auto-rickshaws"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.two_wheeler:
+    value: {dist: log_normal_median, median: 0.383, sigma: 0.3}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Agrawal et al. 2026 (Chennai drone, ~5,900 trajectories); Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Geometric mean of 0.49 s (drone median) and 0.3 s (IDM calibration). Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.e_rickshaw:
+    value: {dist: log_normal_median, median: 0.9, sigma: 0.3}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to auto-rickshaws"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.auto_rickshaw:
+    value: {dist: log_normal_median, median: 0.9, sigma: 0.3}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Agrawal et al. 2026 (Chennai drone, ~5,900 trajectories); Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Geometric mean of 0.81 s and 1.0 s. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.car:
+    value: {dist: log_normal_median, median: 0.984, sigma: 0.3}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Agrawal et al. 2026 (Chennai drone, ~5,900 trajectories); Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Geometric mean of 1.21 s and 0.8 s. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.lcv:
+    value: {dist: log_normal_median, median: 0.984, sigma: 0.3}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to cars"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.bus:
+    value: {dist: log_normal_median, median: 1.0, sigma: 0.3}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Calibrated value only. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.truck:
+    value: {dist: log_normal_median, median: 1.0, sigma: 0.3}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to buses"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.time_gap.tractor:
+    value: {dist: log_normal_median, median: 1.0, sigma: 0.3}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to buses"
+    guide: "§2.1"
+    register_row: 9.2/desired_time_gap
+    range: [0.05, 4.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed; the two sources differ by up to 1.6x."
+  following.standstill_gap.bicycle:
+    value: {dist: log_normal_median, median: 0.524, sigma: 0.3}
+    unit: "m"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to two-wheelers"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.cycle_rickshaw:
+    value: {dist: log_normal_median, median: 1.288, sigma: 0.3}
+    unit: "m"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to auto-rickshaws"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.two_wheeler:
+    value: {dist: log_normal_median, median: 0.524, sigma: 0.3}
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Agrawal et al. 2026 (Chennai drone, ~5,900 trajectories); Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Geometric mean of 0.55 m and 0.5 m. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.e_rickshaw:
+    value: {dist: log_normal_median, median: 1.288, sigma: 0.3}
+    unit: "m"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to auto-rickshaws"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.auto_rickshaw:
+    value: {dist: log_normal_median, median: 1.288, sigma: 0.3}
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Agrawal et al. 2026 (Chennai drone, ~5,900 trajectories); Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Geometric mean of 0.83 m and 2.0 m. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.car:
+    value: {dist: log_normal_median, median: 1.625, sigma: 0.3}
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Agrawal et al. 2026 (Chennai drone, ~5,900 trajectories); Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Geometric mean of 1.32 m and 2.0 m. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.lcv:
+    value: {dist: log_normal_median, median: 1.625, sigma: 0.3}
+    unit: "m"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to cars"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.bus:
+    value: {dist: log_normal_median, median: 2.0, sigma: 0.3}
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Calibrated value only. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.truck:
+    value: {dist: log_normal_median, median: 2.0, sigma: 0.3}
+    unit: "m"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to buses"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed."
+  following.standstill_gap.tractor:
+    value: {dist: log_normal_median, median: 2.0, sigma: 0.3}
+    unit: "m"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed equal to buses"
+    guide: "§2.1"
+    register_row: 9.2/standstill_gap
+    range: [0.05, 6.0]
+    live: true
+    notes: "Not measured. Lognormal with sigma 0.3 assumed."
+  following.max_accel.bicycle:
+    value: {dist: trunc_normal, mean: 0.8, sd: 0.16, min: 0.32, max: 1.4}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.bicycle:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.cycle_rickshaw:
+    value: {dist: trunc_normal, mean: 0.5, sd: 0.1, min: 0.2, max: 0.875}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.cycle_rickshaw:
+    value: {dist: trunc_normal, mean: 0.8, sd: 0.16, min: 0.32, max: 1.6}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.two_wheeler:
+    value: {dist: trunc_normal, mean: 2.0, sd: 0.4, min: 0.8, max: 3.5}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.two_wheeler:
+    value: {dist: trunc_normal, mean: 2.0, sd: 0.4, min: 0.8, max: 4.0}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.e_rickshaw:
+    value: {dist: trunc_normal, mean: 0.8, sd: 0.16, min: 0.32, max: 1.4}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.e_rickshaw:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.auto_rickshaw:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 1.75}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.auto_rickshaw:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.car:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 1.75}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.car:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.lcv:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 1.75}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.lcv:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.bus:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 1.75}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.bus:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: A
+    role: fit
+    stage: 2
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.truck:
+    value: {dist: trunc_normal, mean: 0.7, sd: 0.14, min: 0.28, max: 1.225}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.truck:
+    value: {dist: trunc_normal, mean: 1.0, sd: 0.2, min: 0.4, max: 2.0}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.max_accel.tractor:
+    value: {dist: trunc_normal, mean: 0.5, sd: 0.1, min: 0.2, max: 0.875}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 4.0]
+    live: true
+    notes: "SD 20% of the mean assumed. Signal discharge averages (0.4-0.6 m/s2) are a check, not this value (G§1)."
+  following.comfortable_decel.tractor:
+    value: {dist: trunc_normal, mean: 0.8, sd: 0.16, min: 0.32, max: 1.6}
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 2
+    source: "Assumed"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [0.1, 5.0]
+    live: true
+    notes: "SD 20% of the mean assumed."
+  following.accel_exponent:
+    value: 4
+    unit: "1"
+    grade: B
+    role: fix
+    source: "Treiber, Hennecke & Helbing 2000 (IDM)"
+    guide: "§2.1"
+    register_row: 9.2/max_accel_comfortable_decel
+    range: [1.0, 10.0]
+    notes: "IDM acceleration exponent delta; the standard value."
+  following.emergency_decel:
+    value: 9
+    unit: "m/s2"
+    grade: B
+    role: fix
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.1"
+    register_row: 9.2/emergency_braking_cap
+    range: [4.0, 12.0]
+  following.pair_multiplier.time_gap.default:
+    value: 1
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 2
+    source: "Munigety 2018 (leader-type-dependent following)"
+    guide: "§2.1"
+    register_row: 9.2/leader_follower_multipliers
+    range: [0.3, 3.0]
+    notes: "Follower x leader matrix, initialised to 1. Add `following.pair_multiplier.time_gap.<follower>.<leader>` entries to fit pairs."
+  following.pair_multiplier.standstill_gap.default:
+    value: 1
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 2
+    source: "Munigety 2018"
+    guide: "§2.1"
+    register_row: 9.2/leader_follower_multipliers
+    range: [0.3, 3.0]
+    notes: "Follower x leader matrix, initialised to 1."
+  following.reaction_time:
+    value: {dist: log_normal_quantiles, p_lo: 0.15, x_lo: 0.68, p_hi: 0.85, x_hi: 1.28}
+    unit: "s"
+    grade: B
+    role: fit
+    stage: 2
+    source: "Wong & Goh (Singapore, first-stopping drivers at amber)"
+    guide: "§2.3"
+    register_row: 9.2/reaction_time
+    range: [0.2, 3.0]
+    notes: "Through the reported 15th and 85th percentiles; this lognormal's mean is 0.977 s against the reported 1.02 s. Used only if the explicit reaction delay is switched on."
+  lateral.clearance.intercept:
+    value: 120.9
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017 (6,016 interactions, six Indian cities)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+    notes: "C[cm] = 0.615 v[km/h] + 120.9. P5.1 must confirm whether C is edge-to-edge or centre-to-centre, and fit smaller two-wheeler pair intercepts."
+  lateral.clearance.slope:
+    value: 0.615
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.slope_factor.car_two_wheeler:
+    value: 1.35
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.5, 2.0]
+    notes: "Car-bike slope about 35% steeper than same-type pairs."
+  lateral.clearance.slope_factor.car_auto_rickshaw:
+    value: 0.75
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.5, 2.0]
+    notes: "Car-auto slope about 25% flatter."
+  lateral.braking_scale:
+    value: 0.15
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_interaction_scales
+    range: [0.02, 1.0]
+    live: true
+    notes: "lambda_brake: longitudinal interaction fades as exp(-d/lambda) once the lateral gap exceeds the clearance."
+  lateral.steering_scale:
+    value: 0.3
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_interaction_scales
+    range: [0.02, 1.5]
+    live: true
+  lateral.max_heading:
+    value: 0.2
+    unit: "rad"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.2"
+    register_row: 9.2/max_heading_lateral_time_constant
+    range: [0.02, 0.6]
+  lateral.time_constant:
+    value: 1.0
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.2"
+    register_row: 9.2/max_heading_lateral_time_constant
+    range: [0.2, 5.0]
+  lateral.politeness:
+    value: 0.2
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018 (IDM calibration, Chennai)"
+    guide: "§2.2"
+    register_row: 9.2/mobil_politeness
+    range: [0.0, 1.0]
+    live: true
+    notes: "MOBIL politeness; scaled by aggressiveness in P8."
+  gap_acceptance.critical_gap.bicycle:
+    value: {dist: log_normal_median, median: 4.4, sigma: 0.2}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 4
+    source: "Assumed"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Assumed equal to two-wheelers. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.cycle_rickshaw:
+    value: {dist: log_normal_median, median: 6.8, sigma: 0.2}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 4
+    source: "Assumed"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Assumed equal to three-wheelers. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.two_wheeler:
+    value: {dist: log_normal_median, median: 4.4, sigma: 0.2}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020 (Warangal, clearing behaviour)"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Range 4.0-4.8 s across the two Warangal sites. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.e_rickshaw:
+    value: {dist: log_normal_median, median: 6.8, sigma: 0.2}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 4
+    source: "Assumed"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Assumed equal to three-wheelers. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.auto_rickshaw:
+    value: {dist: log_normal_median, median: 6.8, sigma: 0.2}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020 (Warangal, clearing behaviour)"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Three-wheelers: 6.5-7.1 s. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.car:
+    value: {dist: log_normal_median, median: 8.15, sigma: 0.2}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020 (Warangal, clearing behaviour)"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "7.7-8.6 s. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.lcv:
+    value: {dist: log_normal_median, median: 8.45, sigma: 0.2}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020 (Warangal, clearing behaviour)"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "7.0-9.9 s. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.bus:
+    value: {dist: log_normal_median, median: 8.6, sigma: 0.2}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020 (Warangal, clearing behaviour)"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.truck:
+    value: {dist: log_normal_median, median: 8.6, sigma: 0.2}
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 4
+    source: "Assumed"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "Assumed equal to buses. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.critical_gap.tractor:
+    value: {dist: log_normal_median, median: 10.75, sigma: 0.2}
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020 (Warangal, clearing behaviour)"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [0.5, 20.0]
+    notes: "10.0-11.5 s. Per-agent lognormal, sigma 0.2 assumed. Other estimation methods give lower values (Raff ~2.6 s for 2W)."
+  gap_acceptance.heavy_stream_factor:
+    value: {dist: uniform, min: 1.3, max: 1.35}
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Abhigna et al. 2020"
+    guide: "§2.4"
+    register_row: 9.2/critical_gap_uncontrolled
+    range: [1.0, 2.0]
+    notes: "Gaps against heavy-vehicle streams were 30-35% longer than against two-wheeler streams."
+  gap_acceptance.u_turn.critical_gap:
+    value: null
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Mohapatra, Dey & Chandra 2016 (21 median openings)"
+    guide: "§6.7"
+    register_row: 9.2/u_turn_gap_path
+    range: [0.5, 15.0]
+    notes: "Smaller than developed-country values; set per class when P7.5 reads the paper."
+  gap_acceptance.u_turn.path_shape:
+    value: null
+    unit: "1"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Mohapatra, Dey & Chandra 2016"
+    guide: "§6.7"
+    register_row: 9.2/u_turn_gap_path
+    range: [0.1, 50.0]
+    notes: "Gamma shape of the U-turn lateral path on four-lane roads; bimodal on six-lane roads (P7.5)."

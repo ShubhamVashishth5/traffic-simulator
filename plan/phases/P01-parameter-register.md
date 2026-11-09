@@ -30,8 +30,9 @@ records exactly which value each one took.
   - Each has `sample(rng)`, `mean()` and `describe()`.
 - **Done when:**
   - Sampling moments match the analytic values within tolerance (property tests).
-  - The lognormal fitted from Wong & Goh (mean 1.02 s, p15 0.68, p85 1.28) reproduces those
-    numbers ±0.02 s.
+  - The lognormal fitted from Wong & Goh (p15 0.68 s, p85 1.28 s) reproduces both quantiles
+    exactly. *Revised in implementation:* a two-parameter lognormal cannot also hit the reported
+    mean of 1.02 s; it gives 0.977 s, and the gap is recorded in the entry's notes.
 
 ### P1.3 Transcribe the register
 - **Do:**
@@ -66,8 +67,10 @@ records exactly which value each one took.
 
 ### P1.6 Typed handles and the "no magic numbers" check
 - **Do:**
-  - Generate a Rust module of typed parameter handles from the register (build script), so model
-    code calls `p.interaction.following.time_gap(class)`.
+  - *Revised in implementation:* instead of generated handles, model code reads parameters once at
+    initialisation through access-tracked accessors on the resolved spec
+    (`spec.dist_si("interaction.following.time_gap.car")`) into a typed `CoreParams` struct. A
+    missing path fails at start-up; `ResolvedSpec::unused()` lists entries nothing read.
   - Add a CI test that scans `marg-core` model modules for float literals outside an allowlist
     (0, 1, 0.5, 2 and math constants).
   - Add a test that lists register entries never read by any module (warning until P9, error after).

@@ -1,0 +1,141 @@
+# Pattern-oriented validation targets (G§8.5, §9.8) and Check rows of G§9.
+targets:
+  - id: free_flow_speed_by_subclass
+    pattern: Free-flow speed mean and SD by sub-class (early-morning free flow)
+    unit: km/h
+    value:
+      motorcycle: {mean: 49.19, sd: 12.43}
+      scooter: {mean: 43.60, sd: 10.44}
+      moped: {mean: 36.00, sd: 7.98}
+      auto_rickshaw: {mean: 39.81, sd: 9.16}
+      hatchback: {mean: 60.61, sd: 15.52}
+      sedan: {mean: 62.00, sd: 15.76}
+      suv: {mean: 61.82, sd: 15.85}
+      lcv: {mean: 50.49, sd: 11.89}
+      bus: {mean: 42.33, sd: 9.86}
+      truck: {mean: 45.88, sd: 10.42}
+    tolerance: {mean_abs: 2.0, sd_abs: 2.0}
+    source: Balakrishnan & Sivanandan 2015 (Chennai)
+    guide: "§1, §7.3"
+    register_row: 9.1/free_flow_speed
+    use: fit
+    stage: 1
+
+  - id: discharge_acceleration
+    pattern: Mean acceleration / deceleration of vehicles discharging at signals
+    unit: m/s2
+    value:
+      two_wheeler: {accel: 0.60, decel: 0.55}
+      three_wheeler: {accel: 0.43, decel: 0.59}
+      car: {accel: 0.49, decel: 0.62}
+      lcv: {accel: 0.46, decel: 0.78}
+    tolerance: {rel: 0.2}
+    source: Ramireddy et al. 2021 (24 approaches, Hyderabad and Warangal)
+    guide: "§1"
+    register_row: 9.1/discharge_accel_decel
+    use: check
+
+  - id: dynamic_pcu
+    pattern: Dynamic PCU by class (emergent, never set)
+    unit: "1"
+    value:
+      two_wheeler: [0.21, 0.24]
+      auto_rickshaw: [0.97, 1.04]
+      big_car: [1.53, 1.66]
+      sedan: [1.0, 1.6]
+      lcv: [2.4, 2.8]
+      bus: [5.7, 6.3]
+      truck: [3.7, 5.2]
+      e_rickshaw: [0.71, 0.82]
+      bicycle: [0.31, 0.37]
+    tolerance: {within_range_rel: 0.15}
+    source: Dhamaniya & Chandra 2017; Khan & Dass 2025
+    guide: "§1"
+    register_row: 9.1/dynamic_pcu
+    use: check
+
+  - id: partial_densities
+    pattern: Partial densities by class, medium and congested traffic (Chennai midblock)
+    unit: veh/km
+    value:
+      two_wheeler: {medium: 170, congested: 450}
+      car: {medium: 55, congested: 225}
+      bus: {medium: 10, congested: 35}
+      auto_rickshaw: {medium: 15, congested: 80}
+    tolerance: {rel: 0.2}
+    source: Kanagaraj & Treiber 2018
+    guide: "§7.2"
+    register_row: 9.8/partial_densities
+    use: check
+
+  - id: capacity_vs_speed
+    pattern: Lane capacity against operating speed (second-degree polynomial)
+    unit: PCU/h/lane
+    value: {range: [1482, 2105]}
+    tolerance: {within_range_rel: 0.1}
+    source: Dhamaniya & Chandra 2017 (12 Indian midblocks)
+    guide: "§7.2"
+    register_row: 9.8/capacity_vs_speed
+    use: check
+
+  - id: width_loss_vs_capacity_loss
+    pattern: Capacity loss tracks effective-width loss about 1:1 (side friction)
+    unit: "%"
+    value:
+      points: [[7.00, 6.42], [36.02, 35.09], [29.31, 34.10], [40.98, 40.54], [21.8, 26.0]]
+      slope: 1.0
+    tolerance: {slope_abs: 0.2}
+    source: Varanasi side-friction series; Srivastava & Kumar 2023
+    guide: "§6.2"
+    register_row: 9.8/width_vs_capacity
+    use: check
+
+  - id: kerbside_bus_stop
+    pattern: Capacity and speed drop at kerbside bus stops
+    unit: "%"
+    value: {capacity_drop: 7.92, speed_drop_max: 22}
+    tolerance: {capacity_drop_abs: 4.0}
+    source: Pallela & Mehar 2024
+    guide: "§6.3"
+    register_row: 9.8/bus_stop
+    use: check
+
+  - id: potholed_free_flow_speed
+    pattern: Free-flow speed on a potholed section vs an unpotholed one
+    unit: km/h
+    value: {potholed: 24.23, unpotholed: 38.05, loss_pct: 36}
+    tolerance: {loss_pct_abs: 8.0}
+    source: UGM study (Indonesia)
+    guide: "§6.1"
+    register_row: 9.8/pothole_speed_loss
+    use: check
+
+  - id: pedestrian_threshold
+    pattern: No midblock capacity effect below about 200 pedestrians per hour
+    unit: ped/h
+    value: {threshold: 200}
+    tolerance: {threshold_abs: 75}
+    source: Dhamaniya & Chandra 2014
+    guide: "§6.4"
+    register_row: 9.8/pedestrian_threshold
+    use: check
+
+  - id: corridor_speeds
+    pattern: Corridor speed through the day (Google-derived averages)
+    unit: km/h
+    value: {arterials_most_of_day: [26, 28], lutyens_peak: 44, lutyens_off_peak: 52}
+    tolerance: {abs: 4.0}
+    source: CSE 2017; CSE 2020
+    guide: "§7.4"
+    register_row: 9.8/corridor_speeds
+    use: check
+
+  - id: macroscopic_fit_accuracy
+    pattern: Fit accuracy on macroscopic characteristics
+    unit: "%"
+    value: {within: 20}
+    tolerance: {}
+    source: Kanagaraj & Treiber 2018
+    guide: "§7.2"
+    register_row: 9.8/fit_accuracy
+    use: check

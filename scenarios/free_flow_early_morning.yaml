@@ -1,0 +1,33 @@
+name: free_flow_early_morning
+description: >
+  Stage-1 calibration check (G§8.3): low-density early-morning free flow on a 1.5 km, 10.5 m
+  arterial, so desired speeds are observable. Composition spans every sub-class with a
+  free-flow target (Balakrishnan & Sivanandan 2015).
+duration_s: 7200
+warmup_s: 120
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1500, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 300}
+      composition:
+        motorcycle: 0.15
+        scooter: 0.15
+        moped: 0.08
+        auto_rickshaw: 0.10
+        hatchback: 0.14
+        sedan: 0.10
+        suv: 0.08
+        lcv: 0.07
+        bus: 0.07
+        truck: 0.06
+detectors:
+  - {kind: screenline, id: s750, ribbon: main, s: 750, interval_s: 900}
+kpi:
+  throughput_detector: s750

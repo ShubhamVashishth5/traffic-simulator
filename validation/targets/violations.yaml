@@ -1,0 +1,74 @@
+# Violation-rate targets (G§3.2, §4). Intercepts are fitted to `fit` targets in stage 6.
+targets:
+  - id: red_light_share
+    pattern: About 1 in 17 drivers ran the red; two timing regimes (after red starts, before green)
+    unit: "1"
+    value: {share: 0.0588, after_red_start_fraction: 0.33, before_green_fraction: 0.67}
+    tolerance: {share_rel: 0.2}
+    source: TRR 2017 (Mumbai)
+    guide: "§4.2"
+    register_row: 9.4/red_light_share
+    use: fit
+    stage: 6
+
+  - id: countdown_timer_effect
+    pattern: Countdown timers move violations from the start to the end of red
+    unit: "%"
+    value: {end_of_red_cycles: {without: 12, with: 75}, start_of_red_cycles: {without: 59, with: 31}}
+    tolerance: {abs: 15}
+    source: Sharma et al. 2012 (Chennai)
+    guide: "§4.2"
+    register_row: 9.4/countdown_effect
+    use: check
+
+  - id: amber_decisions
+    pattern: Stop / cross on amber / run red at amber onset
+    unit: "%"
+    value: {stopped: 58, crossed_amber: 20, ran_red: 22}
+    tolerance: {abs: 10}
+    source: Kathmandu 2026
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    use: check
+
+  - id: pedestrian_red_crossing
+    pattern: Pedestrians arriving on red who cross against the signal
+    unit: "%"
+    value: {share: 44.6}
+    tolerance: {abs: 5}
+    source: Kumar & Ghosh 2022 (12 Indian signals)
+    guide: "§4.3"
+    register_row: 9.4/pedestrian_red_crossing
+    use: fit
+    stage: 6
+
+  - id: delivery_rider_violations
+    pattern: Share of delivery riders observed violating rules
+    unit: "%"
+    value: {range: [65, 73]}
+    tolerance: {within_range_abs: 5}
+    source: Chennai observation 2018-2019
+    guide: "§3.2"
+    register_row: 9.3/delivery_rider_violation_propensity
+    use: fit
+    stage: 6
+
+  - id: e_rickshaw_challan_ranking
+    pattern: E-rickshaw parking vs wrong-way challans (ranking only, not rates)
+    unit: "1"
+    value: {parking: 140776, wrong_way: 3749, red_light: 1190}
+    tolerance: {}
+    source: Business Standard 2025 (Delhi, Jan-Jun 2025)
+    guide: "§3.2"
+    register_row: 9.3/e_rickshaw_stop_propensity
+    use: ranking
+
+  - id: rain_capacity_speed
+    pattern: Capacity and free-flow speed loss by rain intensity
+    unit: "%"
+    value: {capacity_loss: {light: 7.26, medium: 10.87, heavy: 17.09}, ffs_loss: {light: 3.07, medium: 5.29, heavy: 6.64}}
+    tolerance: {abs: 4}
+    source: Guide §6.10 (urban study; Lam et al.)
+    guide: "§6.10"
+    register_row: 9.6/rain_bundle
+    use: check

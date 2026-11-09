@@ -1,0 +1,59 @@
+group: observers
+description: "Settings of the online observers (plan/04-data-outputs-analytics.md §3)."
+entries:
+  stop.speed_below:
+    value: 0.5
+    unit: "m/s"
+    grade: C
+    role: fix
+    source: "Analysis convention"
+    guide: "§8.4"
+    register_row: core/observers
+    range: [0.0, 3.0]
+    notes: "A stop is counted when speed falls below this ..."
+  stop.rearm_above:
+    value: 2.0
+    unit: "m/s"
+    grade: C
+    role: fix
+    source: "Analysis convention"
+    guide: "§8.4"
+    register_row: core/observers
+    range: [0.1, 10.0]
+    notes: "... and the next stop only after speed rose above this."
+  conflict.ttc_threshold:
+    value: 1.5
+    unit: "s"
+    grade: B
+    role: fix
+    source: "Guide §8.4 (common surrogate-safety practice)"
+    guide: "§8.4"
+    register_row: core/observers
+    range: [0.5, 5.0]
+  gridlock.speed:
+    value: 5
+    unit: "km/h"
+    grade: C
+    role: fix
+    source: "Analysis convention"
+    guide: "§8.4"
+    register_row: core/observers
+    range: [0.5, 20.0]
+  gridlock.duration:
+    value: 60
+    unit: "s"
+    grade: C
+    role: fix
+    source: "Analysis convention"
+    guide: "§8.4"
+    register_row: core/observers
+    range: [5.0, 900.0]
+  lateral_histogram_bin:
+    value: 0.5
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Analysis convention"
+    guide: "§8.5"
+    register_row: core/observers
+    range: [0.1, 2.0]

@@ -1,0 +1,348 @@
+group: road
+description: "Road objects and situations: potholes, side friction, signals, splits (G§6, §9.6). Used from phases P6-P9."
+entries:
+  pothole.density:
+    value: null
+    unit: "1/km"
+    grade: C
+    role: fix
+    source: "Survey your own corridors"
+    guide: "§6.1"
+    register_row: 9.6/pothole_density_size_depth
+    range: [0.0, 500.0]
+    notes: "Poisson rate by road class and zone; higher on the kerb side."
+  pothole.diameter:
+    value: {dist: log_normal_quantiles, p_lo: 0.05, x_lo: 0.3, p_hi: 0.95, x_hi: 1.5}
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Guide §6.1"
+    guide: "§6.1"
+    register_row: 9.6/pothole_density_size_depth
+    range: [0.05, 5.0]
+    notes: "Guide: lognormal 0.3-1.5 m, read here as the 5th-95th percentiles."
+  pothole.depth:
+    value: {dist: log_normal_quantiles, p_lo: 0.05, x_lo: 3, p_hi: 0.95, x_hi: 15}
+    unit: "cm"
+    grade: C
+    role: fix
+    source: "Guide §6.1"
+    guide: "§6.1"
+    register_row: 9.6/pothole_density_size_depth
+    range: [0.5, 50.0]
+    notes: "Guide: 3-15 cm, read here as the 5th-95th percentiles."
+  pothole.detection_distance:
+    value: null
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Guide §6.1"
+    guide: "§6.1"
+    register_row: 9.6/pothole_density_size_depth
+    range: [1.0, 200.0]
+    notes: "Falls with speed, darkness, water and leader occlusion (P6.5)."
+  pothole.response:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 5
+    source: "Bandung pavement-distress study"
+    guide: "§6.1"
+    register_row: 9.6/pothole_response
+    range: [0.0, 1.0]
+    notes: "Multinomial swerve/slow/straddle/hit by class: 2W mostly swerve, heavy vehicles mostly slow. Structured per class in P6.5."
+  pothole.crossing_speed:
+    value: null
+    unit: "km/h"
+    grade: C
+    role: fix
+    source: "Guide §6.1"
+    guide: "§6.1"
+    register_row: 9.6/pothole_density_size_depth
+    range: [1.0, 60.0]
+    notes: "Class-specific cap when a pothole is hit (two-wheelers lowest)."
+  roughness.speed_loss_per_iri.car:
+    value: null
+    unit: "(km/h)/IRI"
+    grade: A/B
+    role: fit
+    stage: 1
+    source: "Chandra 2004, via Abdel-Wahed & Hashim"
+    guide: "§6.1"
+    register_row: 9.6/roughness_effect
+    range: [0.0, 20.0]
+    notes: "Cars lose more speed than heavy vehicles (a calibration check)."
+  roughness.speed_loss_per_iri.heavy:
+    value: null
+    unit: "(km/h)/IRI"
+    grade: A/B
+    role: fit
+    stage: 1
+    source: "Chandra 2004, via Abdel-Wahed & Hashim"
+    guide: "§6.1"
+    register_row: 9.6/roughness_effect
+    range: [0.0, 20.0]
+    notes: "Cars lose more speed than heavy vehicles (a calibration check)."
+  parking.offset_from_kerb:
+    value: null
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Survey"
+    guide: "§6.2"
+    register_row: 9.6/parked_offset_double_parking
+    range: [0.0, 3.0]
+  parking.double_parking_probability:
+    value: null
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Survey"
+    guide: "§6.2"
+    register_row: 9.6/parked_offset_double_parking
+    range: [0.0, 1.0]
+    notes: "Conditional on kerb occupancy and detection probability."
+  parking.manoeuvre_rate:
+    value: null
+    unit: "1/h"
+    grade: B
+    role: fit
+    stage: 5
+    source: "Pradhan & Dey (Bhubaneswar)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 500.0]
+    notes: "Events per 100 m per hour, by land use."
+  parking.manoeuvre_duration:
+    value: null
+    unit: "s"
+    grade: B
+    role: fit
+    stage: 5
+    source: "Pradhan & Dey"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [1.0, 300.0]
+    notes: "Lognormal."
+  parking.cruising_share:
+    value: null
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Guide §6.2"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 1.0]
+  bus.dwell_time:
+    value: null
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 5
+    source: "Pallela & Mehar 2024 (Warangal, Hyderabad)"
+    guide: "§6.3"
+    register_row: 9.6/bus_dwell_offset
+    range: [1.0, 600.0]
+    notes: "Lognormal, from observation."
+  bus.stop_offset_longitudinal:
+    value: null
+    unit: "m"
+    grade: B
+    role: fit
+    stage: 5
+    source: "Guide §6.3 (New Delhi arterials)"
+    guide: "§6.3"
+    register_row: 9.6/bus_dwell_offset
+    range: [-100.0, 100.0]
+  bus.stop_offset_lateral:
+    value: null
+    unit: "m"
+    grade: B
+    role: fit
+    stage: 5
+    source: "Guide §6.3"
+    guide: "§6.3"
+    register_row: 9.6/bus_dwell_offset
+    range: [0.0, 6.0]
+  bus.waiting_passenger_width:
+    value: null
+    unit: "m"
+    grade: C
+    role: sweep
+    source: "Guide §6.3"
+    guide: "§6.3"
+    register_row: 9.6/bus_dwell_offset
+    range: [0.0, 4.0]
+  pedestrian.accepted_gap:
+    value: null
+    unit: "s"
+    grade: B
+    role: fit
+    stage: 5
+    source: "Dhamaniya & Chandra 2014"
+    guide: "§6.4"
+    register_row: 9.6/pedestrian_flow_gap
+    range: [0.5, 20.0]
+  pedestrian.group_size:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §6.4"
+    guide: "§6.4"
+    register_row: 9.6/pedestrian_flow_gap
+    range: [1.0, 20.0]
+  animal.cattle_density:
+    value: null
+    unit: "1/km"
+    grade: C
+    role: sweep
+    source: "Gurugram Traffic Police (claim, not a measured share)"
+    guide: "§6.5"
+    register_row: 9.6/animal_events
+    range: [0.0, 50.0]
+  animal.dog_crossing_rate:
+    value: null
+    unit: "1/h"
+    grade: C
+    role: sweep
+    source: "Eastern-India trauma centre study"
+    guide: "§6.5"
+    register_row: 9.6/animal_events
+    range: [0.0, 100.0]
+    notes: "Per km; higher at night."
+  signal.outage_probability:
+    value: null
+    unit: "1"
+    grade: B/C
+    role: sweep
+    source: "Complaint data if available; 7-8% rain-time failures (2013 claim)"
+    guide: "§6.6"
+    register_row: 9.6/signal_state
+    range: [0.0, 1.0]
+    notes: "Per junction-day; rain raises it."
+  signal.outage_duration:
+    value: null
+    unit: "h"
+    grade: B
+    role: sweep
+    source: "Guide §6.6"
+    guide: "§6.6"
+    register_row: 9.6/signal_state
+    range: [0.0, 48.0]
+    notes: "Lognormal."
+  signal.blinker_start:
+    value: 23
+    unit: "hour_of_day"
+    grade: A
+    role: fix
+    source: "Delhi Police (low-flow junctions on blinker 11 PM-7 AM)"
+    guide: "§6.6"
+    register_row: 9.6/signal_state
+    range: [0.0, 24.0]
+  signal.blinker_end:
+    value: 7
+    unit: "hour_of_day"
+    grade: A
+    role: fix
+    source: "Delhi Police"
+    guide: "§6.6"
+    register_row: 9.6/signal_state
+    range: [0.0, 24.0]
+  signal.officer.arrival_delay:
+    value: null
+    unit: "min"
+    grade: C
+    role: sweep
+    source: "Vajeeran & De Silva 2022; Delhi Police SOP"
+    guide: "§6.6"
+    register_row: 9.6/officer_cycle_bias_compliance
+    range: [0.0, 240.0]
+  signal.officer.cycle_length:
+    value: null
+    unit: "s"
+    grade: C
+    role: sweep
+    source: "Vajeeran & De Silva 2022; Delhi Police SOP"
+    guide: "§6.6"
+    register_row: 9.6/officer_cycle_bias_compliance
+    range: [30.0, 900.0]
+  signal.officer.major_bias:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Vajeeran & De Silva 2022; Delhi Police SOP"
+    guide: "§6.6"
+    register_row: 9.6/officer_cycle_bias_compliance
+    range: [0.0, 1.0]
+  signal.officer.compliance:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Vajeeran & De Silva 2022; Delhi Police SOP"
+    guide: "§6.6"
+    register_row: 9.6/officer_cycle_bias_compliance
+    range: [0.0, 1.0]
+  split.awareness_distance:
+    value: null
+    unit: "m"
+    grade: C
+    role: sweep
+    source: "No Indian study found (guide §6.7)"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 3000.0]
+    notes: "Mixture: most know well upstream, plus a late-realiser tail."
+  split.late_realiser_share:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No Indian study found"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 1.0]
+    live: true
+    notes: "The key swept quantity at splits."
+  split.sign_visibility_distance:
+    value: null
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Map from site"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 1000.0]
+  split.stop_and_wait_probability:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No Indian study found"
+    guide: "§6.7"
+    register_row: 9.6/stop_and_wait
+    range: [0.0, 1.0]
+    notes: "Logistic in urgency u, by class and persona; cars more than two-wheelers."
+  hump.crossing_speed:
+    value: {dist: uniform, min: 14, max: 23}
+    unit: "km/h"
+    grade: A
+    role: fix
+    source: "WCTR 2019 (Indian humps by geometry)"
+    guide: "§6.8"
+    register_row: 9.6/hump_crossing_speed
+    range: [3.0, 40.0]
+    notes: "30-64% reduction; split by class and geometry in P6.6."
+  waterlogging.depth_speed_curve:
+    value: null
+    unit: "1"
+    grade: B
+    role: scenario
+    source: "Pregnolato et al. 2017 (depth-speed relationship)"
+    guide: "§6.10"
+    register_row: 9.6/waterlogging
+    range: [0.0, 1.0]
+    notes: "Depth-dependent speed cap per flooded segment; take the curve from the paper in P6.6."

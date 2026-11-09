@@ -1,0 +1,40 @@
+name: corridor_2km
+description: >
+  Reference corridor: 2 km straight divided carriageway, 10.5 m wide (three notional lanes),
+  Delhi-arterial composition (G§7.1, Dhamaniya & Chandra 2017). Used for the P2 milestone and
+  the performance benchmark.
+duration_s: 3600
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [2000, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 3000}
+      composition:
+        motorcycle: 0.12
+        scooter: 0.12
+        moped: 0.03
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.02
+        hatchback: 0.30
+        sedan: 0.12
+        suv: 0.08
+        lcv: 0.03
+        bus: 0.02
+        truck: 0.01
+        bicycle: 0.01
+detectors:
+  - {kind: screenline, id: s1000, ribbon: main, s: 1000, interval_s: 300}
+  - {kind: screenline, id: s1900, ribbon: main, s: 1900, interval_s: 300}
+  - {kind: area, id: a500_1500, ribbon: main, s_from: 500, s_to: 1500, interval_s: 300}
+kpi:
+  throughput_detector: s1900
+outputs:
+  trajectories: {every_s: 1.0}
