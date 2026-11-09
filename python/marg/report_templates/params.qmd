@@ -1,0 +1,19 @@
+---
+title: "Parameter appendix: $name"
+subtitle: "$subtitle"
+format:
+  html:
+    embed-resources: true
+    toc: true
+  typst: default
+---
+
+Every parameter of the simulator, as resolved for this $what: value, unit, trust grade (A measured
+in Indian mixed traffic, B measured elsewhere, C never measured), role (fixed, fitted in a
+calibration stage, swept, or set per scenario), source, and the layer that set it (G§8.1, §9).
+
+$summary_table
+
+$factors_text
+
+$sections

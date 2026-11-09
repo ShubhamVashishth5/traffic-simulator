@@ -1,0 +1,84 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.97.0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test
+      - name: Determinism (release build, 1 vs 4 threads)
+        run: cargo test --release -p marg-core determinis
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v6
+      - name: Install pandoc (report rendering; Chrome is on the runner image)
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+      - run: uv sync
+      - run: uv run maturin develop --release
+      - run: uv run ruff check python scripts
+      - run: uv run pytest
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  schema:
+    name: schema in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: uv sync
+      - run: (cd web && npm ci)
+      - run: ./scripts/gen-schema.sh
+      - name: Fail if generated files changed
+        run: git diff --exit-code -- schema python/marg/_schema.py python/marg/_register_schema.py web/src/schema.ts web/src/register.ts
+
+  bench:
+    name: benchmark regression
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@1.97.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Benchmark base and head on the same runner
+        run: ./scripts/bench-compare.sh "origin/${{ github.base_ref }}" HEAD

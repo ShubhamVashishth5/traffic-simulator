@@ -1,0 +1,18 @@
+[package]
+name = "marg-net"
+description = "Ribbon road geometry, road objects and zone fields for the marg simulator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+marg-params.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

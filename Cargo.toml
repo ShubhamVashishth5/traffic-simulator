@@ -1,0 +1,53 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = [
+    "crates/marg-params",
+    "crates/marg-net",
+    "crates/marg-core",
+    "crates/marg-io",
+    "crates/marg-cli",
+    "crates/marg-server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/ShubhamVashishth5/traffic-simulator"
+rust-version = "1.90"
+
+[workspace.dependencies]
+marg-params = { path = "crates/marg-params" }
+marg-net = { path = "crates/marg-net" }
+marg-core = { path = "crates/marg-core" }
+marg-io = { path = "crates/marg-io" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_norway = "0.9"
+schemars = { version = "1", features = ["indexmap2"] }
+indexmap = { version = "2", features = ["serde"] }
+thiserror = "2"
+anyhow = "1"
+blake3 = "1"
+libm = "0.2"
+rayon = "1"
+clap = { version = "4", features = ["derive"] }
+arrow = { version = "60", default-features = false, features = ["ipc"] }
+parquet = { version = "60", default-features = false, features = ["arrow", "zstd"] }
+proptest = "1"
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+debug = 1
+
+[profile.bench]
+inherits = "release"

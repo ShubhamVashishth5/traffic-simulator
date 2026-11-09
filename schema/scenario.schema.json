@@ -1,0 +1,804 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scenario",
+  "description": "A scenario: what to simulate, for how long, and what to record.",
+  "type": "object",
+  "properties": {
+    "demand": {
+      "description": "Arrivals at network entries.",
+      "$ref": "#/$defs/DemandSpec"
+    },
+    "description": {
+      "description": "Free-text description.",
+      "type": "string",
+      "default": ""
+    },
+    "detectors": {
+      "description": "Virtual detectors (screenlines and areas).",
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DetectorSpec"
+      }
+    },
+    "dt_s": {
+      "description": "Time step in seconds.",
+      "type": "number",
+      "format": "double",
+      "default": 0.1
+    },
+    "duration_s": {
+      "description": "Simulated duration including warm-up, in seconds.",
+      "type": "number",
+      "format": "double"
+    },
+    "kpi": {
+      "description": "Which detectors the headline KPIs use.",
+      "$ref": "#/$defs/KpiSpec",
+      "default": {
+        "throughput_detector": null
+      }
+    },
+    "name": {
+      "description": "Short identifier, used in run folder names.",
+      "type": "string"
+    },
+    "network": {
+      "description": "Road geometry.",
+      "$ref": "#/$defs/NetworkSpec"
+    },
+    "outputs": {
+      "description": "Optional outputs.",
+      "$ref": "#/$defs/OutputSpec",
+      "default": {
+        "trajectories": null
+      }
+    },
+    "overrides": {
+      "description": "Parameter overrides by register path, in the register entry's unit.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ParamValue"
+      },
+      "default": {}
+    },
+    "warmup_s": {
+      "description": "Initial period excluded from KPIs and detector summaries, in seconds.",
+      "type": "number",
+      "format": "double",
+      "default": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "duration_s",
+    "network",
+    "demand"
+  ],
+  "$defs": {
+    "DemandSpec": {
+      "description": "Demand at the network's entries.",
+      "type": "object",
+      "properties": {
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EntrySpec"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ]
+    },
+    "DetectorSpec": {
+      "description": "A virtual detector.",
+      "oneOf": [
+        {
+          "description": "Counts vehicles crossing station `s`.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "interval_s": {
+              "type": "number",
+              "format": "double",
+              "default": 60.0
+            },
+            "kind": {
+              "type": "string",
+              "const": "screenline"
+            },
+            "ribbon": {
+              "type": "string"
+            },
+            "s": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "ribbon",
+            "s"
+          ]
+        },
+        {
+          "description": "Measures density, flow and space-mean speed over `[s_from, s_to]`\n(Edie's generalised definitions).",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "interval_s": {
+              "type": "number",
+              "format": "double",
+              "default": 60.0
+            },
+            "kind": {
+              "type": "string",
+              "const": "area"
+            },
+            "ribbon": {
+              "type": "string"
+            },
+            "s_from": {
+              "type": "number",
+              "format": "double"
+            },
+            "s_to": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "id",
+            "ribbon",
+            "s_from",
+            "s_to"
+          ]
+        }
+      ]
+    },
+    "Dist": {
+      "description": "A univariate distribution.\n\nSeveral lognormal forms are accepted for readability in the register; they\nare converted to `(mu, sigma)` of `ln X` by [`Dist::canonical`].",
+      "oneOf": [
+        {
+          "description": "Always the same value.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "constant"
+            },
+            "value": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "value"
+          ]
+        },
+        {
+          "description": "Normal with mean and standard deviation.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "normal"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd"
+          ]
+        },
+        {
+          "description": "Normal restricted to `[min, max]` (rejection sampling).",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "trunc_normal"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "description": "Lognormal by the mean and SD of `ln X`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal"
+            },
+            "mu": {
+              "type": "number",
+              "format": "double"
+            },
+            "sigma": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mu",
+            "sigma"
+          ]
+        },
+        {
+          "description": "Lognormal by its median and the SD of `ln X`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_median"
+            },
+            "median": {
+              "type": "number",
+              "format": "double"
+            },
+            "sigma": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "median",
+            "sigma"
+          ]
+        },
+        {
+          "description": "Lognormal by the mean and SD of `X` itself.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_moments"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd"
+          ]
+        },
+        {
+          "description": "Lognormal through two quantiles: `P(X ≤ x_lo) = p_lo`, `P(X ≤ x_hi) = p_hi`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_quantiles"
+            },
+            "p_hi": {
+              "type": "number",
+              "format": "double"
+            },
+            "p_lo": {
+              "type": "number",
+              "format": "double"
+            },
+            "x_hi": {
+              "type": "number",
+              "format": "double"
+            },
+            "x_lo": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "p_lo",
+            "x_lo",
+            "p_hi",
+            "x_hi"
+          ]
+        },
+        {
+          "description": "Gamma with shape `k` and scale `θ` (mean `kθ`).",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "gamma"
+            },
+            "scale": {
+              "type": "number",
+              "format": "double"
+            },
+            "shape": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "shape",
+            "scale"
+          ]
+        },
+        {
+          "description": "Exponential with the given mean.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "exponential"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean"
+          ]
+        },
+        {
+          "description": "`shift + Exponential`, parameterised by the shift and the overall mean.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "shifted_exponential"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "shift": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "shift",
+            "mean"
+          ]
+        },
+        {
+          "description": "Uniform on `[min, max]`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "uniform"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "description": "Piecewise-linear inverse CDF through `[p, x]` points, `p` rising from 0 to 1.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "empirical"
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "maxItems": 2,
+                "minItems": 2
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "points"
+          ]
+        },
+        {
+          "description": "Finite mixture; weights need not sum to 1 (they are normalised).",
+          "type": "object",
+          "properties": {
+            "components": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MixtureComponent"
+              }
+            },
+            "dist": {
+              "type": "string",
+              "const": "mixture"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "components"
+          ]
+        }
+      ]
+    },
+    "EntrySpec": {
+      "description": "One entry: a flow profile and a vehicle composition (G§7.1–7.3).",
+      "type": "object",
+      "properties": {
+        "composition": {
+          "description": "Share of each vehicle type in the stream (normalised; count it at the\nsite — registration shares are not the stream, G§7.1).",
+          "type": "object",
+          "properties": {
+            "auto_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "bicycle": {
+              "type": "number",
+              "format": "double"
+            },
+            "bus": {
+              "type": "number",
+              "format": "double"
+            },
+            "cycle_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "e_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "e_two_wheeler": {
+              "type": "number",
+              "format": "double"
+            },
+            "hatchback": {
+              "type": "number",
+              "format": "double"
+            },
+            "lcv": {
+              "type": "number",
+              "format": "double"
+            },
+            "moped": {
+              "type": "number",
+              "format": "double"
+            },
+            "motorcycle": {
+              "type": "number",
+              "format": "double"
+            },
+            "scooter": {
+              "type": "number",
+              "format": "double"
+            },
+            "sedan": {
+              "type": "number",
+              "format": "double"
+            },
+            "suv": {
+              "type": "number",
+              "format": "double"
+            },
+            "tractor": {
+              "type": "number",
+              "format": "double"
+            },
+            "truck": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false
+        },
+        "flow": {
+          "description": "Piecewise-constant flow: each interval applies from `from_s` until the next.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FlowInterval"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "description": "Station of the entry on the ribbon.",
+          "type": "number",
+          "format": "double",
+          "default": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "flow",
+        "composition"
+      ]
+    },
+    "FlowInterval": {
+      "description": "Flow from time `from_s` onwards.",
+      "type": "object",
+      "properties": {
+        "from_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "veh_per_h": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from_s",
+        "veh_per_h"
+      ]
+    },
+    "KpiSpec": {
+      "description": "Headline KPI settings.",
+      "type": "object",
+      "properties": {
+        "throughput_detector": {
+          "description": "Screenline whose count is the throughput KPI.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "MixtureComponent": {
+      "description": "One weighted component of a [`Dist::Mixture`].",
+      "type": "object",
+      "properties": {
+        "dist": {
+          "$ref": "#/$defs/Dist"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "weight",
+        "dist"
+      ]
+    },
+    "NetworkSpec": {
+      "description": "Road geometry as a set of ribbons (ADR-0002).",
+      "type": "object",
+      "properties": {
+        "ribbons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RibbonSpec"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "ribbons"
+      ]
+    },
+    "OutputSpec": {
+      "description": "Optional outputs.",
+      "type": "object",
+      "properties": {
+        "trajectories": {
+          "description": "Trajectory sampling; omit to write no trajectories.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrajectorySpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "ParamValue": {
+      "description": "A parameter value: a plain number or a distribution.",
+      "anyOf": [
+        {
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "$ref": "#/$defs/Dist"
+        }
+      ]
+    },
+    "RibbonSpec": {
+      "description": "A ribbon: a reference polyline with a lateral width profile. `y` is\npositive to the left of the direction of travel; for left-hand traffic the\nkerb is on the left (`y_max`) and the median on the right (`y_min`).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "next": {
+          "description": "The ribbon traffic continues onto at the end, if any.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "polyline": {
+          "description": "Reference line vertices in world metres (UTM or local), at least two.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "width": {
+          "description": "Width profile: lateral bounds at stations along the ribbon\n(piecewise linear between stations, constant beyond the ends).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WidthPoint"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "polyline",
+        "width"
+      ]
+    },
+    "TrajectorySpec": {
+      "description": "Trajectory sampling rate and window.",
+      "type": "object",
+      "properties": {
+        "every_s": {
+          "description": "Sampling interval in seconds (a multiple of `dt_s`).",
+          "type": "number",
+          "format": "double"
+        },
+        "from_t": {
+          "description": "Only record from this time on (default: end of warm-up).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        },
+        "s_from": {
+          "description": "Only record agents with `s` in `[s_from, s_to]` (any ribbon).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        },
+        "s_to": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double",
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "every_s"
+      ]
+    },
+    "WidthPoint": {
+      "description": "Lateral bounds of the carriageway at station `s`.",
+      "type": "object",
+      "properties": {
+        "s": {
+          "type": "number",
+          "format": "double"
+        },
+        "y_max": {
+          "type": "number",
+          "format": "double"
+        },
+        "y_min": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "s",
+        "y_min",
+        "y_max"
+      ]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+[package]
+name = "marg-core"
+description = "Simulation core of the marg lane-free mixed-traffic simulator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+marg-params.workspace = true
+marg-net.workspace = true
+rayon.workspace = true
+blake3.workspace = true
+libm.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+indexmap.workspace = true
+serde_norway.workspace = true
+proptest.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "core"
+harness = false
+
+[lints]
+workspace = true

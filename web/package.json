@@ -1,0 +1,26 @@
+{
+  "name": "marg-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "gen:schema": "json2ts -i ../schema/scenario.schema.json -o src/schema.ts --bannerComment \"/* Generated from schema/scenario.schema.json by scripts/gen-schema.sh. Do not edit. */\" && json2ts -i ../schema/register_file.schema.json -o src/register.ts --bannerComment \"/* Generated from schema/register_file.schema.json by scripts/gen-schema.sh. Do not edit. */\""
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "json-schema-to-typescript": "^16.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  }
+}

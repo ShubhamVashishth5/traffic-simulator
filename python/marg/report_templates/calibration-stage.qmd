@@ -1,0 +1,34 @@
+---
+title: "Calibration stage $stage"
+subtitle: "$subtitle"
+format:
+  html:
+    embed-resources: true
+    toc: true
+  typst: default
+---
+
+Status **$status**, method `$method`, created $created. $frozen_text
+
+## Fitted parameters
+
+Estimates are the fitted means (ADR-0006), with $ci_pct% confidence intervals from the Jacobian of
+the standardised residuals.
+
+$params_table
+
+## Fit diagnostics
+
+$diagnostics_table
+
+$moments_table
+
+## Synthetic recovery
+
+$recovery_section
+
+## Data
+
+$data_table
+
+$notes

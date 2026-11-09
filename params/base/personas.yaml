@@ -1,0 +1,270 @@
+group: personas
+description: "Driver traits and persona mix (G§3, §9.3). Used from phase P8."
+entries:
+  traits.aggressiveness.mean:
+    value: 0
+    unit: "1"
+    grade: B
+    role: sweep
+    source: "IATSS Research 2022 (continuous trait, Mumbai)"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-1.5, 1.5]
+    live: true
+    notes: "kappa is standard normal in the population; personas shift its mean."
+  traits.aggressiveness.sd:
+    value: 1
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "IATSS Research 2022; Traffic Injury Prevention 2021"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [0.0, 3.0]
+    notes: "How kappa spread combines with per-class parameter spreads is decided in the P8.1 ADR."
+  cooperative.squeeze_kappa_quantile:
+    value: null
+    unit: "1"
+    grade: C
+    role: scenario
+    source: "Plan P3.3: cooperative twin arm (social efficiency deficit, G§8.4)"
+    guide: "§3.1, §8.4"
+    register_row: core/experiment_switches
+    range: [0.0, 1.0]
+    notes: "Unset = squeezing uses each agent's own kappa. When set (the cooperative twin), squeezing decisions use the kappa at this quantile of the population distribution instead. Read by the squeezing rule from P5; which quantile is pending (ADR-0007)."
+  traits.time_pressure:
+    value: {dist: normal, mean: 0, sd: 1}
+    unit: "1"
+    grade: B/C
+    role: sweep
+    source: "Christie & Ward 2022 (UK gig riders)"
+    guide: "§3.1"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Unit-free trait; personas shift its mean."
+  traits.risk_tolerance:
+    value: {dist: normal, mean: 0, sd: 1}
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1"
+    guide: "§3.1"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Unit-free trait; personas shift its mean."
+  traits.conformity:
+    value: {dist: normal, mean: 0, sd: 1}
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1"
+    guide: "§3.1"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Unit-free trait; personas shift its mean."
+  traits.norm_sensitivity:
+    value: {dist: normal, mean: 0, sd: 1}
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1"
+    guide: "§3.1"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Unit-free trait; personas shift its mean."
+  traits.skill:
+    value: {dist: normal, mean: 0, sd: 1}
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Bertrand et al. 2007 (licensing)"
+    guide: "§3.1"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Unit-free trait; personas shift its mean."
+  traits.distraction:
+    value: {dist: normal, mean: 0, sd: 1}
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1"
+    guide: "§3.1"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Unit-free trait; personas shift its mean."
+  traits.phone_use_share:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1 (delivery riders use phones far more)"
+    guide: "§3.1"
+    register_row: 9.3/skill_distraction
+    range: [0.0, 1.0]
+    notes: "Bernoulli share of agents with phone-use episodes, by persona."
+  traits.within_trip.reversion_rate:
+    value: null
+    unit: "1/h"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Kesting & Treiber 2008; RSS 2022 (naturalistic data)"
+    guide: "§3.1"
+    register_row: 9.3/within_trip_kappa
+    range: [0.0, 1000.0]
+    notes: "Ornstein-Uhlenbeck reversion of kappa towards the agent's own mean."
+  traits.within_trip.volatility:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Kesting & Treiber 2008; RSS 2022 (naturalistic data)"
+    guide: "§3.1"
+    register_row: 9.3/within_trip_kappa
+    range: [0.0, 1000.0]
+    notes: "OU noise per sqrt(hour)."
+  traits.within_trip.delay_jump:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Kesting & Treiber 2008; RSS 2022 (naturalistic data)"
+    guide: "§3.1"
+    register_row: 9.3/within_trip_kappa
+    range: [0.0, 1000.0]
+    notes: "Jump in kappa when accumulated delay passes the threshold."
+  traits.within_trip.delay_threshold:
+    value: null
+    unit: "s"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Kesting & Treiber 2008; RSS 2022 (naturalistic data)"
+    guide: "§3.1"
+    register_row: 9.3/within_trip_kappa
+    range: [0.0, 1000.0]
+    notes: "Accumulated delay that triggers the jump."
+  shares.average_commuter:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.rushed_driver:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.delivery_rider:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.bike_taxi_rider:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.e_rickshaw_driver:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.auto_rickshaw_driver:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.bus_driver:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.truck_lcv_driver:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.cautious_driver:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  shares.cyclist:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas)"
+    guide: "§3.2"
+    register_row: 9.3/persona_shares
+    range: [0.0, 1.0]
+    notes: "Multinomial by zone and hour, set by the population spec (P8, P9). Report results across the range."
+  delivery_rider.violation_intercept_shift:
+    value: null
+    unit: "1"
+    grade: B
+    role: fit
+    stage: 6
+    source: "Chennai observation (65% of riders violating in 2019, 73% in 2018)"
+    guide: "§3.2"
+    register_row: 9.3/delivery_rider_violation_propensity
+    range: [-5.0, 5.0]
+    notes: "Fit so the share of delivery riders violating matches the validation target."
+  e_rickshaw.stop_rate:
+    value: null
+    unit: "1/h"
+    grade: C
+    role: sweep
+    source: "Business Standard 2025 (Delhi challans: ranking only)"
+    guide: "§3.2"
+    register_row: 9.3/e_rickshaw_stop_propensity
+    range: [0.0, 60.0]
+    notes: "Poisson stop rate by land use; challans give a ranking (parking : wrong-way about 37 : 1), not a rate."

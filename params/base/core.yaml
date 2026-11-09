@@ -1,0 +1,52 @@
+group: core
+description: "Numerical settings of the simulator. Not behaviour: chosen for accuracy and speed."
+entries:
+  lookahead_distance:
+    value: 150
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Numerical choice (plan/03-model-design.md §2)"
+    guide: "§2.1"
+    register_row: core/numerics
+    range: [30.0, 500.0]
+    notes: "Leaders further ahead are ignored; IDM interaction beyond this is negligible at urban speeds."
+  interaction_weight_cutoff:
+    value: 0.001
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Numerical choice"
+    guide: "§2.1"
+    register_row: core/numerics
+    range: [0.0, 0.1]
+    notes: "Leaders whose lateral weight omega falls below this are skipped."
+  decision_interval:
+    value: 0.5
+    unit: "s"
+    grade: C
+    role: fix
+    source: "Numerical choice (plan/02-architecture.md §4)"
+    guide: "§2.2"
+    register_row: core/numerics
+    range: [0.1, 5.0]
+    notes: "Lateral target and strategic decisions run at this interval, staggered by agent id."
+  lateral_candidate_step:
+    value: 0.25
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Numerical choice"
+    guide: "§2.2"
+    register_row: core/numerics
+    range: [0.05, 1.0]
+  insertion_attempts_per_step:
+    value: 32
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Numerical choice"
+    guide: "§7.3"
+    register_row: core/numerics
+    range: [1.0, 10000.0]
+    notes: "Waiting arrivals tried per entry per step; caps the cost of an oversaturated entry. Arrivals that cannot enter wait in a virtual queue (spawn delay is recorded)."

@@ -1,0 +1,578 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegisterFile",
+  "description": "One register file: a group of entries sharing a path prefix.",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "default": ""
+    },
+    "entries": {
+      "description": "Entries keyed by their path below the group, e.g. `following.time_gap.car`.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ParamEntry"
+      }
+    },
+    "group": {
+      "description": "Path prefix of every entry in the file, e.g. `interaction`.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "group",
+    "entries"
+  ],
+  "$defs": {
+    "Dist": {
+      "description": "A univariate distribution.\n\nSeveral lognormal forms are accepted for readability in the register; they\nare converted to `(mu, sigma)` of `ln X` by [`Dist::canonical`].",
+      "oneOf": [
+        {
+          "description": "Always the same value.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "constant"
+            },
+            "value": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "value"
+          ]
+        },
+        {
+          "description": "Normal with mean and standard deviation.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "normal"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd"
+          ]
+        },
+        {
+          "description": "Normal restricted to `[min, max]` (rejection sampling).",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "trunc_normal"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "description": "Lognormal by the mean and SD of `ln X`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal"
+            },
+            "mu": {
+              "type": "number",
+              "format": "double"
+            },
+            "sigma": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mu",
+            "sigma"
+          ]
+        },
+        {
+          "description": "Lognormal by its median and the SD of `ln X`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_median"
+            },
+            "median": {
+              "type": "number",
+              "format": "double"
+            },
+            "sigma": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "median",
+            "sigma"
+          ]
+        },
+        {
+          "description": "Lognormal by the mean and SD of `X` itself.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_moments"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "sd": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean",
+            "sd"
+          ]
+        },
+        {
+          "description": "Lognormal through two quantiles: `P(X ≤ x_lo) = p_lo`, `P(X ≤ x_hi) = p_hi`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "log_normal_quantiles"
+            },
+            "p_hi": {
+              "type": "number",
+              "format": "double"
+            },
+            "p_lo": {
+              "type": "number",
+              "format": "double"
+            },
+            "x_hi": {
+              "type": "number",
+              "format": "double"
+            },
+            "x_lo": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "p_lo",
+            "x_lo",
+            "p_hi",
+            "x_hi"
+          ]
+        },
+        {
+          "description": "Gamma with shape `k` and scale `θ` (mean `kθ`).",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "gamma"
+            },
+            "scale": {
+              "type": "number",
+              "format": "double"
+            },
+            "shape": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "shape",
+            "scale"
+          ]
+        },
+        {
+          "description": "Exponential with the given mean.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "exponential"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "mean"
+          ]
+        },
+        {
+          "description": "`shift + Exponential`, parameterised by the shift and the overall mean.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "shifted_exponential"
+            },
+            "mean": {
+              "type": "number",
+              "format": "double"
+            },
+            "shift": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "shift",
+            "mean"
+          ]
+        },
+        {
+          "description": "Uniform on `[min, max]`.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "uniform"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "min",
+            "max"
+          ]
+        },
+        {
+          "description": "Piecewise-linear inverse CDF through `[p, x]` points, `p` rising from 0 to 1.",
+          "type": "object",
+          "properties": {
+            "dist": {
+              "type": "string",
+              "const": "empirical"
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "maxItems": 2,
+                "minItems": 2
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "points"
+          ]
+        },
+        {
+          "description": "Finite mixture; weights need not sum to 1 (they are normalised).",
+          "type": "object",
+          "properties": {
+            "components": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MixtureComponent"
+              }
+            },
+            "dist": {
+              "type": "string",
+              "const": "mixture"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "dist",
+            "components"
+          ]
+        }
+      ]
+    },
+    "Grade": {
+      "description": "How far a value can be trusted (G: \"give every parameter a trust grade\").",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "A/B",
+            "B/C"
+          ]
+        },
+        {
+          "description": "Measured in Indian mixed traffic.",
+          "type": "string",
+          "const": "A"
+        },
+        {
+          "description": "Measured elsewhere, or only partly in India.",
+          "type": "string",
+          "const": "B"
+        },
+        {
+          "description": "Never measured: an experimental factor to sweep.",
+          "type": "string",
+          "const": "C"
+        }
+      ]
+    },
+    "MixtureComponent": {
+      "description": "One weighted component of a [`Dist::Mixture`].",
+      "type": "object",
+      "properties": {
+        "dist": {
+          "$ref": "#/$defs/Dist"
+        },
+        "weight": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "weight",
+        "dist"
+      ]
+    },
+    "ParamEntry": {
+      "description": "One register entry.",
+      "type": "object",
+      "properties": {
+        "grade": {
+          "description": "Trust grade.",
+          "$ref": "#/$defs/Grade"
+        },
+        "guide": {
+          "description": "Guide section(s), e.g. `\"§2.1\"`.",
+          "type": "string"
+        },
+        "live": {
+          "description": "Whether the live viewer may change it during a run.",
+          "type": "boolean",
+          "default": false
+        },
+        "notes": {
+          "description": "Assumptions, caveats, how a range was turned into a distribution.",
+          "type": "string"
+        },
+        "range": {
+          "description": "Hard bounds `[min, max]` for overrides and sweeps, in `unit`.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "register_row": {
+          "description": "Which row of the guide's master register (§9) this entry implements,\ne.g. `\"9.2/desired_time_gap\"`. Used to check every row is covered.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "description": "Fix, Fit, Sweep or Scenario.",
+          "$ref": "#/$defs/Role"
+        },
+        "source": {
+          "description": "Where the value comes from.",
+          "type": "string"
+        },
+        "stage": {
+          "description": "Calibration stage 0–7 (G§8.3). Required for `fit`, absent otherwise.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "unit": {
+          "description": "Unit the value (and `range`) are written in.",
+          "$ref": "#/$defs/Unit"
+        },
+        "value": {
+          "description": "The starting value or distribution, in `unit`. `null` means \"not yet\nknown\": the parameter must be measured, or set by a scenario or sweep,\nbefore any module may use it.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParamValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "grade",
+        "role",
+        "source",
+        "guide"
+      ]
+    },
+    "ParamValue": {
+      "description": "A parameter value: a plain number or a distribution.",
+      "anyOf": [
+        {
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "$ref": "#/$defs/Dist"
+        }
+      ]
+    },
+    "Role": {
+      "description": "What may be done with a parameter (G§8.1 three-way split).",
+      "oneOf": [
+        {
+          "description": "Measured directly: never calibrated.",
+          "type": "string",
+          "const": "fix"
+        },
+        {
+          "description": "Calibrated in the stage given by `stage`.",
+          "type": "string",
+          "const": "fit"
+        },
+        {
+          "description": "Experimental factor: varied, never fitted.",
+          "type": "string",
+          "const": "sweep"
+        },
+        {
+          "description": "Set per scenario (bundles, switches); neither fitted nor swept by default.",
+          "type": "string",
+          "const": "scenario"
+        }
+      ]
+    },
+    "Unit": {
+      "description": "A register unit with its conversion to SI.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "m",
+            "cm",
+            "km",
+            "s",
+            "min",
+            "h",
+            "day",
+            "m/s",
+            "km/h",
+            "m/s2",
+            "rad",
+            "1/h",
+            "1/km",
+            "kW",
+            "kg"
+          ]
+        },
+        {
+          "description": "Dimensionless (shares, factors, coefficients).",
+          "type": "string",
+          "const": "1"
+        },
+        {
+          "description": "Percent, stored as a fraction in SI (50 % → 0.5).",
+          "type": "string",
+          "const": "%"
+        },
+        {
+          "description": "Clearance slope: centimetres per km/h of pair speed (→ seconds in SI).",
+          "type": "string",
+          "const": "cm/(km/h)"
+        },
+        {
+          "description": "Speed lost per percent of upgrade (→ m/s per percent point).",
+          "type": "string",
+          "const": "(km/h)/%"
+        },
+        {
+          "description": "Speed lost per unit of roughness, km/h per IRI (m/km) (→ m/s per IRI).",
+          "type": "string",
+          "const": "(km/h)/IRI"
+        },
+        {
+          "description": "Hour of the day, 0–24 (kept as hours).",
+          "type": "string",
+          "const": "hour_of_day"
+        }
+      ]
+    }
+  }
+}

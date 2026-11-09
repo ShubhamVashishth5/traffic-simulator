@@ -1,0 +1,17 @@
+/target
+/runs
+/out
+*.pyc
+__pycache__/
+.venv/
+*.so
+*.pyd
+/python/marg/*.so
+/web/node_modules
+/web/dist
+/reports/**/_output
+/reports/**/*_files
+.ipynb_checkpoints/
+.DS_Store
+/dist
+*.sif

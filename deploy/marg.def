@@ -1,0 +1,35 @@
+# Apptainer (Singularity) image for running marg sweeps on a cluster (plan P3.5).
+#
+#   scripts/build-static.sh                 # dist/marg-x86_64-linux-musl
+#   apptainer build marg.sif deploy/marg.def
+#   apptainer exec marg.sif marg version
+#
+# The binary is static, so the image needs no libraries. The register snapshot
+# in each experiment folder (`<experiment>/params/`) is what runs resolve
+# against; the copy baked in here is only the default for ad-hoc `marg run`.
+# Use with: marg.backends.Slurm(..., container="marg.sif").
+Bootstrap: docker
+From: busybox:1.36
+
+%files
+    dist/marg-x86_64-linux-musl /usr/local/bin/marg
+    params/base /opt/marg/params/base
+    LICENSE /opt/marg/LICENSE
+
+%environment
+    export MARG_PARAMS_DIR=/opt/marg/params/base
+
+%runscript
+    exec /usr/local/bin/marg "$@"
+
+%test
+    /usr/local/bin/marg version
+
+%labels
+    org.opencontainers.image.title marg
+    org.opencontainers.image.licenses MIT
+    org.opencontainers.image.source https://github.com/ShubhamVashishth5/traffic-simulator
+
+%help
+    Lane-free mixed-traffic simulator, headless CLI. `marg batch <experiment>` runs a
+    chunk of an experiment's run list; `marg collect <experiment>` validates it.

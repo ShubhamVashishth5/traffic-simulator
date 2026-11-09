@@ -1,0 +1,44 @@
+---
+title: "Run report: $scenario"
+subtitle: "$subtitle"
+format:
+  html:
+    embed-resources: true
+    toc: true
+  typst: default
+---
+
+$description
+
+## Scenario
+
+$scenario_table
+
+## Provenance
+
+$provenance_table
+
+## Headline KPIs
+
+Measured window only (after the $warmup_s s warm-up).
+
+$kpi_table
+
+## Detectors
+
+$detector_section
+
+## Vehicles by type
+
+$agents_table
+
+## Events
+
+$events_section
+
+## Parameter register (excerpt)
+
+Parameters not taken from the base register, and every `fit` parameter. The full register is in
+the parameter appendix (`marg report params`).
+
+$params_table

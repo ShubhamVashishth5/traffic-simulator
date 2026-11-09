@@ -1,0 +1,32 @@
+name: dense_corridor
+description: >
+  Performance benchmark (plan/02-architecture.md performance targets): 2 km x 10.5 m corridor
+  loaded until it holds thousands of vehicles at once. Not a calibrated scenario.
+duration_s: 1800
+warmup_s: 0
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [2000, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 9000}
+      composition:
+        motorcycle: 0.25
+        scooter: 0.2
+        moped: 0.05
+        auto_rickshaw: 0.12
+        e_rickshaw: 0.03
+        hatchback: 0.2
+        sedan: 0.07
+        suv: 0.04
+        bus: 0.02
+        lcv: 0.02
+detectors:
+  - {kind: screenline, id: s1900, ribbon: main, s: 1900, interval_s: 300}
+kpi:
+  throughput_detector: s1900
