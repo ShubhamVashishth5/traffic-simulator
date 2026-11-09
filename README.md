@@ -39,14 +39,18 @@ Every push to `master`, every pull request and every `v*` tag runs the
 | --- | --- |
 | `cli-linux-x86_64-musl` | static `marg` binary for any x86_64 Linux (HPC clusters, `deploy/marg.def`) |
 | `cli-linux-x86_64-gnu` | `marg` for glibc Linux (about 7% faster than the static build) |
-| `cli-macos-arm64` | `marg` for Apple-silicon Macs |
-| `wheel-linux-x86_64`, `wheel-macos-arm64` | Python wheels (`pip install marg-*.whl`, Python ≥ 3.11) |
+| `cli-macos-arm64` | `marg` for Apple-silicon Macs (opt-in, see below) |
+| `wheel-linux-x86_64`, `wheel-macos-arm64` | Python wheels (`pip install marg-*.whl`, Python ≥ 3.11; macOS opt-in) |
 | `sdist`, `web` | Python source distribution; web viewer bundle |
 
 Each CLI archive contains the binary, the parameter register (`params/`), the shipped scenarios and
 a SHA-256 checksum; set `MARG_PARAMS_DIR` to its `params/base`. Binaries and wheels are
 smoke-tested by running a scenario before upload. Pushing a tag `vX.Y.Z` that matches the
-workspace version in `Cargo.toml` also publishes everything as a GitHub release:
+workspace version in `Cargo.toml` also publishes everything as a GitHub release.
+
+macOS builds run only when the repository variable `BUILD_MACOS` is `true` (Settings → Secrets
+and variables → Actions → Variables), because they need macOS runners, which this repository
+does not get by default (GitHub cancels such jobs before they start).
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0

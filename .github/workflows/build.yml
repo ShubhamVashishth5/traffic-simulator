@@ -5,11 +5,15 @@ name: build
 #
 # - the `marg` CLI: Linux x86_64 static (musl; runs on any Linux, e.g. HPC
 #   clusters and the Apptainer image in deploy/marg.def), Linux x86_64 (glibc;
-#   about 7% faster) and macOS arm64, each packaged with the parameter register
+#   about 7% faster) and, opt-in, macOS arm64, each packaged with the parameter register
 #   and the shipped scenarios;
 # - Python wheels (abi3: one wheel per platform for Python >= 3.11) and the
 #   source distribution;
 # - the web viewer bundle.
+#
+# macOS builds are opt-in: set the repository variable BUILD_MACOS to `true`
+# (Settings → Secrets and variables → Actions → Variables) once macOS runners
+# are available to the repository. Without them GitHub cancels the jobs.
 #
 # Every binary and wheel is smoke-tested by running a scenario before upload.
 # Artifacts are attached to the workflow run; a `v*` tag also publishes them as
@@ -33,22 +37,37 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  plan:
+    name: Plan platforms
+    runs-on: ubuntu-latest
+    outputs:
+      cli: ${{ steps.plan.outputs.cli }}
+      wheels: ${{ steps.plan.outputs.wheels }}
+    steps:
+      - id: plan
+        env:
+          BUILD_MACOS: ${{ vars.BUILD_MACOS }}
+        run: |
+          cli='{"name":"linux-x86_64-musl","os":"ubuntu-latest","target":"x86_64-unknown-linux-musl"}'
+          cli="$cli"',{"name":"linux-x86_64-gnu","os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"}'
+          wheels='{"name":"linux-x86_64","os":"ubuntu-latest","target":"x86_64"}'
+          if [ "$BUILD_MACOS" = "true" ]; then
+            mac='{"name":"macos-arm64","os":"macos-14","target":"aarch64-apple-darwin"}'
+            cli="$cli,$mac"
+            wheels="$wheels,$mac"
+          else
+            echo "::notice::macOS builds are off; set the repository variable BUILD_MACOS=true to build them"
+          fi
+          echo "cli={\"include\":[$cli]}" >> "$GITHUB_OUTPUT"
+          echo "wheels={\"include\":[$wheels]}" >> "$GITHUB_OUTPUT"
+
   cli:
     name: marg CLI (${{ matrix.name }})
+    needs: plan
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: linux-x86_64-musl
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-          - name: linux-x86_64-gnu
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - name: macos-arm64
-            os: macos-14
-            target: aarch64-apple-darwin
+      matrix: ${{ fromJSON(needs.plan.outputs.cli) }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.97.0
@@ -99,17 +118,11 @@ jobs:
 
   wheels:
     name: Python wheel (${{ matrix.name }})
+    needs: plan
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: linux-x86_64
-            os: ubuntu-latest
-            target: x86_64
-          - name: macos-arm64
-            os: macos-14
-            target: aarch64-apple-darwin
+      matrix: ${{ fromJSON(needs.plan.outputs.wheels) }}
     steps:
       - uses: actions/checkout@v4
       - uses: PyO3/maturin-action@v1
