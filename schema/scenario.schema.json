@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scenario",
+  "description": "A scenario: what to simulate, for how long, and what to record.",
+  "type": "object",
+  "properties": {
+    "description": {
+      "description": "Free-text description.",
+      "type": "string",
+      "default": ""
+    },
+    "dt_s": {
+      "description": "Time step in seconds.",
+      "type": "number",
+      "format": "double",
+      "default": 0.1
+    },
+    "duration_s": {
+      "description": "Simulated duration including warm-up, in seconds.",
+      "type": "number",
+      "format": "double"
+    },
+    "name": {
+      "description": "Short identifier, used in run folder names.",
+      "type": "string"
+    },
+    "toy_arrivals_per_h": {
+      "description": "Placeholder demand for the phase-P0 skeleton: Poisson arrivals per hour.",
+      "type": "number",
+      "format": "double"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "duration_s",
+    "toy_arrivals_per_h"
+  ]
+}

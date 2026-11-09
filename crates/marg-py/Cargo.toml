@@ -1,0 +1,19 @@
+[package]
+name = "marg-py"
+description = "Python bindings for the marg simulator (built with maturin)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+marg-params.workspace = true
+marg-core.workspace = true
+marg-io.workspace = true
+pyo3 = { version = "0.30", features = ["abi3-py311"] }
+
+[lints]
+workspace = true

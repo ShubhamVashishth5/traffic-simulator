@@ -1,0 +1,22 @@
+[package]
+name = "marg-cli"
+description = "Command-line runner for the marg simulator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "marg"
+path = "src/main.rs"
+
+[dependencies]
+marg-params.workspace = true
+marg-core.workspace = true
+marg-io.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+
+[lints]
+workspace = true

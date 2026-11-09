@@ -1,0 +1,18 @@
+[package]
+name = "marg-io"
+description = "Run folders, manifests and Parquet output for the marg simulator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+marg-params.workspace = true
+marg-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+blake3.workspace = true
+serde_norway.workspace = true
+
+[lints]
+workspace = true

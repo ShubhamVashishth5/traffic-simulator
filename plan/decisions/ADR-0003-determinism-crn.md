@@ -20,7 +20,10 @@ replayable.
 ## Decision
 Option 3:
 
-- ChaCha8 streams keyed as above;
+- Philox4x32-10 streams keyed as above. (Drafted as ChaCha8; changed in P0.5 because Philox is
+  designed for counter-based use: any `(entity, counter)` block is computed directly, with integer
+  arithmetic only, and it is verified against the Random123 known-answer vectors. It is also what
+  JAX and cuRAND use.)
 - decisions use per-agent decision streams;
 - environment and objects have their own streams;
 - the perceive, decide and move phases only read the previous state;

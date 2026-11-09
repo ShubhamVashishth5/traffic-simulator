@@ -1,0 +1,11 @@
+[package]
+name = "marg-server"
+description = "Live WebSocket sessions for the marg web viewer (implemented in phase P4)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
