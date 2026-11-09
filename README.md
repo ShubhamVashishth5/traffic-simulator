@@ -3,8 +3,11 @@
 Research simulator for disordered (lane-free) mixed traffic on Indian urban roads, built to
 implement the *Simulator Parameter Guide: Delhi Disordered Traffic*.
 
-**Status:** early development. See [`plan/`](plan/README.md) for the design and the phased
-roadmap, and [`plan/STATUS.md`](plan/STATUS.md) for progress.
+**New here?** Start with the [project overview](docs/project-overview.md): what the simulator is,
+the research it supports, how it works and where it stands.
+
+**Status:** early development (phases P0–P4 of 13 built). See [`plan/`](plan/README.md) for the
+design and the phased roadmap, and [`plan/STATUS.md`](plan/STATUS.md) for progress.
 
 ## Layout
 
