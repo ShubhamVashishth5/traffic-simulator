@@ -16,7 +16,7 @@ the direction of travel.
 | --- | --- | --- |
 | `bicycle` | — | |
 | `cycle_rickshaw` | — | grade C dimensions |
-| `two_wheeler` | `moped_scooty`, `motorcycle`, `e_two_wheeler` | the bike taxi is a motorcycle with a persona; e-2W kinematics differ (G§7.1) |
+| `two_wheeler` | `moped`, `scooter`, `motorcycle`, `e_two_wheeler` | the bike taxi is a motorcycle with a persona; e-2W kinematics differ (G§7.1). Moped and scooter are separate because their free-flow speeds differ (36.0 vs 43.6 km/h) |
 | `e_rickshaw` | — | legal envelope ≤ 2.6 × 1.0 m, ≤ 25 km/h, ≤ 2 kW |
 | `auto_rickshaw` | — | CNG |
 | `car` | `hatchback`, `sedan`, `suv` | |
@@ -25,7 +25,7 @@ the direction of travel.
 | `truck` | `heavy_commercial` | |
 | `tractor` | — | appears in the critical-gap table |
 
-There are 10 classes and 14 vehicle types in all (sub-classes count separately), which meets the guide's "at least 12".
+There are 10 classes and 15 vehicle types in all (sub-classes count separately), which meets the guide's "at least 12".
 Pedestrians and animals are separate agent kinds that share the neighbour grid but not the vehicle
 arrays.
 

@@ -5,6 +5,8 @@ use clap::{Parser, Subcommand};
 use marg_params::{Grade, ParamValue, Register, RegisterFilter, Role};
 use std::path::PathBuf;
 
+mod bench;
+
 #[derive(Parser)]
 #[command(name = "marg", version, about = "Lane-free mixed-traffic simulator")]
 struct Cli {
@@ -51,6 +53,21 @@ enum Command {
         /// Allow overriding `fix` (measured) parameters.
         #[arg(long)]
         allow_fix_override: bool,
+    },
+    /// Time a scenario headless (trajectories off): wall time and ns per agent-step.
+    Bench {
+        scenario: PathBuf,
+        #[arg(long, default_value_t = 1)]
+        threads: usize,
+        #[arg(long, default_value_t = 3)]
+        repeat: usize,
+        #[arg(long)]
+        params: Option<PathBuf>,
+    },
+    /// Write the output data dictionary (Markdown).
+    DataDictionary {
+        #[arg(long, default_value = "docs/data-dictionary.md")]
+        out: PathBuf,
     },
 }
 
@@ -137,6 +154,31 @@ fn main() -> Result<()> {
                 }
                 ParamsCommand::Explain { path, scenario } => explain(&reg, &path, scenario)?,
             }
+        }
+        Command::Bench {
+            scenario,
+            threads,
+            repeat,
+            params,
+        } => {
+            let mut sc = marg_params::Scenario::from_yaml(&std::fs::read_to_string(&scenario)?)?;
+            sc.outputs.trajectories = None;
+            let opts = marg_io::RunOptions {
+                params_dir: params,
+                ..Default::default()
+            };
+            let spec = marg_io::run::resolve_scenario(&sc, &opts)?;
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&bench::run(&spec, threads, repeat)?)?
+            );
+        }
+        Command::DataDictionary { out } => {
+            if let Some(dir) = out.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            std::fs::write(&out, marg_io::outputs::data_dictionary())?;
+            println!("wrote {}", out.display());
         }
         Command::Run {
             scenario,

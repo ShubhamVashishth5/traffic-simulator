@@ -955,6 +955,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "serde_norway",
  "thiserror",
 ]
 
@@ -978,6 +979,7 @@ dependencies = [
 name = "marg-net"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "marg-params",
  "proptest",
  "serde",

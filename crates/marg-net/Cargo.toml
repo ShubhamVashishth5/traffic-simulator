@@ -9,6 +9,7 @@ license.workspace = true
 marg-params.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+indexmap.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

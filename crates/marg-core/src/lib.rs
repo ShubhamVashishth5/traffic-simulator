@@ -1,13 +1,23 @@
 //! Simulation core of the marg lane-free mixed-traffic simulator.
 //!
-//! The step loop follows `plan/02-architecture.md` §4: demand → perceive →
-//! decide → move → apply → observe → commands. Perceive, decide and move only
-//! read the previous state and write per-agent buffers, so results are
-//! bitwise identical for any number of threads (ADR-0003).
+//! The step loop follows `plan/02-architecture.md` §4. Only the move phase is
+//! parallel, and it reads the previous state and writes per-agent results in
+//! a fixed order, so results are bitwise identical for any number of threads
+//! (ADR-0003).
 
+pub mod agents;
+pub mod demand;
+pub mod model;
+pub mod observe;
+pub mod output;
+pub mod params;
 pub mod rng;
 pub mod sim;
 
+pub use output::{
+    AgentRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk, TrajectorySink,
+};
+pub use params::CoreParams;
 pub use sim::{RunSummary, SimError, Simulation};
 
 /// Version of the simulator core, recorded in every run manifest.

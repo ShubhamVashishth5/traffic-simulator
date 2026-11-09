@@ -40,3 +40,13 @@ entries:
     guide: "§2.2"
     register_row: core/numerics
     range: [0.05, 1.0]
+  insertion_attempts_per_step:
+    value: 32
+    unit: "1"
+    grade: C
+    role: fix
+    source: "Numerical choice"
+    guide: "§7.3"
+    register_row: core/numerics
+    range: [1.0, 10000.0]
+    notes: "Waiting arrivals tried per entry per step; caps the cost of an oversaturated entry. Arrivals that cannot enter wait in a virtual queue (spawn delay is recorded)."

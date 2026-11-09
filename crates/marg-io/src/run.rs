@@ -1,6 +1,7 @@
 //! Run one scenario and write its run folder.
 
 use crate::manifest::{RUN_FORMAT_VERSION, RunManifest, RunStatus};
+use crate::outputs::{ParquetTrajectorySink, write_outputs};
 use crate::params_table::params_batch;
 use crate::table::{TableError, write_batch};
 use indexmap::IndexMap;
@@ -26,6 +27,8 @@ pub enum RunError {
     Table(#[from] TableError),
     #[error("building tables: {0}")]
     Arrow(#[from] arrow::error::ArrowError),
+    #[error("writing trajectories: {0}")]
+    Trajectories(String),
     #[error("no parameter register found: set MARG_PARAMS_DIR or run from the repository")]
     NoRegister,
 }
@@ -116,7 +119,22 @@ pub fn run_scenario(
     let run_hash = spec.run_hash(opts.seed, marg_core::VERSION);
     let start = Instant::now();
     let mut sim = Simulation::new(&spec, opts.seed, opts.threads)?;
-    let summary = sim.run_to_end();
+    if spec.scenario.outputs.trajectories.is_some() {
+        let ribbons = spec
+            .scenario
+            .network
+            .ribbons
+            .iter()
+            .map(|r| r.id.clone())
+            .collect();
+        sim.set_trajectory_sink(Box::new(ParquetTrajectorySink::new(
+            out.join("trajectories.parquet"),
+            ribbons,
+        )?));
+    }
+    sim.run_to_end();
+    let (summary, outputs) = sim.finish().map_err(RunError::Trajectories)?;
+    write_outputs(out, &outputs, &run_hash, opts.seed)?;
     let (marg_version, git_sha, git_dirty, build_profile, host) = RunManifest::build_info();
     let manifest = RunManifest {
         run_format_version: RUN_FORMAT_VERSION,

@@ -17,6 +17,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 indexmap.workspace = true
+serde_norway.workspace = true
 proptest.workspace = true
 criterion.workspace = true
 

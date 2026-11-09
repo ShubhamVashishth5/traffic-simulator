@@ -246,12 +246,15 @@ fundamental diagram.
 
 ## Performance targets
 
-These are checked by benchmarks from Phase 2. Throughput is measured in agent-steps per second.
+These are checked by benchmarks from Phase 2 (`marg bench`, `cargo bench`). Throughput is measured
+in agent-steps per second. *Correction from implementation:* 3,000 agents on 2 km is about
+1,500 veh/km, above jam density for a 10.5 m road (about 800 veh/km in the Chennai data), so the
+corridor budget is stated per agent-step instead.
 
-| Case | Size | Target |
-| --- | --- | --- |
-| Corridor, headless, KPIs only | 2 km, ~3,000 agents at once, 1 h peak, Δt = 0.1 s | ≤ 60 s on 1 core (≥ 60× real time); stretch ≤ 20 s |
-| Corridor with 1 Hz trajectories | same | ≤ 1.3× the headless time |
+| Case | Size | Target | Measured (P2, one laptop-class core) |
+| --- | --- | --- | --- |
+| Corridor, headless, KPIs only | budget: ≤ 555 ns per agent-step (= 1 h of 3,000 agents in 60 s) | ≤ 60 s on 1 core; stretch ≤ 20 s | ~90 ns/agent-step; reference corridor (2 km, ~400 agents at once) 1 h in 1.2 s |
+| Corridor with 1 Hz trajectories | same | ≤ 1.3× the headless time | within target |
 | Zone, multi-threaded | ~50 junctions, ~20,000 agents | ≥ 10× real time on 8 cores |
 | Live viewer | zone case | 30 fps rendering at 1× to 5× real time |
 

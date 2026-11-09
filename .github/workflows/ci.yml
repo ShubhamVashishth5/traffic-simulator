@@ -32,7 +32,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv sync
       - run: uv run maturin develop --release
-      - run: uv run ruff check python
+      - run: uv run ruff check python scripts
       - run: uv run pytest
 
   web:

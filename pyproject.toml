@@ -28,6 +28,7 @@ dev = [
     "duckdb>=1.0",
     "scipy>=1.12",
     "datamodel-code-generator>=0.26",
+    "matplotlib>=3.8",
 ]
 
 [tool.maturin]
@@ -46,3 +47,7 @@ extend-exclude = ["python/marg/_schema.py", "python/marg/_register_schema.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Report scripts hold long Markdown sentences.
+"scripts/*.py" = ["E501"]

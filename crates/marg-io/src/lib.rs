@@ -1,6 +1,7 @@
 //! Run folders, manifests and Parquet output.
 
 pub mod manifest;
+pub mod outputs;
 pub mod params_table;
 pub mod run;
 pub mod table;

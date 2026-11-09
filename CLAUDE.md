@@ -21,6 +21,9 @@ uv sync && uv run maturin develop --release && uv run pytest
 uv run ruff check python
 (cd web && npm ci && npm run build && npm test)
 ./scripts/gen-schema.sh                      # after changing any type in marg-params
+cargo run -q -p marg-cli -- data-dictionary  # after changing any output table
+cargo run --release -p marg-cli -- bench scenarios/corridor_2km.yaml   # ns per agent-step
+uv run python scripts/p2_milestone.py        # regenerate reports/phases/P2.md
 ./scripts/bench-compare.sh origin/master HEAD
 ```
 

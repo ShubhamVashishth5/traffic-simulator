@@ -6,7 +6,8 @@ orchestrates runs and experiments and analyses their Parquet outputs.
 
 from __future__ import annotations
 
+from marg import analysis
 from marg._core import version
 from marg.run import RunResult, run
 
-__all__ = ["RunResult", "run", "version"]
+__all__ = ["RunResult", "analysis", "run", "version"]

@@ -20,9 +20,19 @@ Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say wh
 | P1 | P1.3 Transcribe register (§9) | done | implementation-v1 | 249 entries in `params/base/` (72 A, 52 B, 121 C) + `validation/targets/`. All 83 §9 rows traced (`params/guide_rows.yaml`, tested). No-number rows are `null`, not invented |
 | P1 | P1.4 Scenario schema + resolver | done | implementation-v1 | Network, demand, detectors, outputs, KPIs, overrides; layers base ← scenario ← experiment with provenance; `fix` guarded |
 | P1 | P1.5 Run identity, params.parquet | done | implementation-v1 | Canonical JSON (sorted keys) → blake3; order- and layer-independent (tested); `spec.resolved.yaml`, `params.parquet` |
-| P1 | P1.6 Typed handles, no-magic-numbers check | doing | | Access-tracked accessors done (`ResolvedSpec::unused()`); literal scanner lands with the first model code in P2 |
+| P1 | P1.6 Typed handles, no-magic-numbers check | done | implementation-v1 | `CoreParams` read once via access-tracked accessors; `tests/no_magic_numbers.rs` scans `marg-core/src/model/` |
 | P1 | P1.7 `marg params` CLI | done | implementation-v1 | `list` (grade, role, stage, group filters), `explain` (SI value, provenance), `run --set path=value` |
-| P2 | P2.1–P2.10 | todo | | See card |
+| P2 | P2.1 Ribbons | done | implementation-v1 | Polyline + width profile, world↔(s, y) (round trip < 1 mm, property test), chains with cycle check. Binary `build-network` deferred: inline YAML is enough until OSM import (P11) |
+| P2 | P2.2 Agent store | done | implementation-v1 | SoA, stable compaction; draws keyed by agent id (CRN tested) |
+| P2 | P2.3 Neighbour index | done | implementation-v1 | Per-ribbon order sorted by (s, id), adaptive re-sort; leader scan with lateral "shadowing" (bug with long vehicles found and fixed) |
+| P2 | P2.4 Longitudinal model | done | implementation-v1 | IDM with lane-free leader set and ω weighting; platoon equilibrium within 2% and lateral-separation tests pass |
+| P2 | P2.5 Integration and transitions | done | implementation-v1 | Ballistic update, ribbon handover, exits; conservation tested; 0 collision-guard events on the reference corridor |
+| P2 | P2.6 Demand | done | implementation-v1 | Shifted-exponential arrivals per class (KS test passes), composition within binomial error, virtual entry queue with insertion speed |
+| P2 | P2.7 Observers | done | implementation-v1 | Screenlines (exact match to trajectory recomputation), Edie areas (< 0.5%), agent trips, 14 KPIs |
+| P2 | P2.8 Parquet writers | done | implementation-v1 | agents, detectors, events, kpis, streamed trajectories (background thread); `docs/data-dictionary.md` generated and tested |
+| P2 | P2.9 `marg run` and `marg.run()` | done | implementation-v1 | Python `RunResult` table accessors, `marg.analysis` |
+| P2 | P2.10 Parallel move and benchmarks | done | implementation-v1 | Reference corridor: 1 h in 1.2 s on one core (~90 ns/agent-step, ~2,900× real time); deterministic across 1/3/4 threads; parallel path only above 1,024 agents |
+| P2 | Milestone: free-flow speeds | partial | implementation-v1 | 3 of 10 sub-classes within ±2 km/h untuned; free vehicles move at their own v0, gap is selection bias from no overtaking (see `reports/phases/P2.md`). Re-run after P5 |
 | P3 | P3.1–P3.9 | todo | | See card |
 | P4 | P4.1–P4.8 | todo | | See card |
 | P5 | P5.1 Lateral ADR (review gate) | todo | | |
