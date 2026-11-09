@@ -45,7 +45,6 @@ RC: dict[str, Any] = {
     "axes.spines.right": False,
     "axes.grid": True,
     "axes.axisbelow": True,
-    "axes.prop_cycle": __import__("cycler").cycler(color=SERIES),
     "grid.color": GRID,
     "grid.linewidth": 0.6,
     "grid.linestyle": "-",
@@ -76,7 +75,10 @@ def use() -> None:
             matplotlib.use("Agg")
         except Exception:  # noqa: BLE001 - interactive sessions keep their backend
             pass
+    from cycler import cycler  # a matplotlib dependency
+
     matplotlib.rcParams.update(RC)
+    matplotlib.rcParams["axes.prop_cycle"] = cycler(color=SERIES)
 
 
 def color(i: int) -> str:

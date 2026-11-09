@@ -30,6 +30,28 @@ uv sync && uv run maturin develop --release && uv run pytest
 cargo run --release -p marg-cli -- run scenarios/corridor_2km.yaml --seed 1 --out runs/reference
 ```
 
+## Builds
+
+Every push to `master`, every pull request and every `v*` tag runs the
+[`build` workflow](.github/workflows/build.yml). It produces, as workflow artifacts:
+
+| Artifact | What |
+| --- | --- |
+| `cli-linux-x86_64-musl` | static `marg` binary for any x86_64 Linux (HPC clusters, `deploy/marg.def`) |
+| `cli-linux-x86_64-gnu` | `marg` for glibc Linux (about 7% faster than the static build) |
+| `cli-macos-arm64` | `marg` for Apple-silicon Macs |
+| `wheel-linux-x86_64`, `wheel-macos-arm64` | Python wheels (`pip install marg-*.whl`, Python ≥ 3.11) |
+| `sdist`, `web` | Python source distribution; web viewer bundle |
+
+Each CLI archive contains the binary, the parameter register (`params/`), the shipped scenarios and
+a SHA-256 checksum; set `MARG_PARAMS_DIR` to its `params/base`. Binaries and wheels are
+smoke-tested by running a scenario before upload. Pushing a tag `vX.Y.Z` that matches the
+workspace version in `Cargo.toml` also publishes everything as a GitHub release:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ## Experiments
 
 An experiment is a design × arms × replications over a scenario, expanded into a run list with

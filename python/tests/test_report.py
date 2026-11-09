@@ -35,7 +35,14 @@ kpi:
 """
 
 
-def check(paths: list[Path], formats=("html",)) -> str:
+# Rendering needs Quarto or pandoc (CI installs pandoc). Without one, the
+# tests still build every report's source, figures and tables.
+FORMATS = ["html"] if report.renderer() else []
+
+
+def check(paths: list[Path], formats=None) -> str:
+    """Check a built report; return its HTML if rendered, else its source."""
+    formats = FORMATS if formats is None else formats
     qmd = paths[0]
     assert qmd.suffix == ".qmd" and "$" not in qmd.read_text().replace("$$", "")
     for f in formats:
@@ -44,13 +51,14 @@ def check(paths: list[Path], formats=("html",)) -> str:
     assert list((qmd.parent / "tables").glob("*.tex")) and list(
         (qmd.parent / "tables").glob("*.csv")
     )
-    return qmd.with_suffix(".html").read_text() if "html" in formats else ""
+    return qmd.with_suffix(".html").read_text() if "html" in formats else qmd.read_text()
 
 
 def test_run_report_html_and_pdf(tmp_path: Path) -> None:
     run = marg.run(RUN, seed=2, out=tmp_path / "run", params_dir=PARAMS)
-    if report.find_chrome() is None and not __import__("shutil").which("quarto"):
-        pytest.skip("no PDF renderer")
+    tool = report.renderer()
+    if tool is None or (tool == "pandoc" and report.find_chrome() is None):
+        pytest.skip("no PDF renderer (Quarto, or pandoc + Chrome)")
     html = check(report.render("run", run.path, formats=["html", "pdf"]), ("html", "pdf"))
     assert "Headline KPIs" in html and "throughput_veh_h" in html
     assert (run.path / "report" / "run" / "figures" / "screenline_flow.pdf").exists()
@@ -58,7 +66,7 @@ def test_run_report_html_and_pdf(tmp_path: Path) -> None:
 
 def test_params_appendix_for_a_run(tmp_path: Path) -> None:
     run = marg.run(RUN, seed=2, out=tmp_path / "run", params_dir=PARAMS)
-    html = check(report.render("params", run.path, formats=["html"]))
+    html = check(report.render("params", run.path, formats=FORMATS))
     assert "vehicles.free_flow_speed.hatchback" in html and "Balakrishnan" in html
 
 
@@ -72,9 +80,9 @@ def test_experiment_and_sensitivity_reports(tmp_path: Path, tiny) -> None:
         root=tmp_path,
         params_dir=PARAMS,
     ).run(marg.backends.Local(workers=4))
-    html = check(report.render("experiment", grid.dir, formats=["html"]))
+    html = check(report.render("experiment", grid.dir, formats=FORMATS))
     assert "cooperative − observed" in html or "cooperative" in html
-    check(report.render("params", grid.dir, formats=["html"]))
+    check(report.render("params", grid.dir, formats=FORMATS))
 
     screen = marg.Experiment(
         "morris",
@@ -91,10 +99,10 @@ def test_experiment_and_sensitivity_reports(tmp_path: Path, tiny) -> None:
         root=tmp_path,
         params_dir=PARAMS,
     ).run(marg.backends.Local(workers=4))
-    html = check(report.render("sensitivity", screen.dir, formats=["html"]))
+    html = check(report.render("sensitivity", screen.dir, formats=FORMATS))
     assert "Screening summary" in html and "noise floor" in html
     assert (screen.dir / "report" / "sensitivity" / "tables" / "morris_screen.csv").exists()
-    check(report.render("experiment", screen.dir, formats=["html"]))
+    check(report.render("experiment", screen.dir, formats=FORMATS))
 
 
 def test_calibration_stage_report(tmp_path: Path) -> None:
@@ -142,7 +150,7 @@ def test_calibration_stage_report(tmp_path: Path) -> None:
     }
     f = tmp_path / "stage_1.yaml"
     f.write_text(yaml.safe_dump(doc))
-    html = check(report.render("calibration-stage", f, formats=["html"]))
+    html = check(report.render("calibration-stage", f, formats=FORMATS))
     assert "every" in html and "Frozen" in html
 
 
@@ -150,9 +158,17 @@ def test_cli_entry_point(tmp_path: Path) -> None:
     from marg.__main__ import main
 
     run = marg.run(RUN, seed=3, out=tmp_path / "run", params_dir=PARAMS)
-    assert (
-        main(["report", "run", str(run.path), "--format", "html", "--out", str(tmp_path / "rep")])
-        == 0
-    )
-    assert (tmp_path / "rep" / "run.html").exists()
+    args = ["report", "run", str(run.path), "--out", str(tmp_path / "rep")]
+    args += ["--format", "html"] if FORMATS else ["--no-render"]
+    assert main(args) == 0
+    assert (tmp_path / "rep" / ("run.html" if FORMATS else "run.qmd")).exists()
     assert json.loads((run.path / "manifest.json").read_text())["status"] == "ok"
+
+
+def test_missing_renderer_fails_clearly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = marg.run(RUN, seed=4, out=tmp_path / "run", params_dir=PARAMS)
+    monkeypatch.setattr(report.shutil, "which", lambda _name: None)
+    with pytest.raises(report.RenderError, match="pandoc"):
+        report.render("run", run.path, formats=["html"])
+    paths = report.render("run", run.path, formats=[])  # the source still builds
+    assert [p.suffix for p in paths] == [".qmd"]

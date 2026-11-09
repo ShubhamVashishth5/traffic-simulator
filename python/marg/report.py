@@ -711,6 +711,19 @@ def _pandoc(qmd: Path, formats: Sequence[str]) -> list[Path]:
     return out
 
 
+class RenderError(RuntimeError):
+    """No tool to render a report (Quarto, or pandoc and Chrome for PDF)."""
+
+
+def renderer() -> str | None:
+    """The tool reports render with: ``quarto``, ``pandoc`` or ``None``."""
+    if shutil.which("quarto"):
+        return "quarto"
+    if shutil.which("pandoc"):
+        return "pandoc"
+    return None
+
+
 def render(
     kind: str,
     path: str | Path,
@@ -720,16 +733,31 @@ def render(
 ) -> list[Path]:
     """Build report ``kind`` for ``path`` (a run folder, an experiment folder or
     a stage file) into ``out`` (default ``<path>/report``, or next to a stage
-    file), and render it. Returns the ``.qmd`` and the rendered files."""
+    file), and render it. Returns the ``.qmd`` and the rendered files.
+
+    ``formats`` defaults to HTML and PDF; an empty list builds only the ``.qmd``
+    with its figures and tables (no renderer needed). Raises
+    :class:`RenderError` if a format is asked for and no renderer is installed."""
     if kind not in BUILDERS:
         raise ValueError(f"unknown report `{kind}`; expected one of {KINDS}")
+    fmts = ["html", "pdf"] if formats is None else list(formats)
     src = Path(path)
     default = src.parent / f"report-{src.stem}" if src.is_file() else src / "report" / kind
-    o = Out(Path(out) if out else default, formats or ("html", "pdf"))
+    o = Out(Path(out) if out else default, fmts)
     ctx = BUILDERS[kind](src, o, metrics)
     text = Template((TEMPLATES / f"{kind}.qmd").read_text()).safe_substitute(ctx)
     qmd = o.path / f"{kind}.qmd"
     qmd.write_text(text)
-    fmts = list(formats or ("html", "pdf"))
-    done = _quarto(qmd, fmts) if shutil.which("quarto") else _pandoc(qmd, fmts)
+    if not fmts:
+        return [qmd]
+    tool = renderer()
+    if tool is None:
+        raise RenderError(
+            f"rendering {', '.join(fmts)} needs Quarto (https://quarto.org) or pandoc "
+            f"(plus Chrome/Chromium for PDF). The report source is ready at {qmd}; "
+            "install a renderer, or pass formats=[] (`--no-render`) to build only the source."
+        )
+    if tool == "pandoc" and "pdf" in fmts and find_chrome() is None:
+        raise RenderError("PDF without Quarto needs Chrome or Chromium to print the HTML")
+    done = _quarto(qmd, fmts) if tool == "quarto" else _pandoc(qmd, fmts)
     return [qmd, *done]

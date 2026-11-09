@@ -38,6 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("path")
     r.add_argument("--out", help="output folder (default: <path>/report)")
     r.add_argument("--format", action="append", choices=["html", "pdf"])
+    r.add_argument(
+        "--no-render", action="store_true", help="build the .qmd, figures and tables only"
+    )
     r.add_argument("--metric", action="append", help="KPI columns to analyse")
     a = ap.parse_args(argv)
 
@@ -57,7 +60,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if complete or a.allow_incomplete else 1
     from marg import report
 
-    paths = report.render(a.kind, a.path, out=a.out, formats=a.format, metrics=a.metric)
+    formats = [] if a.no_render else a.format
+    try:
+        paths = report.render(a.kind, a.path, out=a.out, formats=formats, metrics=a.metric)
+    except report.RenderError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
     for p in paths:
         print(p)
     return 0

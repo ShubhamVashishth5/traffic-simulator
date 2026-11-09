@@ -806,10 +806,14 @@ wheels = [
 name = "marg"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "polars" },
     { name = "pyarrow" },
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 
 [package.optional-dependencies]
@@ -844,12 +848,14 @@ requires-dist = [
     { name = "cma", marker = "extra == 'analysis'", specifier = ">=3.3" },
     { name = "duckdb", marker = "extra == 'analysis'", specifier = ">=1.0" },
     { name = "matplotlib", marker = "extra == 'analysis'", specifier = ">=3.8" },
+    { name = "numpy", specifier = ">=1.26" },
     { name = "polars", specifier = ">=1.0" },
     { name = "pyarrow", specifier = ">=15" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "salib", marker = "extra == 'analysis'", specifier = ">=1.5" },
     { name = "scikit-learn", marker = "extra == 'analysis'", specifier = ">=1.4" },
+    { name = "scipy", specifier = ">=1.12" },
     { name = "scipy", marker = "extra == 'analysis'", specifier = ">=1.12" },
 ]
 provides-extras = ["analysis"]

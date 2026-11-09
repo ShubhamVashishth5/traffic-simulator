@@ -14,6 +14,8 @@ dependencies = [
     "pyarrow>=15",
     "pyyaml>=6",
     "pydantic>=2.7",
+    "numpy>=1.26",
+    "scipy>=1.12",
 ]
 
 [project.optional-dependencies]
