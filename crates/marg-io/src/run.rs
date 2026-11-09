@@ -35,6 +35,8 @@ pub enum RunError {
     Calibration(#[from] marg_params::CalibrationError),
     #[error("no parameter register found: set MARG_PARAMS_DIR or run from the repository")]
     NoRegister,
+    #[error("live session: {0}")]
+    Live(String),
 }
 
 /// How to run.
@@ -217,6 +219,7 @@ pub fn run_spec(
         experiment: opts.meta.clone(),
         calibration_stages: calibration_stages.to_vec(),
         error: None,
+        live: None,
     };
     manifest.write(out)?;
     Ok(manifest)

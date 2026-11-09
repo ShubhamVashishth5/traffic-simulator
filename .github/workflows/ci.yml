@@ -68,7 +68,7 @@ jobs:
       - run: (cd web && npm ci)
       - run: ./scripts/gen-schema.sh
       - name: Fail if generated files changed
-        run: git diff --exit-code -- schema python/marg/_schema.py python/marg/_register_schema.py web/src/schema.ts web/src/register.ts
+        run: git diff --exit-code -- schema python/marg/_schema.py python/marg/_register_schema.py web/src/schema.ts web/src/register.ts web/src/protocol.gen.ts
 
   bench:
     name: benchmark regression

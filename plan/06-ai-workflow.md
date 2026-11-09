@@ -23,7 +23,7 @@ Implement task P<k>.<n> from plan/phases/P<kk>-<name>.md.
 Before coding, read:
 - plan/06-ai-workflow.md (rules) and CLAUDE.md
 - the task card, and the plan sections it lists under "Read first"
-- the parameter-guide sections it names (Claude Doc linked in plan/reference/)
+- the parameter-guide sections it names (plan/reference/parameter-guide.md)
 
 Then:
 1. Restate the task's "Done when" checks as a checklist.

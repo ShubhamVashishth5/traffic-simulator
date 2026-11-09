@@ -256,7 +256,7 @@ corridor budget is stated per agent-step instead.
 | Corridor, headless, KPIs only | budget: ≤ 555 ns per agent-step (= 1 h of 3,000 agents in 60 s) | ≤ 60 s on 1 core; stretch ≤ 20 s | ~90 ns/agent-step; reference corridor (2 km, ~400 agents at once) 1 h in 1.2 s |
 | Corridor with 1 Hz trajectories | same | ≤ 1.3× the headless time | within target |
 | Zone, multi-threaded | ~50 junctions, ~20,000 agents | ≥ 10× real time on 8 cores |
-| Live viewer | zone case | 30 fps rendering at 1× to 5× real time |
+| Live viewer | zone case | 30 fps rendering at 1× to 5× real time | P4: 20,000 agents streamed at 30 frames/s, 20.7 MB/s (5×); rendering not yet measured on a GPU |
 
 **Budget check.** A Sobol run on 15 parameters with N = 1,024 needs 1,024 × 17 = 17,408 parameter
 sets. With 5 replications that is ~87,000 runs: about 1,450 core-hours at 60 s per run, or about 480

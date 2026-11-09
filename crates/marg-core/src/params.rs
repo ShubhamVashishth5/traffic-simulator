@@ -30,6 +30,43 @@ pub struct ClassParams {
     pub entry_lateral_position: Dist,
 }
 
+/// A per-agent parameter drawn at entry. The discriminant is the draw's
+/// counter block in the agent's stream (`Draws::sample`); never reuse one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Drawn {
+    Length = 0,
+    Width = 1,
+    V0 = 2,
+    TimeGap = 3,
+    StandstillGap = 4,
+    MaxAccel = 5,
+    ComfortableDecel = 6,
+}
+
+impl Drawn {
+    pub fn key(self) -> &'static str {
+        match self {
+            Drawn::Length => "length",
+            Drawn::Width => "width",
+            Drawn::V0 => "v0",
+            Drawn::TimeGap => "time_gap",
+            Drawn::StandstillGap => "standstill_gap",
+            Drawn::MaxAccel => "max_accel",
+            Drawn::ComfortableDecel => "comfortable_decel",
+        }
+    }
+}
+
+/// Where one vehicle type's draw of a per-agent parameter comes from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DrawSource {
+    /// Register path of the distribution (by type, else by class).
+    pub path: String,
+    pub drawn: Drawn,
+    /// Index into `VehicleType::ALL`.
+    pub vtype: usize,
+}
+
 /// All parameters the core uses, in SI.
 #[derive(Debug, Clone)]
 pub struct CoreParams {
@@ -54,15 +91,24 @@ pub struct CoreParams {
     pub stop_speed_below: f64,
     pub stop_rearm_above: f64,
     pub lateral_histogram_bin: f64,
+    /// Which register path every per-agent draw of every type reads (for
+    /// the live viewer's "resample existing agents").
+    pub draw_sources: Vec<DrawSource>,
+}
+
+/// The register path a type reads for `prefix`: by type if the register has
+/// it, else by class.
+fn type_or_class_path(spec: &ResolvedSpec, prefix: &str, t: VehicleType) -> String {
+    let by_type = format!("{prefix}.{}", t.key());
+    if spec.contains(&by_type) {
+        by_type
+    } else {
+        format!("{prefix}.{}", t.class().key())
+    }
 }
 
 fn type_or_class(spec: &ResolvedSpec, prefix: &str, t: VehicleType) -> Result<Dist, ResolveError> {
-    let by_type = format!("{prefix}.{}", t.key());
-    if spec.contains(&by_type) {
-        spec.dist_si(&by_type)
-    } else {
-        spec.dist_si(&format!("{prefix}.{}", t.class().key()))
-    }
+    spec.dist_si(&type_or_class_path(spec, prefix, t))
 }
 
 fn pair_matrix(
@@ -112,9 +158,36 @@ impl CoreParams {
                 })
             })
             .collect::<Result<Vec<_>, ResolveError>>()?;
+        let mut draw_sources = Vec::new();
+        for t in VehicleType::ALL {
+            for (prefix, drawn) in [
+                ("vehicles.length", Drawn::Length),
+                ("vehicles.width", Drawn::Width),
+                ("vehicles.free_flow_speed", Drawn::V0),
+            ] {
+                draw_sources.push(DrawSource {
+                    path: type_or_class_path(spec, prefix, t),
+                    drawn,
+                    vtype: t.index(),
+                });
+            }
+            for (name, drawn) in [
+                ("time_gap", Drawn::TimeGap),
+                ("standstill_gap", Drawn::StandstillGap),
+                ("max_accel", Drawn::MaxAccel),
+                ("comfortable_decel", Drawn::ComfortableDecel),
+            ] {
+                draw_sources.push(DrawSource {
+                    path: format!("interaction.following.{name}.{}", t.class().key()),
+                    drawn,
+                    vtype: t.index(),
+                });
+            }
+        }
         Ok(Self {
             types,
             classes,
+            draw_sources,
             accel_exponent: spec.scalar_si("interaction.following.accel_exponent")?,
             emergency_decel: spec.scalar_si("interaction.following.emergency_decel")?,
             mult_time_gap: pair_matrix(spec, "interaction.following.pair_multiplier.time_gap")?,
@@ -136,6 +209,21 @@ impl CoreParams {
             stop_rearm_above: spec.scalar_si("observers.stop.rearm_above")?,
             lateral_histogram_bin: spec.scalar_si("observers.lateral_histogram_bin")?,
         })
+    }
+
+    /// The distribution a type draws `drawn` from.
+    pub fn draw_dist(&self, drawn: Drawn, vtype: usize) -> &Dist {
+        let t = &self.types[vtype];
+        let c = &self.classes[VehicleType::ALL[vtype].class().index()];
+        match drawn {
+            Drawn::Length => &t.length,
+            Drawn::Width => &t.width,
+            Drawn::V0 => &t.free_flow_speed,
+            Drawn::TimeGap => &c.time_gap,
+            Drawn::StandstillGap => &c.standstill_gap,
+            Drawn::MaxAccel => &c.max_accel,
+            Drawn::ComfortableDecel => &c.comfortable_decel,
+        }
     }
 
     /// Lateral distance beyond the clearance at which a leader's weight ω

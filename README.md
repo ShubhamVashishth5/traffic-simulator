@@ -3,8 +3,11 @@
 Research simulator for disordered (lane-free) mixed traffic on Indian urban roads, built to
 implement the *Simulator Parameter Guide: Delhi Disordered Traffic*.
 
-**Status:** early development. See [`plan/`](plan/README.md) for the design and the phased
-roadmap, and [`plan/STATUS.md`](plan/STATUS.md) for progress.
+**New here?** Start with the [project overview](docs/project-overview.md): what the simulator is,
+the research it supports, how it works and where it stands.
+
+**Status:** early development (phases P0–P4 of 13 built). See [`plan/`](plan/README.md) for the
+design and the phased roadmap, and [`plan/STATUS.md`](plan/STATUS.md) for progress.
 
 ## Layout
 
@@ -29,6 +32,23 @@ uv sync && uv run maturin develop --release && uv run pytest
 ```bash
 cargo run --release -p marg-cli -- run scenarios/corridor_2km.yaml --seed 1 --out runs/reference
 ```
+
+## Web viewer
+
+```bash
+(cd web && npm ci && npm run build)
+cargo run --release -p marg-cli -- serve --runs runs     # http://127.0.0.1:8080
+```
+
+- **Live:** start a scenario; play, step, time warp, breakpoints; click a vehicle to inspect it;
+  change `live` parameters while it runs; save the session. A saved session is scenario + seed +
+  command log, and `marg replay runs/live/<id>` reproduces it bitwise.
+- **Replay:** open any run folder under `--runs` (or a URL, or a local folder); scrub, filter with
+  SQL (DuckDB-WASM), with the same dashboards from the stored tables.
+- **Compare twins:** two arms of an experiment on one clock, side by side or overlaid.
+
+For development, `npm run dev` in `web/` proxies to a running `marg serve`. The protocol is in
+[`docs/viewer-protocol.md`](docs/viewer-protocol.md).
 
 ## Builds
 

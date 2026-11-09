@@ -4,10 +4,13 @@ Guidance for AI sessions working in this repository.
 
 ## Start here
 
+- **Goal:** a general-purpose, realistic, highly tunable, CPU- and memory-efficient lane-free
+  traffic simulator that anyone can use. Delhi (the parameter guide) is its first calibrated
+  setting; the code must not assume one study, site or city.
 - The design and roadmap are in `plan/` (start at `plan/README.md`).
 - Work one task card at a time (`plan/phases/Pxx-*.md`). Track progress in `plan/STATUS.md`.
 - The model's numbers come from the *Simulator Parameter Guide: Delhi Disordered Traffic*
-  (Claude Doc linked in `plan/reference/parameter-guide-summary.md`), cited as "G§n".
+  (full copy in `plan/reference/parameter-guide.md`), cited as "G§n".
 - Modelling choices not settled in `plan/03-model-design.md` or an ADR in `plan/decisions/`:
   write an ADR draft with options and stop; do not choose silently.
 
@@ -25,6 +28,11 @@ cargo run -q -p marg-cli -- data-dictionary  # after changing any output table
 cargo run --release -p marg-cli -- bench scenarios/corridor_2km.yaml   # ns per agent-step
 uv run python scripts/p2_milestone.py        # regenerate reports/phases/P2.md
 ./scripts/bench-compare.sh origin/master HEAD
+cargo run --release -p marg-cli -- serve     # web viewer on :8080 (build web/ first); --runs, --scenarios
+cargo run --release -p marg-cli -- replay runs/live/<session>   # headless replay of a live session
+cargo test --release -p marg-server --test server frame_rate -- --ignored --nocapture  # P4.2 bench
+uv run python scripts/p4_twins.py --root runs  # twin arms with trajectories, for Compare
+node web/e2e/milestone.cjs                     # P4 milestone recording (needs playwright + marg serve)
 ```
 
 ## Rules

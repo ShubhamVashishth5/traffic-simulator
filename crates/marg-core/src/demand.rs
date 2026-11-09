@@ -10,7 +10,7 @@
 //! and therefore all of its random draws — does not depend on anything else
 //! in the scenario (common random numbers across twin arms).
 
-use crate::params::{CoreParams, N_CLASSES};
+use crate::params::{CoreParams, Drawn, N_CLASSES};
 use crate::rng::{StreamKind, StreamRng};
 use marg_params::spec::{EntrySpec, FlowInterval};
 use marg_params::{VehicleClass, VehicleType};
@@ -57,26 +57,37 @@ fn positive(x: f64, mean: f64) -> f64 {
 /// (common random numbers, ADR-0003).
 const DRAW_BLOCK: u64 = 1 << 32;
 
+/// The stream of an agent's `k`-th draw.
+fn draw_rng(seed: u64, id: u64, k: u64) -> StreamRng {
+    StreamRng::at(seed, StreamKind::AgentDraws, id, k * DRAW_BLOCK)
+}
+
+/// One per-agent parameter, drawn from its own counter block. Re-drawing it
+/// after its distribution changed reuses the same random numbers, so the
+/// agent keeps its place in the distribution (common random numbers).
+pub fn draw_one(seed: u64, id: u64, vtype: VehicleType, p: &CoreParams, drawn: Drawn) -> f64 {
+    let d = p.draw_dist(drawn, vtype.index());
+    positive(d.sample(&mut draw_rng(seed, id, drawn as u64)), d.mean())
+}
+
 impl Draws {
     /// Draw an agent's parameters from its own stream.
     pub fn sample(seed: u64, id: u64, vtype: VehicleType, p: &CoreParams) -> Self {
-        let rng = |k: u64| StreamRng::at(seed, StreamKind::AgentDraws, id, k * DRAW_BLOCK);
-        let tp = &p.types[vtype.index()];
         let cp = &p.classes[vtype.class().index()];
-        let draw = |k: u64, d: &marg_params::Dist| positive(d.sample(&mut rng(k)), d.mean());
+        let draw = |drawn| draw_one(seed, id, vtype, p, drawn);
         Draws {
-            length: draw(0, &tp.length),
-            width: draw(1, &tp.width),
-            v0: draw(2, &tp.free_flow_speed),
-            time_gap: draw(3, &cp.time_gap),
-            standstill_gap: draw(4, &cp.standstill_gap),
-            max_accel: draw(5, &cp.max_accel),
-            comfortable_decel: draw(6, &cp.comfortable_decel),
+            length: draw(Drawn::Length),
+            width: draw(Drawn::Width),
+            v0: draw(Drawn::V0),
+            time_gap: draw(Drawn::TimeGap),
+            standstill_gap: draw(Drawn::StandstillGap),
+            max_accel: draw(Drawn::MaxAccel),
+            comfortable_decel: draw(Drawn::ComfortableDecel),
             lateral_fraction: cp
                 .entry_lateral_position
-                .sample(&mut rng(7))
+                .sample(&mut draw_rng(seed, id, 7))
                 .clamp(0.0, 1.0),
-            median_band_bonus: p.median_band_bonus.sample(&mut rng(8)),
+            median_band_bonus: p.median_band_bonus.sample(&mut draw_rng(seed, id, 8)),
         }
     }
 }

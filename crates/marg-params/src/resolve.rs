@@ -83,6 +83,10 @@ pub enum ResolveError {
     },
     #[error("parameter `{path}` must be a scalar, found a distribution")]
     NotScalar { path: String },
+    #[error(
+        "parameter `{0}` is not live: the register does not allow changing it during a run (`live: false`)"
+    )]
+    NotLive(String),
 }
 
 /// The fully resolved input of one run.
@@ -203,6 +207,32 @@ fn apply(
 impl ResolvedSpec {
     pub fn get(&self, path: &str) -> Option<&ResolvedParam> {
         self.params.get(path)
+    }
+
+    /// Apply a change made during a run (the live viewer's `set_param`), as
+    /// the `live` layer. Only register entries with `live: true` may change;
+    /// the value is checked against the entry's range like any override, and
+    /// `fix` entries stay protected.
+    pub fn set_live(
+        &mut self,
+        register: &Register,
+        path: &str,
+        value: &ParamValue,
+    ) -> Result<(), ResolveError> {
+        let entry = register
+            .get(path)
+            .ok_or_else(|| ResolveError::Unknown(path.to_string()))?;
+        if !entry.live {
+            return Err(ResolveError::NotLive(path.to_string()));
+        }
+        apply(
+            register,
+            &mut self.params,
+            path,
+            value,
+            Layer::Live,
+            ResolveOptions::default(),
+        )
     }
 
     fn mark(&self, path: &str) {

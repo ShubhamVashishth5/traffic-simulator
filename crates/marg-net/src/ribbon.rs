@@ -47,6 +47,34 @@ impl Ribbon {
         self.cum[self.cum.len() - 1]
     }
 
+    /// Stations where the outline changes direction or width: every vertex
+    /// (twice, just before and after it, so bends draw cleanly) and every
+    /// width-profile station inside the ribbon, sorted. For drawing.
+    pub fn outline_stations(&self) -> Vec<f64> {
+        let len = self.length();
+        // A small fraction of the shortest segment keeps both sides of a vertex on their own segment.
+        let eps = self
+            .cum
+            .windows(2)
+            .map(|w| w[1] - w[0])
+            .fold(f64::INFINITY, f64::min)
+            * 1e-6;
+        let mut st: Vec<f64> = vec![0.0, len];
+        for &c in &self.cum[1..self.cum.len() - 1] {
+            st.push(c - eps);
+            st.push(c + eps);
+        }
+        st.extend(
+            self.width
+                .iter()
+                .map(|w| w.s)
+                .filter(|&s| s > 0.0 && s < len),
+        );
+        st.sort_by(f64::total_cmp);
+        st.dedup();
+        st
+    }
+
     /// Lateral bounds `(y_min, y_max)` at station `s` (constant beyond the ends).
     pub fn y_bounds(&self, s: f64) -> (f64, f64) {
         let w = &self.width;

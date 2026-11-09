@@ -87,8 +87,8 @@ Every decision must be explainable term by term.
 ## Milestone check
 **The dark-signal experiment** (G§6.6): identical demand and personas; control state working vs
 dark, as twin arms; swept over the aggressive-persona share. Report throughput, delay, conflicts,
-gridlock onset and the social efficiency deficit. This is a direct test of the thesis claim about a
-negative-sum game played as zero-sum.
+gridlock onset and the social efficiency deficit. This tests the guide's central claim, that
+violations make traffic a negative-sum game played as if it were zero-sum.
 
 ## Out of scope
 Zone enforcement fields (P9); calibration on real violation counts (P10).

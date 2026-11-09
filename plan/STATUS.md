@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-09. Plan under review; implementation running ahead on branch `implementation-v1`.
+Last updated: 2026-11-09. Plan under review; implementation running ahead (P0–P3 merged from `implementation-v1`; P4 on `ccr-88d9b767-74ihaq`).
 
 Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say why in Notes).
 
@@ -15,6 +15,7 @@ Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say wh
 | P0 | P0.6 Step loop + determinism harness | done | implementation-v1 | Toy agents; 1 vs 4 threads bitwise identical (Rust and Python tests) |
 | P0 | P0.7 Benchmark harness | done | implementation-v1 | Criterion benches + `scripts/bench-compare.sh` (base vs head on one runner). CI job not yet observed running |
 | P0 | P0.8 CI, CLAUDE.md | done | implementation-v1 | `.github/workflows/ci.yml` written, not yet observed on GitHub; pre-commit config deferred |
+| P0 | P0.9 Native Windows builds and CI | todo | | Your answer to open question 6 (Windows PC). Add `x86_64-pc-windows-msvc` to CI tests and to the build artifacts (binary, wheel). WSL works until then |
 | P1 | P1.1 Param entry type | done | implementation-v1 | `ParamEntry` with grade, role, stage, source, guide, register row, range, live, notes; 20 units with SI conversion. `Check` rows go to `validation/targets/`, not the register |
 | P1 | P1.2 Distributions | done | implementation-v1 | 13 forms incl. three lognormal parameterisations, empirical, mixture; `libm`-only sampling. Wong & Goh: quantiles exact, mean 0.977 vs 1.02 s (criterion revised, see notes in the card) |
 | P1 | P1.3 Transcribe register (§9) | done | implementation-v1 | 249 entries in `params/base/` (72 A, 52 B, 121 C) + `validation/targets/`. All 83 §9 rows traced (`params/guide_rows.yaml`, tested). No-number rows are `null`, not invented |
@@ -43,10 +44,19 @@ Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say wh
 | P3 | P3.8 Staged calibration | done | implementation-v1 | `calibrate.Stage(k)`: refuses to start before earlier stages are frozen, never re-opens a frozen stage, writes only its own `fit` parameters (also enforced in the core loader). Frozen stages apply as a new `calibration` resolver layer (provenance `set_by = calibration`). Least squares and CMA-ES on standardised moments. Synthetic stage-1 recovery of three desired-speed means: all truths inside their 95% CIs. ABC-SMC (pyabc) not yet |
 | P3 | P3.9 Reports v1 | done | implementation-v1 | Quarto templates for run, experiment, sensitivity, calibration-stage, parameter appendix; house style (validated palette); tables to CSV and LaTeX. Renders with Quarto when installed, otherwise pandoc (HTML) + headless Chrome (PDF). **Quarto itself was not installed in this environment**, so only the fallback route is tested |
 | P3 | Milestone: Morris screen on capacity | partial | implementation-v1 | 58 P2 `fit` factors (±25% boxes), Morris r = 10, 2 replications under CRN: 1,180 runs, all ok (64 CPU-min). Sensitivity, experiment and parameter-appendix reports render (`reports/phases/P3.md`, `P3_sensitivity.pdf`). **7 factors clearly drive capacity or delay**: the shared standstill-gap multiplier, car `a` and `s0`, the clearance intercept, the shared time-gap multiplier, and the bicycle and motorcycle desired speeds (bicycles most likely a P2 artefact: no overtaking). The noise floor of μ* is 8–12% of the top effect at 2 replications, so 33 factors are unresolved and 18 within noise: **not yet enough to choose the stage-2 parameter set**. Re-run after P5 with more replications |
-| P4 | P4.1–P4.8 | todo | | See card |
+| P4 | P4.1 Live server | done | ccr-88d9b767-74ihaq | `marg serve` (axum + tokio, one sim thread per session). Commands are stamped with the step they act before and logged to `commands.parquet`. Save writes the session folder (scenario, register snapshot, seed, command log); `marg replay` reproduces the output hash bitwise (1 and 4 threads; tested over WebSocket). Live run hash and what `set_param`/`resample` do: ADR-0008 (proposed). Signal and object commands are refused until P8/P6 (logged) |
+| P4 | P4.2 Frame protocol | done | ccr-88d9b767-74ihaq | Arrow IPC frames (33 B per agent), decimated to the viewer's fps, culled to the viewport, protocol version checked at connect. Types generated from Rust (`web/src/protocol.gen.ts`). **20,000+ agents: 30.0 frames/s at 20.7 MB/s (5× real time); 10 frames/s at 1× (every state)** |
+| P4 | P4.3 Renderer | review | ccr-88d9b767-74ihaq | Custom instanced deck.gl layer, ribbons, median band, detectors, colour modes, legend, trails, picking. **60 fps check pending: no GPU in this environment** (to run on your RTX 4070; steps in `reports/phases/P4.md`) (software WebGL numbers in `reports/phases/P4.md`). No MapLibre (all scenarios are local metric until P11) |
+| P4 | P4.4 Controls and inspector | done | ccr-88d9b767-74ihaq | Play, pause, step, time warp, event and time breakpoints. The inspector equals the replayed run's `agents.parquet` bit for bit (tested); the neighbour terms reproduce the next acceleration (tested). Persona and logit breakdown after P8 |
+| P4 | P4.5 Parameter panel | done | ccr-88d9b767-74ihaq | Grouped like the register, with unit, range, grade and role badges. Distribution editors come from the register JSON Schema. Only `live: true` entries are editable. Apply to new agents or resample existing; history with undo. The car v0 change moves the live FD within seconds and is logged (milestone) |
+| P4 | P4.6 Live dashboards | done | ccr-88d9b767-74ihaq | KPI strip (violations, conflicts and gridlock say "not modelled before P8/P5/P7"), uPlot time series, FD scatter, speed and lateral histograms by class, time–space diagram (canvas: ECharts large mode cannot colour points). Live windows equal the observers at the same interval, row for row (tested) |
+| P4 | P4.7 Replay | done | ccr-88d9b767-74ihaq | DuckDB-WASM over HTTP range requests or a local folder; scrubber; SQL filter; the same dashboards from the stored tables; heatmaps. 1 h corridor with 1 Hz trajectories: opens in 4–5 s; seeking to a new minute takes a median of about 110 ms |
+| P4 | P4.8 Twin compare | done | ccr-88d9b767-74ihaq | Side by side or overlay, KPI difference strip, spawn matching, most divergent trips (`scripts/p4_twins.py`). 100% of shared agents spawn at the same place and time. Observed vs `fast_cars` diverge (up to 1 km). **Observed vs cooperative are bitwise identical**: ADR-0007's switches are not read before P5/P8 |
+| P4 | Milestone: live FD response + replay filter | done | ccr-88d9b767-74ihaq | `reports/phases/P4.md` (GIF recorded headless by `web/e2e/milestone.cjs`) |
 | P5 | P5.1 Lateral ADR (review gate) | todo | | |
 | P5 | P5.2–P5.9 | todo | | |
 | P6 | P6.1–P6.8 | todo | | |
+| P7 | P7.0 Roundabouts ADR (review gate) | todo | | In scope (your answer); ring of ribbons or junction box to be chosen at the gate (ADR-0009) |
 | P7 | P7.1–P7.7 | todo | | |
 | P8 | P8.1 Decision-timing ADR (review gate) | todo | | |
 | P8 | P8.2–P8.8 | todo | | |
