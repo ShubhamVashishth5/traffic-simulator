@@ -18,7 +18,13 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
   - Spatial indexing alongside agents, so lateral logic sees objects as static neighbours.
   - Live add and remove through the server commands stubbed in P4.
   - **No API exists for capacity or flow multipliers.**
-- **Done when:** an object placed in the viewer is avoided by agents.
+  - Width changes in a ribbon's own profile are seen ahead the same way. *From P5.5:* the
+    lateral model reads the width only where the vehicle is, so where the road narrows the
+    carriageway pushes vehicles into their neighbours. In the P5.5 property test every
+    collision-guard event (964,509 in 2,050 of 4,086 random bottleneck scenarios) comes from
+    narrowing, and none from the 5,914 scenarios without it.
+- **Done when:** an object placed in the viewer is avoided by agents, and the P5.5 bottleneck
+  scenarios log no guard events.
 
 ### P6.2 Kerbside parking and double parking
 - **Do:**
