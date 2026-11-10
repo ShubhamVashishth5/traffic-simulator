@@ -1,0 +1,742 @@
+{
+ "section": {
+  "s_line": 600,
+  "s_from": 400,
+  "s_to": 800,
+  "window": 60,
+  "t_from": 120,
+  "tight_gap": 1.0
+ },
+ "classes": [
+  "two_wheeler",
+  "car",
+  "auto_rickshaw"
+ ],
+ "seeds": 10,
+ "screen": [
+  {
+   "path": "interaction.lateral.clearance.min_offset",
+   "value": 117.0,
+   "max_abs_z": 30.56199378998287,
+   "top": [
+    [
+     "side_gap_mean",
+     -30.56199378998287
+    ],
+    [
+     "side_gap_sd",
+     26.363939489811177
+    ],
+    [
+     "side_gap_tight_share",
+     26.17260922677575
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": -3.316168407672939,
+    "lateral_sd_two_wheeler": -0.8097679911596238,
+    "density_two_wheeler": -0.41886734933737363,
+    "lateral_per_km_two_wheeler": -2.903471911325323,
+    "lateral_mean_car": -0.5754136794327531,
+    "lateral_sd_car": -3.8507236839207764,
+    "density_car": -1.33544847177785,
+    "lateral_per_km_car": -2.6487682593994673,
+    "lateral_mean_auto_rickshaw": -0.6053522549670132,
+    "lateral_sd_auto_rickshaw": -1.2579209399335554,
+    "density_auto_rickshaw": -0.3905700843839746,
+    "lateral_per_km_auto_rickshaw": -1.6243025035283634,
+    "side_gap_mean": -30.56199378998287,
+    "side_gap_sd": 26.363939489811177,
+    "side_gap_tight_share": 26.17260922677575
+   }
+  },
+  {
+   "path": "interaction.lateral.clearance.pair.intercept.car_car",
+   "value": 117.31,
+   "max_abs_z": 7.365377765473061,
+   "top": [
+    [
+     "side_gap_mean",
+     7.365377765473061
+    ],
+    [
+     "side_gap_tight_share",
+     -5.102547858031632
+    ],
+    [
+     "side_gap_sd",
+     -3.1634655726915564
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.07479570167831381,
+    "lateral_sd_two_wheeler": 0.04937026858682757,
+    "density_two_wheeler": 0.027147330336581423,
+    "lateral_per_km_two_wheeler": 0.3665862072850306,
+    "lateral_mean_car": 0.4470740459371291,
+    "lateral_sd_car": 1.9876844931756847,
+    "density_car": 0.39972296497870824,
+    "lateral_per_km_car": 1.0405485934813568,
+    "lateral_mean_auto_rickshaw": 0.02659025240898385,
+    "lateral_sd_auto_rickshaw": -0.7083982417948049,
+    "density_auto_rickshaw": 0.042365249112691065,
+    "lateral_per_km_auto_rickshaw": -0.06992423840495549,
+    "side_gap_mean": 7.365377765473061,
+    "side_gap_sd": -3.1634655726915564,
+    "side_gap_tight_share": -5.102547858031632
+   }
+  },
+  {
+   "path": "interaction.lateral.clearance.pair.slope.car_car",
+   "value": 0.681,
+   "max_abs_z": 2.768761590662746,
+   "top": [
+    [
+     "lateral_sd_car",
+     2.768761590662746
+    ],
+    [
+     "side_gap_mean",
+     1.6266054926015177
+    ],
+    [
+     "lateral_mean_car",
+     1.0025009035237245
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": -0.06349050570530142,
+    "lateral_sd_two_wheeler": -0.2380863673570342,
+    "density_two_wheeler": 0.014027104214383383,
+    "lateral_per_km_two_wheeler": 0.33726189092983505,
+    "lateral_mean_car": 1.0025009035237245,
+    "lateral_sd_car": 2.768761590662746,
+    "density_car": 0.15523886531095163,
+    "lateral_per_km_car": 0.7381466500719156,
+    "lateral_mean_auto_rickshaw": -0.29002016804541947,
+    "lateral_sd_auto_rickshaw": -0.7965689603387086,
+    "density_auto_rickshaw": 0.017183059137496317,
+    "lateral_per_km_auto_rickshaw": 0.7837313560905523,
+    "side_gap_mean": 1.6266054926015177,
+    "side_gap_sd": -0.7420142621508714,
+    "side_gap_tight_share": -0.9993981637650585
+   }
+  },
+  {
+   "path": "interaction.lateral.clearance.pair.intercept.two_wheeler_car",
+   "value": 125.16,
+   "max_abs_z": 10.576069588459495,
+   "top": [
+    [
+     "side_gap_mean",
+     10.576069588459495
+    ],
+    [
+     "side_gap_tight_share",
+     -7.699141457439825
+    ],
+    [
+     "side_gap_sd",
+     -4.33854066378858
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.45100270724726593,
+    "lateral_sd_two_wheeler": 1.8945264835577473,
+    "density_two_wheeler": 0.16196107964986825,
+    "lateral_per_km_two_wheeler": 1.4423692622020203,
+    "lateral_mean_car": 0.9927246945850364,
+    "lateral_sd_car": -0.6755983837778661,
+    "density_car": 0.34595574839110843,
+    "lateral_per_km_car": 1.4536421560216164,
+    "lateral_mean_auto_rickshaw": -0.39109169595476095,
+    "lateral_sd_auto_rickshaw": -1.1306912963943914,
+    "density_auto_rickshaw": -0.03077701383670746,
+    "lateral_per_km_auto_rickshaw": 0.4405531998411732,
+    "side_gap_mean": 10.576069588459495,
+    "side_gap_sd": -4.33854066378858,
+    "side_gap_tight_share": -7.699141457439825
+   }
+  },
+  {
+   "path": "interaction.lateral.braking_scale",
+   "value": 0.15,
+   "max_abs_z": 5.841677627491789,
+   "top": [
+    [
+     "side_gap_tight_share",
+     -5.841677627491789
+    ],
+    [
+     "side_gap_sd",
+     -4.399541550034512
+    ],
+    [
+     "side_gap_mean",
+     1.7146475009566013
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.8843852468766987,
+    "lateral_sd_two_wheeler": 0.8702323971065553,
+    "density_two_wheeler": 0.05184282275212003,
+    "lateral_per_km_two_wheeler": -0.4649047961410397,
+    "lateral_mean_car": -0.8403951877035841,
+    "lateral_sd_car": 1.1717124168459017,
+    "density_car": 0.27614232560157925,
+    "lateral_per_km_car": -0.9544632471523241,
+    "lateral_mean_auto_rickshaw": 0.046210545891425335,
+    "lateral_sd_auto_rickshaw": 0.28921672495861944,
+    "density_auto_rickshaw": 0.06524208233740328,
+    "lateral_per_km_auto_rickshaw": -1.1186345636490536,
+    "side_gap_mean": 1.7146475009566013,
+    "side_gap_sd": -4.399541550034512,
+    "side_gap_tight_share": -5.841677627491789
+   }
+  },
+  {
+   "path": "interaction.lateral.steering_scale",
+   "value": 0.3,
+   "max_abs_z": 15.781658921666136,
+   "top": [
+    [
+     "side_gap_mean",
+     15.781658921666136
+    ],
+    [
+     "side_gap_tight_share",
+     -7.0526531715536205
+    ],
+    [
+     "lateral_per_km_car",
+     5.174282841847724
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": -0.06772642421290781,
+    "lateral_sd_two_wheeler": 0.09867372766993432,
+    "density_two_wheeler": 0.04241660016560277,
+    "lateral_per_km_two_wheeler": 3.9162744296529475,
+    "lateral_mean_car": 0.08853096791422876,
+    "lateral_sd_car": 0.9556199125601833,
+    "density_car": 0.1527700048127492,
+    "lateral_per_km_car": 5.174282841847724,
+    "lateral_mean_auto_rickshaw": 0.87544436273349,
+    "lateral_sd_auto_rickshaw": 0.6490069926689818,
+    "density_auto_rickshaw": 0.07110338076371496,
+    "lateral_per_km_auto_rickshaw": 4.374832677573707,
+    "side_gap_mean": 15.781658921666136,
+    "side_gap_sd": -4.533409292944802,
+    "side_gap_tight_share": -7.0526531715536205
+   }
+  },
+  {
+   "path": "interaction.lateral.steering_sensitivity",
+   "value": 0.4,
+   "max_abs_z": 6.1773107986372535,
+   "top": [
+    [
+     "side_gap_mean",
+     6.1773107986372535
+    ],
+    [
+     "side_gap_tight_share",
+     -3.4773091804896503
+    ],
+    [
+     "side_gap_sd",
+     -2.5875444772085103
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.6118568353933896,
+    "lateral_sd_two_wheeler": 1.2002577888795536,
+    "density_two_wheeler": 0.05417121667260846,
+    "lateral_per_km_two_wheeler": 1.1008691183988408,
+    "lateral_mean_car": -0.04039266085580478,
+    "lateral_sd_car": 0.5968543161298306,
+    "density_car": 0.13096154960999037,
+    "lateral_per_km_car": 2.024663482225872,
+    "lateral_mean_auto_rickshaw": 0.3816699119648665,
+    "lateral_sd_auto_rickshaw": -0.06593803265986564,
+    "density_auto_rickshaw": 0.057789570294714196,
+    "lateral_per_km_auto_rickshaw": 2.326113991432679,
+    "side_gap_mean": 6.1773107986372535,
+    "side_gap_sd": -2.5875444772085103,
+    "side_gap_tight_share": -3.4773091804896503
+   }
+  },
+  {
+   "path": "interaction.lateral.time_constant",
+   "value": 1.0,
+   "max_abs_z": 2.140722067860464,
+   "top": [
+    [
+     "lateral_per_km_car",
+     -2.140722067860464
+    ],
+    [
+     "lateral_sd_auto_rickshaw",
+     -1.462473863449664
+    ],
+    [
+     "side_gap_mean",
+     1.3913314756828923
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.12398712012668615,
+    "lateral_sd_two_wheeler": 0.15730544504510477,
+    "density_two_wheeler": 0.21837315171182928,
+    "lateral_per_km_two_wheeler": -0.4745526507170226,
+    "lateral_mean_car": -0.3731112092552031,
+    "lateral_sd_car": -0.3046364609151738,
+    "density_car": 0.31658579163189726,
+    "lateral_per_km_car": -2.140722067860464,
+    "lateral_mean_auto_rickshaw": -0.24387610293806547,
+    "lateral_sd_auto_rickshaw": -1.462473863449664,
+    "density_auto_rickshaw": 0.07970052455106064,
+    "lateral_per_km_auto_rickshaw": 0.29845418422859166,
+    "side_gap_mean": 1.3913314756828923,
+    "side_gap_sd": 0.2864730546137326,
+    "side_gap_tight_share": 0.22233251441902477
+   }
+  },
+  {
+   "path": "interaction.lateral.max_heading",
+   "value": 0.2,
+   "max_abs_z": 1.0924958240620097,
+   "top": [
+    [
+     "lateral_sd_car",
+     -1.0924958240620097
+    ],
+    [
+     "lateral_per_km_car",
+     0.5711220137728691
+    ],
+    [
+     "side_gap_mean",
+     -0.5334552890391452
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": -0.07682060828713612,
+    "lateral_sd_two_wheeler": 0.4225479822659926,
+    "density_two_wheeler": 0.006357028793955912,
+    "lateral_per_km_two_wheeler": 0.19951921517386148,
+    "lateral_mean_car": 0.02949498710583127,
+    "lateral_sd_car": -1.0924958240620097,
+    "density_car": 0.039079388441230975,
+    "lateral_per_km_car": 0.5711220137728691,
+    "lateral_mean_auto_rickshaw": 0.3112975151073118,
+    "lateral_sd_auto_rickshaw": 0.4061271699877365,
+    "density_auto_rickshaw": -0.006580915325608623,
+    "lateral_per_km_auto_rickshaw": 0.34344874881896936,
+    "side_gap_mean": -0.5334552890391452,
+    "side_gap_sd": -0.08016443130382524,
+    "side_gap_tight_share": -0.006530625985883815
+   }
+  },
+  {
+   "path": "interaction.lateral.politeness",
+   "value": 0.2,
+   "max_abs_z": 1.052693768480077,
+   "top": [
+    [
+     "side_gap_sd",
+     -1.052693768480077
+    ],
+    [
+     "lateral_per_km_car",
+     -0.7785785921642446
+    ],
+    [
+     "lateral_per_km_two_wheeler",
+     -0.6808881043231125
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.19023319420733412,
+    "lateral_sd_two_wheeler": -0.3173762076737107,
+    "density_two_wheeler": -0.014778680728365405,
+    "lateral_per_km_two_wheeler": -0.6808881043231125,
+    "lateral_mean_car": -0.39421790051451383,
+    "lateral_sd_car": 0.3101065406177937,
+    "density_car": -0.05136754099011385,
+    "lateral_per_km_car": -0.7785785921642446,
+    "lateral_mean_auto_rickshaw": -0.2812163319580316,
+    "lateral_sd_auto_rickshaw": 0.47027336061677655,
+    "density_auto_rickshaw": 0.05353593335714517,
+    "lateral_per_km_auto_rickshaw": -0.3512655955288163,
+    "side_gap_mean": -0.604034218398341,
+    "side_gap_sd": -1.052693768480077,
+    "side_gap_tight_share": -0.4198428026960517
+   }
+  },
+  {
+   "path": "interaction.lateral.safe_decel",
+   "value": 4.0,
+   "max_abs_z": 0.7295740218900801,
+   "top": [
+    [
+     "lateral_per_km_two_wheeler",
+     0.7295740218900801
+    ],
+    [
+     "side_gap_mean",
+     0.7005824146396199
+    ],
+    [
+     "side_gap_tight_share",
+     -0.463034567875851
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.31828005802731846,
+    "lateral_sd_two_wheeler": 0.08772007122786353,
+    "density_two_wheeler": 0.04471805867287055,
+    "lateral_per_km_two_wheeler": 0.7295740218900801,
+    "lateral_mean_car": 0.20176065507559882,
+    "lateral_sd_car": 0.3336036698571753,
+    "density_car": 0.010416445990997286,
+    "lateral_per_km_car": 0.24842296216576062,
+    "lateral_mean_auto_rickshaw": -0.022294008207179996,
+    "lateral_sd_auto_rickshaw": -0.3790044370953836,
+    "density_auto_rickshaw": -0.00801425793714747,
+    "lateral_per_km_auto_rickshaw": 0.06399169688643742,
+    "side_gap_mean": 0.7005824146396199,
+    "side_gap_sd": -0.02758479844098799,
+    "side_gap_tight_share": -0.463034567875851
+   }
+  },
+  {
+   "path": "interaction.lateral.switch_threshold",
+   "value": 0.1,
+   "max_abs_z": 1.9127517671404242,
+   "top": [
+    [
+     "side_gap_tight_share",
+     1.9127517671404242
+    ],
+    [
+     "lateral_per_km_car",
+     -1.8730649142498188
+    ],
+    [
+     "lateral_per_km_two_wheeler",
+     -0.9838501147316626
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": -0.8048712369028653,
+    "lateral_sd_two_wheeler": -0.05586051285162022,
+    "density_two_wheeler": 0.018477143378258974,
+    "lateral_per_km_two_wheeler": -0.9838501147316626,
+    "lateral_mean_car": 0.34563782551756084,
+    "lateral_sd_car": 0.546841463880146,
+    "density_car": 0.040457413050074616,
+    "lateral_per_km_car": -1.8730649142498188,
+    "lateral_mean_auto_rickshaw": -0.34471267040830367,
+    "lateral_sd_auto_rickshaw": -0.523541086307323,
+    "density_auto_rickshaw": 0.011765635915095267,
+    "lateral_per_km_auto_rickshaw": -0.5572694397451963,
+    "side_gap_mean": -0.981552202566768,
+    "side_gap_sd": 0.8257031965427992,
+    "side_gap_tight_share": 1.9127517671404242
+   }
+  },
+  {
+   "path": "interaction.lateral.comfort_weight",
+   "value": 0.5,
+   "max_abs_z": 3.3558590183014836,
+   "top": [
+    [
+     "side_gap_sd",
+     -3.3558590183014836
+    ],
+    [
+     "side_gap_tight_share",
+     -2.116232620966891
+    ],
+    [
+     "side_gap_mean",
+     1.822328357983014
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.2690776753380508,
+    "lateral_sd_two_wheeler": -1.0500594795552816,
+    "density_two_wheeler": 0.05344706014492367,
+    "lateral_per_km_two_wheeler": 1.6676334024725885,
+    "lateral_mean_car": 0.4093089924143305,
+    "lateral_sd_car": 0.9305983579724822,
+    "density_car": 0.13802595452106975,
+    "lateral_per_km_car": 0.42269579876854746,
+    "lateral_mean_auto_rickshaw": 1.00629689130002,
+    "lateral_sd_auto_rickshaw": 0.345772495968793,
+    "density_auto_rickshaw": 0.09860308547656188,
+    "lateral_per_km_auto_rickshaw": 1.4928470863941303,
+    "side_gap_mean": 1.822328357983014,
+    "side_gap_sd": -3.3558590183014836,
+    "side_gap_tight_share": -2.116232620966891
+   }
+  },
+  {
+   "path": "interaction.lateral.move_cost",
+   "value": 0.05,
+   "max_abs_z": 1.9041079087766009,
+   "top": [
+    [
+     "side_gap_mean",
+     -1.9041079087766009
+    ],
+    [
+     "lateral_mean_car",
+     -1.691033289999732
+    ],
+    [
+     "side_gap_tight_share",
+     1.6490241692851215
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.6947777446250512,
+    "lateral_sd_two_wheeler": -0.08775737944653939,
+    "density_two_wheeler": 0.07505871078649366,
+    "lateral_per_km_two_wheeler": -1.2902213197111774,
+    "lateral_mean_car": -1.691033289999732,
+    "lateral_sd_car": 1.3559942340660633,
+    "density_car": 0.14703075575804275,
+    "lateral_per_km_car": -1.2903235217925755,
+    "lateral_mean_auto_rickshaw": -0.0548253968738764,
+    "lateral_sd_auto_rickshaw": -0.16975489824074344,
+    "density_auto_rickshaw": 0.05477562464760198,
+    "lateral_per_km_auto_rickshaw": -1.4844108743040356,
+    "side_gap_mean": -1.9041079087766009,
+    "side_gap_sd": 0.5205681430927795,
+    "side_gap_tight_share": 1.6490241692851215
+   }
+  },
+  {
+   "path": "interaction.lateral.edge_clearance",
+   "value": 0.25,
+   "max_abs_z": 1.4455945007094357,
+   "top": [
+    [
+     "side_gap_sd",
+     1.4455945007094357
+    ],
+    [
+     "lateral_sd_auto_rickshaw",
+     -1.376318370144869
+    ],
+    [
+     "side_gap_tight_share",
+     1.2652128389695854
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.04338437764199312,
+    "lateral_sd_two_wheeler": -1.1238833718186634,
+    "density_two_wheeler": 0.007668674558831421,
+    "lateral_per_km_two_wheeler": -0.23420888579163723,
+    "lateral_mean_car": -0.520293403442124,
+    "lateral_sd_car": -0.1925715379050847,
+    "density_car": 0.14607873665836246,
+    "lateral_per_km_car": 0.46979249755637115,
+    "lateral_mean_auto_rickshaw": 0.4220410444692248,
+    "lateral_sd_auto_rickshaw": -1.376318370144869,
+    "density_auto_rickshaw": 0.0002856393795089315,
+    "lateral_per_km_auto_rickshaw": 0.8886723766753758,
+    "side_gap_mean": 0.198620401507366,
+    "side_gap_sd": 1.4455945007094357,
+    "side_gap_tight_share": 1.2652128389695854
+   }
+  },
+  {
+   "path": "interaction.lateral.creep_speed.two_wheeler",
+   "value": 0.5,
+   "max_abs_z": 3.2082632149769254e-15,
+   "top": [
+    [
+     "lateral_per_km_auto_rickshaw",
+     -3.2082632149769254e-15
+    ],
+    [
+     "lateral_per_km_two_wheeler",
+     -2.820525119630247e-15
+    ],
+    [
+     "lateral_sd_two_wheeler",
+     0.0
+    ]
+   ],
+   "z": {
+    "lateral_mean_two_wheeler": 0.0,
+    "lateral_sd_two_wheeler": 0.0,
+    "density_two_wheeler": 0.0,
+    "lateral_per_km_two_wheeler": -2.820525119630247e-15,
+    "lateral_mean_car": 0.0,
+    "lateral_sd_car": 0.0,
+    "density_car": 0.0,
+    "lateral_per_km_car": 0.0,
+    "lateral_mean_auto_rickshaw": 0.0,
+    "lateral_sd_auto_rickshaw": 0.0,
+    "density_auto_rickshaw": 0.0,
+    "lateral_per_km_auto_rickshaw": -3.2082632149769254e-15,
+    "side_gap_mean": 0.0,
+    "side_gap_sd": 0.0,
+    "side_gap_tight_share": 0.0
+   }
+  }
+ ],
+ "statistics": {
+  "lateral_mean_two_wheeler": {
+   "value": -1.1476739944963656,
+   "se": 0.0846706789755776
+  },
+  "lateral_sd_two_wheeler": {
+   "value": 2.9983160059293086,
+   "se": 0.03619435492652917
+  },
+  "density_two_wheeler": {
+   "value": 19.211742424242424,
+   "se": 0.7166370329574151
+  },
+  "lateral_per_km_two_wheeler": {
+   "value": 7.155897158831124,
+   "se": 0.2226666868174684
+  },
+  "lateral_mean_car": {
+   "value": 0.13290457098322145,
+   "se": 0.06391602548740488
+  },
+  "lateral_sd_car": {
+   "value": 2.6510030647231626,
+   "se": 0.030911015950648425
+  },
+  "density_car": {
+   "value": 17.51382575757576,
+   "se": 0.667484949947896
+  },
+  "lateral_per_km_car": {
+   "value": 7.56830253463649,
+   "se": 0.1792196052697609
+  },
+  "lateral_mean_auto_rickshaw": {
+   "value": -0.7061809646244784,
+   "se": 0.10459596199620023
+  },
+  "lateral_sd_auto_rickshaw": {
+   "value": 3.071768398707708,
+   "se": 0.04384235537161276
+  },
+  "density_auto_rickshaw": {
+   "value": 10.60246212121212,
+   "se": 0.46863139711510776
+  },
+  "lateral_per_km_auto_rickshaw": {
+   "value": 5.408956630561785,
+   "se": 0.1957560653196052
+  },
+  "side_gap_mean": {
+   "value": 1.6239597498848466,
+   "se": 0.005352911080660055
+  },
+  "side_gap_sd": {
+   "value": 0.38563502252528564,
+   "se": 0.00323728958688606
+  },
+  "side_gap_tight_share": {
+   "value": 0.039810481308141216,
+   "se": 0.0019439798304653987
+  }
+ },
+ "recovery": {
+  "observe_seeds": [
+   101,
+   102,
+   103,
+   104,
+   105,
+   106,
+   107,
+   108,
+   109,
+   110
+  ],
+  "fit_seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "method": "response_surface",
+  "all_covered": true,
+  "params": [
+   {
+    "path": "interaction.lateral.clearance.min_offset",
+    "estimate": 99.5307352189247,
+    "se": 5.501976825510117,
+    "ci_lo": 88.74705879715086,
+    "ci_hi": 110.31441164069855,
+    "unit": "cm",
+    "transform": "value",
+    "truth": 100.0,
+    "covered": true
+   },
+   {
+    "path": "interaction.lateral.clearance.pair.intercept.car_car",
+    "estimate": 103.53315722219762,
+    "se": 24.318140577650304,
+    "ci_lo": 55.87047751902095,
+    "ci_hi": 151.1958369253743,
+    "unit": "cm",
+    "transform": "value",
+    "truth": 130.0,
+    "covered": true
+   },
+   {
+    "path": "interaction.lateral.steering_scale",
+    "estimate": 0.40417217913725334,
+    "se": 0.030179924931296197,
+    "ci_lo": 0.3450206132157903,
+    "ci_hi": 0.4633237450587164,
+    "unit": "m",
+    "transform": "value",
+    "truth": 0.38,
+    "covered": true
+   },
+   {
+    "path": "interaction.lateral.braking_scale",
+    "estimate": 0.15460631256569177,
+    "se": 0.04208886411803049,
+    "ci_lo": 0.07211365474415182,
+    "ci_hi": 0.2370989703872317,
+    "unit": "m",
+    "transform": "value",
+    "truth": 0.12,
+    "covered": true
+   }
+  ],
+  "minutes": 12.372037808100382,
+  "evaluations": 187,
+  "cost": 3.335360206394256,
+  "jacobian_condition": 11846188.076580415,
+  "success": false,
+  "message": "stopped after 187 evaluations",
+  "start": {
+   "interaction.lateral.clearance.min_offset": 117.0,
+   "interaction.lateral.clearance.pair.intercept.car_car": 117.31,
+   "interaction.lateral.steering_scale": 0.3,
+   "interaction.lateral.braking_scale": 0.15
+  }
+ }
+}

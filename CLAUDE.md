@@ -33,6 +33,10 @@ cargo run --release -p marg-cli -- replay runs/live/<session>   # headless repla
 cargo test --release -p marg-server --test server frame_rate -- --ignored --nocapture  # P4.2 bench
 uv run python scripts/p4_twins.py --root runs  # twin arms with trajectories, for Compare
 node web/e2e/milestone.cjs                     # P4 milestone recording (needs playwright + marg serve)
+cargo test --release -p marg-core --test guard -- --ignored --nocapture   # P5.5: 10^4 random dense scenarios
+uv run python scripts/p5_stage3_recovery.py    # P5.8 stage-3 screen + synthetic recovery (~15 min) -> reports/phases/P5_stage3.json
+uv run python scripts/p5_milestone.py          # regenerate reports/phases/P5.md (reads P5_stage3.json)
+node web/e2e/p5_seepage.cjs                    # P5 viewer recording (needs playwright + marg serve)
 ```
 
 ## Rules

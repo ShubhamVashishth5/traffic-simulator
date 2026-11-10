@@ -15,8 +15,10 @@ Fitting is simulated method of moments: a statistic of simulated runs (with
 standard errors) is matched to the observed statistic. Residuals are
 standardised by the combined standard error, so the Jacobian at the optimum
 gives the parameter covariance ``(JᵀJ)⁻¹``. Methods: ``least_squares``
-(trust-region reflective, bounded) and ``cmaes`` (pycma). Simulations use fixed
-seeds (common random numbers), so the objective is deterministic.
+(trust-region reflective, bounded), ``cmaes`` (pycma) and ``response_surface``
+(Gauss–Newton on local linear regressions of the moments, for statistics too
+rough for finite differences: stage 3). Simulations use fixed seeds (common
+random numbers), so the objective is deterministic.
 
 Distribution-valued parameters are fitted through their mean (ADR-0006).
 """
@@ -206,6 +208,7 @@ class Stage:
         sim_se: str = "start",
         max_evaluations: int = 200,
         seed: int = 1,
+        diff_step: float = 1e-3,
     ) -> FitResult:
         """Fit ``params`` so that ``simulate(overrides)`` matches ``observed``.
 
@@ -213,6 +216,13 @@ class Stage:
         in the order of ``observed.names``. Residuals are divided by
         ``sqrt(se_obs² + se_sim²)``, with ``se_sim`` taken at the start point
         (``sim_se="start"``) so the weights do not move during the fit.
+
+        ``diff_step`` is the finite-difference step as a fraction of each
+        parameter's range, for the optimiser and for the Jacobian behind the
+        standard errors. Statistics that respond to a parameter through many
+        interacting vehicles (stage 3) are deterministic under common random
+        numbers but not smooth at small scales: use steps well above that
+        roughness (a few % of the range), not the default.
         """
         bound = self.bind(params)
         lo = np.array([b.lo for b in bound])
@@ -257,7 +267,7 @@ class Stage:
                 x0a,
                 bounds=(lo, hi),
                 x_scale=span,
-                diff_step=1e-3,
+                diff_step=diff_step,
                 max_nfev=max_evaluations,
                 method="trf",
             )
@@ -275,11 +285,14 @@ class Stage:
             es.optimize(lambda z: float(np.sum(residuals(lo + np.asarray(z) * span) ** 2)))
             x = lo + np.asarray(es.result.xbest) * span
             ok, msg = True, str(es.stop())
+        elif method == "response_surface":
+            x, jac, ok, msg = _response_surface(residuals, x0a, lo, hi, max_evaluations, seed)
         else:
-            raise ValueError("method must be 'least_squares' or 'cmaes'")
+            raise ValueError("method must be 'least_squares', 'cmaes' or 'response_surface'")
 
         r = residuals(x)
-        jac = _jacobian(residuals, x, lo, hi)
+        if method != "response_surface":
+            jac = _jacobian(residuals, x, lo, hi, diff_step)
         jtj = jac.T @ jac
         cond = float(np.linalg.cond(jtj)) if jtj.size else math.nan
         try:
@@ -378,17 +391,86 @@ def stage(k: int, root: str | Path = "calibration", params_dir: str | Path | Non
     return Stage(k, root, params_dir)
 
 
-def _jacobian(f: Callable[[np.ndarray], np.ndarray], x: np.ndarray, lo, hi) -> np.ndarray:
-    """Central differences (one-sided at a bound), steps 1e-3 of each range."""
+def _jacobian(
+    f: Callable[[np.ndarray], np.ndarray], x: np.ndarray, lo, hi, step: float = 1e-3
+) -> np.ndarray:
+    """Central differences (one-sided at a bound), steps ``step`` of each range."""
     f0 = f(x)
     jac = np.zeros((len(f0), len(x)))
     for i in range(len(x)):
-        h = 1e-3 * (hi[i] - lo[i])
+        h = step * (hi[i] - lo[i])
         up, dn = x.copy(), x.copy()
         up[i] = min(x[i] + h, hi[i])
         dn[i] = max(x[i] - h, lo[i])
         jac[:, i] = (f(up) - f(dn)) / (up[i] - dn[i])
     return jac
+
+
+#: Response-surface fit: design points per parameter; the design radius (a
+#: fraction of each range) at the start, its floor and its shrink factor per
+#: iteration; and the step (fraction of the radius) below which it has
+#: converged. The floor keeps the regression slopes well above the roughness
+#: of the simulated statistics.
+RS_POINTS_PER_PARAM = 4
+RS_RADIUS = 0.2
+RS_MIN_RADIUS = 0.15
+RS_SHRINK = 0.7
+RS_TOLERANCE = 0.15
+
+
+def _response_surface(
+    residuals: Callable[[np.ndarray], np.ndarray],
+    x0: np.ndarray,
+    lo: np.ndarray,
+    hi: np.ndarray,
+    max_evaluations: int,
+    seed: int,
+) -> tuple[np.ndarray, np.ndarray, bool, str]:
+    """Gauss–Newton on local linear metamodels of the standardised residuals.
+
+    Each iteration simulates a Latin-hypercube design within ``radius`` of the
+    centre, regresses every residual linearly on the parameters (least
+    squares, which averages out the roughness that chaotic interaction gives
+    the simulated statistics), and moves the centre to the minimum of the
+    fitted quadratic cost, within the design box. The radius shrinks to a
+    floor, not to zero: over small distances the roughness, not the slope,
+    would dominate the regression. Once the centre settles, a last design
+    around it gives the Jacobian behind the standard errors. Returns the
+    estimate, that Jacobian, whether it converged, and a message.
+    """
+    from scipy.stats import qmc
+
+    p = len(x0)
+    span = hi - lo
+    n = max(RS_POINTS_PER_PARAM * p, p + 2)
+    rng = np.random.default_rng(seed)
+
+    def regress(centre: np.ndarray, radius: float) -> tuple[np.ndarray, np.ndarray]:
+        unit = qmc.LatinHypercube(d=p, seed=rng).random(n) * 2 - 1
+        xs = np.vstack([centre, np.clip(centre + unit * radius * span, lo, hi)])
+        rs = np.array([residuals(x) for x in xs])
+        # r ≈ a + J (x − centre), fitted in scaled coordinates.
+        z = (xs - centre) / span
+        coef, *_ = np.linalg.lstsq(np.column_stack([np.ones(len(z)), z]), rs, rcond=None)
+        return coef[0], coef[1:].T
+
+    centre, radius, used, converged = x0.copy(), RS_RADIUS, 0, False
+    while used + 2 * (n + 1) <= max_evaluations:
+        a, jz = regress(centre, radius)
+        used += n + 1
+        step, *_ = np.linalg.lstsq(jz, -a, rcond=None)
+        step = np.clip(step, -radius, radius)
+        new = np.clip(centre + step * span, lo, hi)
+        moved = float(np.max(np.abs((new - centre) / span)))
+        centre = new
+        if moved < RS_TOLERANCE * radius:
+            converged = True
+            break
+        radius = max(radius * RS_SHRINK, RS_MIN_RADIUS)
+    _, jz = regress(centre, radius)
+    used += n + 1
+    msg = "converged" if converged else f"stopped after {used} evaluations"
+    return centre, jz / span, converged, msg
 
 
 def _plain(v: Any) -> Any:
@@ -412,6 +494,8 @@ class Simulator:
 
     ``statistic(run_dirs) -> Moments`` reads the run folders (one per seed).
     Runs go to a temporary folder that is removed after each evaluation.
+    Trajectories are switched off unless ``trajectories`` is set (stage-3
+    statistics need them; see :mod:`marg.stage3`).
     """
 
     def __init__(
@@ -421,11 +505,14 @@ class Simulator:
         statistic: Callable[[list[Path]], Moments],
         params_dir: str | Path | None = None,
         calibration_dir: str | Path | None = None,
+        trajectories: bool = False,
     ) -> None:
         from marg.scenario import Scenario
 
         sc = scenario if isinstance(scenario, Scenario) else Scenario.load(scenario)
-        self.yaml = sc.with_changes({"scenario.outputs.trajectories": None}).to_yaml()
+        if not trajectories:
+            sc = sc.with_changes({"scenario.outputs.trajectories": None})
+        self.yaml = sc.to_yaml()
         self.seeds = list(seeds)
         self.statistic = statistic
         self.params_dir = str(params_dir) if params_dir else None
@@ -506,6 +593,8 @@ def recovery_test(
     x0: Sequence[float] | None = None,
     bounds: Mapping[str, tuple[float, float]] | None = None,
     ci_level: float = 0.95,
+    diff_step: float = 1e-3,
+    max_evaluations: int = 200,
 ) -> tuple[FitResult, dict[str, Any]]:
     """Synthetic recovery (Carrella 2021): simulate "observed" data with known
     ``truth`` at ``observe_seeds``, fit at different ``fit_seeds``, and report
@@ -515,7 +604,14 @@ def recovery_test(
     truth_ov = {b.path: b.value(truth[b.path]) for b in bound}
     observed = simulator_for_seeds(observe_seeds)(truth_ov)
     res = stage.fit(
-        params, simulator_for_seeds(fit_seeds), observed, x0=x0, method=method, ci_level=ci_level
+        params,
+        simulator_for_seeds(fit_seeds),
+        observed,
+        x0=x0,
+        method=method,
+        ci_level=ci_level,
+        diff_step=diff_step,
+        max_evaluations=max_evaluations,
     )
     rows = []
     for row in res.table():

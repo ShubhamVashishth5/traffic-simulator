@@ -47,6 +47,8 @@ Comment inline on the PR, or edit the files directly. Both work.
 | What the cooperative twin switches off | **needs your decision** (P3.3, open question 1) | [ADR-0007](decisions/ADR-0007-cooperative-twin.md) |
 | Live sessions: commands act between steps, resample keeps each agent's quantile, run hash covers the commands | proposed (P4.1, P4.5) | [ADR-0008](decisions/ADR-0008-live-sessions.md) |
 | Roundabouts are in scope; ring of ribbons or junction box | in scope (your answer); the model is chosen at the P7.0 gate | [ADR-0009](decisions/ADR-0009-roundabouts.md) |
+| The lateral model: two clearance levels (B&M), target choice plus tracking, Table 4 pair lines | accepted (your choice at the P5.1 gate) | [ADR-0010](decisions/ADR-0010-lateral-model.md) |
+| Stage-3 parameters lateral data cannot identify: demote to `sweep` | **needs your decision** (P5.8) | [ADR-0011](decisions/ADR-0011-stage3-identifiability.md) |
 
 ## Folder map
 
