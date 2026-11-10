@@ -1,0 +1,42 @@
+name: moving_bottleneck_e_rickshaw
+description: >
+  P5.6 reference scenario: e-rickshaws at 21 km/h (the register's mean, Khan & Dass 2025) in a
+  stream of cars and two-wheelers on a 10.5 m divided carriageway (three notional lanes).
+  Entry positions and the median-band speed bonus are the register's defaults. Used to check
+  that the e-rickshaws are passed on both sides and to compare lateral positions by class.
+duration_s: 1200
+warmup_s: 120
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1500, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: stream
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 1800}
+      composition:
+        hatchback: 0.30
+        sedan: 0.12
+        suv: 0.08
+        motorcycle: 0.25
+        scooter: 0.25
+    - id: e_rickshaws
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 40}
+      composition:
+        e_rickshaw: 1.0
+detectors:
+  - {kind: screenline, id: s750, ribbon: main, s: 750, interval_s: 300}
+  - {kind: screenline, id: s1400, ribbon: main, s: 1400, interval_s: 300}
+  - {kind: area, id: a200_1300, ribbon: main, s_from: 200, s_to: 1300, interval_s: 300}
+kpi:
+  throughput_detector: s1400
+outputs:
+  trajectories: {every_s: 0.5}
+overrides:
+  vehicles.free_flow_speed.e_rickshaw: {dist: constant, value: 21}
