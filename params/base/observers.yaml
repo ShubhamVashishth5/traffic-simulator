@@ -30,6 +30,16 @@ entries:
     guide: "§8.4"
     register_row: core/observers
     range: [0.5, 5.0]
+  lateral.log_decisions:
+    value: 0
+    unit: "1"
+    grade: C
+    role: scenario
+    source: "Output switch (ADR-0010 §3)"
+    guide: "§8.5"
+    register_row: core/observers
+    range: [0.0, 1.0]
+    notes: "1 = write a lateral_move event, with its utility terms, each time an agent changes its lateral target."
   gridlock.speed:
     value: 5
     unit: "km/h"

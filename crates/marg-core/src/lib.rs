@@ -12,10 +12,12 @@ pub mod observe;
 pub mod output;
 pub mod params;
 pub mod rng;
+pub mod scan;
 pub mod sim;
 
 pub use output::{
-    AgentRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk, TrajectorySink,
+    AgentRecord, ConflictRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk,
+    TrajectorySink,
 };
 pub use params::CoreParams;
 pub use sim::{RunSummary, SimError, Simulation};

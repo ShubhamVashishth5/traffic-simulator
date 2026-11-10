@@ -55,6 +55,32 @@ fn default_interval() -> f64 {
 #[serde(deny_unknown_fields)]
 pub struct NetworkSpec {
     pub ribbons: Vec<RibbonSpec>,
+    /// Stop lines that are closed during given periods (a level crossing, a
+    /// police barrier). Signals arrive in phase P7.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub barriers: Vec<BarrierSpec>,
+}
+
+/// A stop line across the whole carriageway. While it is closed, vehicles
+/// that have not crossed it stop before it (ADR-0010; Kanagaraj & Treiber
+/// model a red light as a standing virtual vehicle across the road).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BarrierSpec {
+    pub id: String,
+    pub ribbon: String,
+    /// Station of the stop line on the ribbon.
+    pub s: f64,
+    /// Periods during which the barrier is closed.
+    pub closed: Vec<ClosedInterval>,
+}
+
+/// The barrier is closed for `from_s <= t < to_s` (simulated seconds).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ClosedInterval {
+    pub from_s: f64,
+    pub to_s: f64,
 }
 
 /// A ribbon: a reference polyline with a lateral width profile. `y` is

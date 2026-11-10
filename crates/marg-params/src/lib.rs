@@ -23,4 +23,4 @@ pub use resolve::{
 };
 pub use spec::Scenario;
 pub use units::Unit;
-pub use vehicle::{VehicleClass, VehicleType};
+pub use vehicle::{ClearanceGroup, VehicleClass, VehicleType};

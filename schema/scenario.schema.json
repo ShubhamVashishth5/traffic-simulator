@@ -77,6 +77,56 @@
     "demand"
   ],
   "$defs": {
+    "BarrierSpec": {
+      "description": "A stop line across the whole carriageway. While it is closed, vehicles\nthat have not crossed it stop before it (ADR-0010; Kanagaraj & Treiber\nmodel a red light as a standing virtual vehicle across the road).",
+      "type": "object",
+      "properties": {
+        "closed": {
+          "description": "Periods during which the barrier is closed.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClosedInterval"
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "description": "Station of the stop line on the ribbon.",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s",
+        "closed"
+      ]
+    },
+    "ClosedInterval": {
+      "description": "The barrier is closed for `from_s <= t < to_s` (simulated seconds).",
+      "type": "object",
+      "properties": {
+        "from_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "to_s": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "from_s",
+        "to_s"
+      ]
+    },
     "DemandSpec": {
       "description": "Demand at the network's entries.",
       "type": "object",
@@ -649,6 +699,13 @@
       "description": "Road geometry as a set of ribbons (ADR-0002).",
       "type": "object",
       "properties": {
+        "barriers": {
+          "description": "Stop lines that are closed during given periods (a level crossing, a\npolice barrier). Signals arrive in phase P7.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BarrierSpec"
+          }
+        },
         "ribbons": {
           "type": "array",
           "items": {
