@@ -40,6 +40,16 @@ entries:
     guide: "§2.2"
     register_row: core/numerics
     range: [0.05, 1.0]
+  lateral_candidate_range:
+    value: 3.5
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Numerical choice (ADR-0010): one notional lane to each side"
+    guide: "§2.2"
+    register_row: core/numerics
+    range: [0.5, 20.0]
+    notes: "Lateral targets are searched within this distance of the agent's position."
   insertion_attempts_per_step:
     value: 32
     unit: "1"

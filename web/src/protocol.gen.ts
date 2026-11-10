@@ -498,7 +498,36 @@ export interface KpiSpec {
  * Road geometry.
  */
 export interface NetworkSpec {
+  /**
+   * Stop lines that are closed during given periods (a level crossing, a
+   * police barrier). Signals arrive in phase P7.
+   */
+  barriers?: BarrierSpec[];
   ribbons: RibbonSpec[];
+}
+/**
+ * A stop line across the whole carriageway. While it is closed, vehicles
+ * that have not crossed it stop before it (ADR-0010; Kanagaraj & Treiber
+ * model a red light as a standing virtual vehicle across the road).
+ */
+export interface BarrierSpec {
+  /**
+   * Periods during which the barrier is closed.
+   */
+  closed: ClosedInterval[];
+  id: string;
+  ribbon: string;
+  /**
+   * Station of the stop line on the ribbon.
+   */
+  s: number;
+}
+/**
+ * The barrier is closed for `from_s <= t < to_s` (simulated seconds).
+ */
+export interface ClosedInterval {
+  from_s: number;
+  to_s: number;
 }
 /**
  * A ribbon: a reference polyline with a lateral width profile. `y` is

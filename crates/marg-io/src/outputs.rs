@@ -9,7 +9,9 @@ use arrow::array::{
 };
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
-use marg_core::{AgentRecord, DetectorRecord, EventRecord, TrajectoryChunk, TrajectorySink};
+use marg_core::{
+    AgentRecord, ConflictRecord, DetectorRecord, EventRecord, TrajectoryChunk, TrajectorySink,
+};
 use parquet::arrow::ArrowWriter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -17,7 +19,7 @@ use std::sync::mpsc;
 use std::thread::JoinHandle;
 
 /// Schema version of the output tables; bump on any column change.
-pub const OUTPUT_SCHEMA_VERSION: u32 = 1;
+pub const OUTPUT_SCHEMA_VERSION: u32 = 2;
 
 fn f64s<T>(rows: &[T], f: impl Fn(&T) -> f64) -> ArrayRef {
     Arc::new(Float64Array::from_iter_values(rows.iter().map(f)))
@@ -51,6 +53,9 @@ pub fn agents_batch(rows: &[AgentRecord]) -> Result<RecordBatch, arrow::error::A
         Field::new("standstill_gap", DataType::Float64, false),
         Field::new("max_accel", DataType::Float64, false),
         Field::new("comfortable_decel", DataType::Float64, false),
+        Field::new("kappa", DataType::Float64, false),
+        Field::new("lateral_distance", DataType::Float64, false),
+        Field::new("lateral_moves", DataType::UInt32, false),
     ]);
     let cols: Vec<ArrayRef> = vec![
         Arc::new(UInt64Array::from_iter_values(
@@ -81,6 +86,50 @@ pub fn agents_batch(rows: &[AgentRecord]) -> Result<RecordBatch, arrow::error::A
         f64s(rows, |r| r.standstill_gap),
         f64s(rows, |r| r.max_accel),
         f64s(rows, |r| r.comfortable_decel),
+        f64s(rows, |r| r.kappa),
+        f64s(rows, |r| r.lateral_distance),
+        Arc::new(UInt32Array::from_iter_values(
+            rows.iter().map(|r| r.lateral_moves),
+        )),
+    ];
+    RecordBatch::try_new(Arc::new(schema), cols)
+}
+
+/// `conflicts.parquet`: one row per conflict episode.
+pub fn conflicts_batch(rows: &[ConflictRecord]) -> Result<RecordBatch, arrow::error::ArrowError> {
+    let schema = Schema::new(vec![
+        Field::new("t_start", DataType::Float64, false),
+        Field::new("t_end", DataType::Float64, false),
+        Field::new("agent_id", DataType::UInt64, false),
+        Field::new("other_id", DataType::UInt64, false),
+        Field::new("class", DataType::Utf8, false),
+        Field::new("other_class", DataType::Utf8, false),
+        Field::new("kind", DataType::Utf8, false),
+        Field::new("min_ttc", DataType::Float64, false),
+        Field::new("max_drac", DataType::Float64, true),
+        Field::new("ribbon", DataType::Utf8, false),
+        Field::new("s", DataType::Float64, false),
+        Field::new("y", DataType::Float64, false),
+    ]);
+    let cols: Vec<ArrayRef> = vec![
+        f64s(rows, |r| r.t_start),
+        f64s(rows, |r| r.t_end),
+        Arc::new(UInt64Array::from_iter_values(
+            rows.iter().map(|r| r.agent_id),
+        )),
+        Arc::new(UInt64Array::from_iter_values(
+            rows.iter().map(|r| r.other_id),
+        )),
+        strs(rows, |r| r.class),
+        strs(rows, |r| r.other_class),
+        strs(rows, |r| r.kind),
+        f64s(rows, |r| r.min_ttc),
+        Arc::new(Float64Array::from(
+            rows.iter().map(|r| opt(r.max_drac)).collect::<Vec<_>>(),
+        )),
+        strs(rows, |r| &r.ribbon),
+        f64s(rows, |r| r.s),
+        f64s(rows, |r| r.y),
     ];
     RecordBatch::try_new(Arc::new(schema), cols)
 }
@@ -210,6 +259,7 @@ fn trajectory_schema() -> SchemaRef {
         Field::new("y_world", DataType::Float64, false),
         Field::new("heading", DataType::Float64, false),
         Field::new("v", DataType::Float64, false),
+        Field::new("v_lat", DataType::Float64, false),
         Field::new("a", DataType::Float64, false),
     ]))
 }
@@ -234,6 +284,7 @@ fn trajectory_batch(
             f(c.y_world),
             f(c.heading),
             f(c.v),
+            f(c.v_lat),
             f(c.a),
         ],
     )
@@ -300,6 +351,10 @@ pub fn write_outputs(
     )?;
     write_batch(&dir.join("events.parquet"), &events_batch(&out.events)?)?;
     write_batch(
+        &dir.join("conflicts.parquet"),
+        &conflicts_batch(&out.conflicts)?,
+    )?;
+    write_batch(
         &dir.join("kpis.parquet"),
         &kpis_batch(&out.kpis, run_hash, seed)?,
     )?;
@@ -313,7 +368,7 @@ type TableDoc = (&'static str, &'static str, &'static [Column]);
 
 /// The data dictionary in Markdown: every output table, column, type and meaning.
 pub fn data_dictionary() -> String {
-    let tables: [TableDoc; 8] = [
+    let tables: [TableDoc; 9] = [
         (
             "manifest.json",
             "Run identity and provenance (JSON, not Parquet).",
@@ -424,7 +479,12 @@ pub fn data_dictionary() -> String {
                 ("spawn_delay", "f64", "s", "t_entry − t_arrival"),
                 ("distance", "f64", "m", "distance travelled in the network"),
                 ("travel_time", "f64", "s", "exit (or end) − entry"),
-                ("free_flow_time", "f64", "s", "distance / v0"),
+                (
+                    "free_flow_time",
+                    "f64",
+                    "s",
+                    "time the distance would take at the desired speed in force along the way",
+                ),
                 ("delay", "f64", "s", "travel_time − free_flow_time"),
                 (
                     "stops",
@@ -444,10 +504,28 @@ pub fn data_dictionary() -> String {
                     "v0",
                     "f64",
                     "m/s",
-                    "desired speed (incl. median-band bonus)",
+                    "desired speed drawn at entry (the median-band bonus applies on top while in the band)",
                 ),
                 ("time_gap, standstill_gap", "f64", "s, m", "IDM T and s0"),
                 ("max_accel, comfortable_decel", "f64", "m/s²", "IDM a and b"),
+                (
+                    "kappa",
+                    "f64",
+                    "",
+                    "aggressiveness κ; scales lateral clearances by exp(−γ_c κ)",
+                ),
+                (
+                    "lateral_distance",
+                    "f64",
+                    "m",
+                    "sum of |lateral displacement| over the trip",
+                ),
+                (
+                    "lateral_moves",
+                    "u32",
+                    "",
+                    "times the agent took a new lateral target (ADR-0010 §3)",
+                ),
             ],
         ),
         (
@@ -515,10 +593,64 @@ pub fn data_dictionary() -> String {
                     "t, kind, agent_id",
                     "f64, utf8, u64",
                     "s",
-                    "kinds so far: collision_guard",
+                    "kinds so far: collision_guard, lateral_move",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
-                ("attrs", "utf8 (JSON)", "", "type-specific attributes"),
+                (
+                    "attrs",
+                    "utf8 (JSON)",
+                    "",
+                    "collision_guard: other_id, overlap_m, cut_back_s, cut_back_y. lateral_move \
+                     (only with `observers.lateral.log_decisions = 1`): target and the utility \
+                     terms utility, own, polite, comfort, cost (m/s²)",
+                ),
+            ],
+        ),
+        (
+            "conflicts.parquet",
+            "One row per conflict episode: consecutive steps in which two vehicles' time to \
+             contact, as oriented rectangles at constant velocity, was under \
+             `observers.conflict.ttc_threshold` (ADR-0010 §6). A vehicle has one open episode \
+             at a time, with the neighbour ahead of it whose time to contact is shortest.",
+            &[
+                (
+                    "t_start, t_end",
+                    "f64",
+                    "s",
+                    "first and last step under the threshold",
+                ),
+                (
+                    "agent_id, other_id",
+                    "u64",
+                    "",
+                    "the vehicle behind (earlier along the ribbon) and the other one",
+                ),
+                ("class, other_class", "utf8", "", ""),
+                (
+                    "kind",
+                    "utf8",
+                    "",
+                    "rear_end, sideswipe or head_on: the axis the bodies close on last",
+                ),
+                (
+                    "min_ttc",
+                    "f64",
+                    "s",
+                    "minimum time to contact in the episode",
+                ),
+                (
+                    "max_drac",
+                    "f64?",
+                    "m/s²",
+                    "maximum deceleration rate to avoid the crash, closing speed² / (2 · gap) \
+                     along the approach axis; null if never defined",
+                ),
+                (
+                    "ribbon, s, y",
+                    "utf8, f64, f64",
+                    "m",
+                    "where agent_id was at the minimum",
+                ),
             ],
         ),
         (
@@ -541,13 +673,13 @@ pub fn data_dictionary() -> String {
                     "trajectories: x_world, y_world, heading",
                     "f64",
                     "m, rad",
-                    "world frame",
+                    "world frame; heading is the body's (road direction plus its own turn)",
                 ),
                 (
-                    "trajectories: v, a",
+                    "trajectories: v, v_lat, a",
                     "f64",
-                    "m/s, m/s²",
-                    "speed and acceleration",
+                    "m/s, m/s, m/s²",
+                    "speed along the ribbon, lateral speed (+ left of travel), acceleration",
                 ),
             ],
         ),

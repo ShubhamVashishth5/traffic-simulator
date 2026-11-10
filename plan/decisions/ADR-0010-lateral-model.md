@@ -1,6 +1,6 @@
 # ADR-0010: The lateral model (clearance, target choice, motion, guard, conflicts)
 
-- **Status:** proposed: review gate P5.1, needs the user's decision
+- **Status:** accepted (the user, 2026-11-09, at the P5.1 review gate: options A2, B1, C1)
 - **Date:** 2026-11-09
 - **Phase / task:** P5.1 (governs P5.2–P5.8; changes one term of the P2 following model)
 
@@ -105,7 +105,7 @@ dominate the P3 screen).
 1. *Table 4 lines per pair (proposed)*, the pooled line for pairs the paper did not observe.
 2. *The guide's two factors on the pooled line.* Misreads the source (finding 3).
 
-## Decision (proposed, pending review): A2 + B1 + C1
+## Decision: A2 + B1 + C1
 
 Notation: subject `i`, other vehicle `j`; widths `w`, lengths `l`; `s` along the ribbon, `y`
 lateral; `e_ij = |y_i − y_j| − (w_i + w_j)/2` the edge-to-edge gap; `v̄ = (v_i + v_j)/2`.
@@ -188,8 +188,8 @@ a `collision_guard` event naming the other vehicle, the overlap and the axis.
 
 ### 6. Conflicts (P5.7)
 
-For each agent and each cached neighbour: the first time within `H` at which the two oriented
-rectangles touch if both keep their velocity. Consecutive steps under the threshold for the same
+For each agent and each neighbour ahead of it in the ribbon order: the first time at which the two
+oriented rectangles touch if both keep their velocity. Consecutive steps under the threshold for the same
 pair are one episode in `conflicts.parquet`: start, end, minimum TTC, maximum DRAC
 (`Δv² / (2·gap)`), type (`rear_end`, `sideswipe`, `head_on`) and position.
 
@@ -218,7 +218,8 @@ pair are one episode in `conflicts.parquet`: start, end, minimum TTC, maximum DR
 | `v_creep` | `…creep_speed.<class>` | 0.5 m/s for two-wheelers and bicycles, 0 otherwise | assumed | C, fit 3 |
 | `Δt_dec`, `Δy_cand` | `core.decision_interval`, `core.lateral_candidate_step` | 0.5 s, 0.25 m | existing | C, fix |
 | `R_cand` | `core.lateral_candidate_range` | 3.5 m | one notional lane each way | C, fix |
-| TTC threshold, `H` | `observers.conflict.ttc_threshold`, `.horizon` | 1.5 s, 3 s | G§8.4; horizon numerical | B / C, fix |
+| TTC threshold | `observers.conflict.ttc_threshold` | 1.5 s | G§8.4 | B, fix |
+| decision log | `observers.lateral.log_decisions` | 0 | output switch | C, scenario |
 
 The two `slope_factor.*` entries are removed: Table 4's lines contain them (finding 3).
 `params/guide_rows.yaml` keeps row 9.2/lateral_clearance covered by the pair entries.
@@ -251,3 +252,35 @@ The two `slope_factor.*` entries are removed: Table 4's lines contain them (find
   agent-step, plan/02) is re-checked in P5.9.
 - New per-agent state: `κ`, `v_y`, target `y*`, heading. New outputs: `conflicts.parquet`, lateral
   columns in `trajectories`, `lateral_move` events.
+
+## Implementation notes (2026-11-10, after the decision)
+
+Details settled while implementing P5.2–P5.7. None changes an option above; three add a rule the
+equations did not spell out, so they are listed for review.
+
+1. **No cutting in, at every step (extends §3's safety criterion to §4).** The safety criterion
+   was checked only when a target is chosen, but a move takes seconds, and a faster vehicle can
+   arrive meanwhile. On the reference corridor this gave 1–6 `collision_guard` events per hour.
+   Now a vehicle may not move sideways towards another one, ahead or behind, that is closing on
+   it within `Δv·Δt + Δv²/(2·b_safe)`; like a side neighbour, it may take half of the lateral gap.
+   With it the corridor has 0 guard events in 5 seeds × 1 h.
+2. **The swing of a turning body is limited on both sides.** A rectangle turned about its centre
+   swings its corners out on both sides (a 12 m truck at 0.2 rad: 1.2 m). A lateral step is halved
+   (up to 5 times, then dropped) until the body at its new heading fits within the room to each
+   neighbour. Real vehicles pivot nearer the rear axle, so this is conservative for long vehicles.
+3. **Arrivals are not inserted into the path of a vehicle already moving across.** The insertion
+   check uses the lateral strip between a vehicle's position and its target.
+4. **A new move is counted** (`lateral_moves`, `lateral_move` events) only when the chosen target
+   differs from the current one by at least half a candidate step.
+5. **Candidates are scored only if one could win.** An upper bound on any candidate's utility
+   (best free acceleration, followers unhindered, no shortfall, no cost) is compared with the
+   threshold first; the result is identical.
+6. The conflict horizon `H` was dropped: only times to contact under the threshold are recorded.
+7. `free_flow_time` (and so `delay`) now integrates the desired speed in force along the way,
+   because the median-band bonus follows the lateral position; `agents.v0` is the drawn value.
+8. **Not implemented:** `f(u)` (urgency, P7), the route term (P7), and κ on politeness (P8).
+
+**Observed, not yet resolved.** The median-band bonus is additive (G§7.3, measured on motor
+vehicles), so as an incentive it is large for slow classes: bicycles and e-rickshaws drift to the
+median side (57% and 34% of their time in the median-most 0.75 m on the reference corridor).
+This needs class-specific entry positions or a keep-to-the-kerb term; it is not tuned away here.

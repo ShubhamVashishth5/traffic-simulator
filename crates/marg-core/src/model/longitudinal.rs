@@ -55,6 +55,15 @@ impl Idm {
         self.max_accel * (1.0 - self.speed_term(v) - q * q)
     }
 
+    /// The interaction part of the IDM acceleration, `a (s*/gap)²`: what a
+    /// leader at bumper gap `gap` (> 0) takes off the free acceleration.
+    /// `accel(...) = free_accel(v) − interaction(...)`.
+    #[inline]
+    pub fn interaction(&self, v: f64, gap: f64, dv: f64, mult_t: f64, mult_s0: f64) -> f64 {
+        let q = self.desired_gap(v, dv, mult_t, mult_s0) / gap;
+        self.max_accel * q * q
+    }
+
     /// Highest speed at which a vehicle can enter `gap` behind a leader moving
     /// at `v_leader` without exceeding the desired gap (`s* ≤ gap`), capped at
     /// `v0`. Solves `k v² + (T − k v_l) v − (gap − s0) = 0` with `k = 1/(2√(ab))`.
@@ -114,6 +123,16 @@ mod tests {
         assert!((s_star - 12.0).abs() < 1e-12);
         let gap = s_star / (1.0 - (v / 15.0f64).powi(4)).sqrt();
         assert!(m.accel(v, gap, 0.0, 1.0, 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn interaction_is_the_leader_part() {
+        let m = car();
+        for (v, gap, dv) in [(10.0, 20.0, 2.0), (3.0, 4.0, -1.0), (14.0, 60.0, 5.0)] {
+            let whole = m.accel(v, gap, dv, 1.2, 0.8);
+            let parts = m.free_accel(v) - m.interaction(v, gap, dv, 1.2, 0.8);
+            assert!((whole - parts).abs() < 1e-12);
+        }
     }
 
     #[test]

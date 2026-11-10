@@ -37,7 +37,11 @@ them.
 **Checks, not inputs.** Discharge acceleration at signals (0.4–0.6 m/s²) and dynamic PCU are
 emergent. They have observers and validation targets, not parameters (G§1 cautions).
 
-## 2. Longitudinal following (G§2.1) ⚑
+## 2. Longitudinal following (G§2.1)
+
+> **Changed by [ADR-0010](decisions/ADR-0010-lateral-model.md) §2 (accepted, P5):** the clearance in
+> `ω` is the **minimum** clearance `c_min,ij` (not Budhkar & Maurya's mean), and each leader's IDM
+> acceleration is bounded below by `−b_emergency` before weighting. The rest of this section stands.
 
 IDM with a **lane-free leader set**. For follower `i` and every candidate leader `j` ahead within the
 look-ahead distance:
@@ -66,7 +70,13 @@ a_long       = clamp(a_long, −b_emergency, a_i)               # b_emergency = 
 - **Local caps.** Humps, waterlogging, roughness and pothole crossings set the local `v0` cap used in
   `a_free`. That is the only way road objects touch longitudinal speed.
 
-## 3. Lateral behaviour (G§2.2) ⚑
+## 3. Lateral behaviour (G§2.2)
+
+> **Superseded by [ADR-0010](decisions/ADR-0010-lateral-model.md) (accepted, P5).** The ADR has the
+> equations that are implemented: a desired and a minimum clearance per pair of classes (Budhkar &
+> Maurya's `C` is edge-to-edge and is a mean, with pair lines from their Table 4), target choice
+> with a comfort term, critically damped tracking, the oriented-rectangle collision guard and
+> conflicts. The text below is the original proposal, kept for the reasoning.
 
 **Clearance.** `c_ij(v̄) = (α_pair + β_pair · v̄_kmh) / 100` in metres. The baseline is
 `α = 120.9, β = 0.615` (Budhkar & Maurya 2017). Pair modifiers:

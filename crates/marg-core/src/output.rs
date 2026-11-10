@@ -27,6 +27,35 @@ pub struct AgentRecord {
     pub standstill_gap: f64,
     pub max_accel: f64,
     pub comfortable_decel: f64,
+    /// Aggressiveness κ.
+    pub kappa: f64,
+    /// Sum of |lateral displacement| over the trip (m).
+    pub lateral_distance: f64,
+    /// Number of times the agent took a new lateral target.
+    pub lateral_moves: u32,
+}
+
+/// One conflict episode: consecutive steps in which the time to contact of
+/// two vehicles, at constant velocity, was under the threshold (ADR-0010 §6).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ConflictRecord {
+    pub t_start: f64,
+    pub t_end: f64,
+    /// The vehicle behind (earlier in the ribbon order) and the other one.
+    pub agent_id: u64,
+    pub other_id: u64,
+    pub class: &'static str,
+    pub other_class: &'static str,
+    /// `rear_end`, `sideswipe` or `head_on`.
+    pub kind: &'static str,
+    /// Minimum time to contact in the episode (s).
+    pub min_ttc: f64,
+    /// Maximum deceleration rate to avoid the crash in the episode (m/s²).
+    pub max_drac: f64,
+    /// Where `agent_id` was at the minimum time to contact.
+    pub ribbon: String,
+    pub s: f64,
+    pub y: f64,
 }
 
 /// Aggregates for one detector, interval and vehicle type.
@@ -85,8 +114,11 @@ pub struct TrajectoryChunk {
     pub y: Vec<f64>,
     pub x_world: Vec<f64>,
     pub y_world: Vec<f64>,
+    /// Heading of the body in world coordinates (rad).
     pub heading: Vec<f64>,
     pub v: Vec<f64>,
+    /// Lateral speed (m/s, positive to the left of travel).
+    pub v_lat: Vec<f64>,
     pub a: Vec<f64>,
 }
 
@@ -107,6 +139,7 @@ impl TrajectoryChunk {
         self.y_world.clear();
         self.heading.clear();
         self.v.clear();
+        self.v_lat.clear();
         self.a.clear();
     }
 }
@@ -124,6 +157,7 @@ pub struct RunOutputs {
     pub agents: Vec<AgentRecord>,
     pub detectors: Vec<DetectorRecord>,
     pub events: Vec<EventRecord>,
+    pub conflicts: Vec<ConflictRecord>,
     /// Headline KPIs as `(name, value)`, in a fixed order.
     pub kpis: Vec<(&'static str, f64)>,
     /// Ribbon ids by index (for decoding `TrajectoryChunk::ribbon`).

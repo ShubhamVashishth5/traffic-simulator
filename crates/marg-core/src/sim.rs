@@ -1,22 +1,28 @@
 //! The step loop (plan/02-architecture.md §4).
 //!
-//! Each step: **move** (parallel, read-only: accelerations from the current
-//! snapshot) → **apply** (integrate) → **observe** (detectors, trajectories,
-//! collision guard) → **transitions** (ribbon handover, exits) → **compact**
-//! (remove exits, re-sort ribbons) → **demand** (insert arrivals) → **hash**.
+//! Each step: **move** (parallel, read-only: accelerations, lateral speeds,
+//! lateral decisions and conflicts from the current snapshot) → **apply**
+//! (integrate along and across the ribbon) → **collision guard** →
+//! **observe** (detectors) → **transitions** (ribbon handover, exits) →
+//! **compact** (remove exits, re-sort ribbons) → **trajectories** →
+//! **demand** (insert arrivals) → **hash**.
 //! Only the move phase runs in parallel, and it writes per-agent results in
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
-use crate::agents::{AgentStore, NewAgent, REMOVED};
+use crate::agents::{AgentStore, NO_AGENT, NewAgent, REMOVED};
 use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::model::coverage::Coverage;
-use crate::model::lateral::{clearance, lateral_gap, leader_weight};
-use crate::model::longitudinal::{Idm, combine};
+use crate::model::geometry::{Body, overlap, penetration};
+use crate::model::lateral::{ChoiceParams, body_half_width, edge_gap};
+use crate::model::longitudinal::Idm;
 use crate::observe::Detectors;
 use crate::output::{
-    AgentRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk, TrajectorySink,
+    AgentRecord, ConflictRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk,
+    TrajectorySink,
 };
 use crate::params::{CoreParams, Drawn};
+pub use crate::scan::Interaction;
+use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use marg_net::Network;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
 use rayon::prelude::*;
@@ -28,6 +34,10 @@ const MOVE_MIN_LEN: usize = 256;
 /// Below this many agents the move phase runs on the calling thread: the
 /// thread-pool round trip costs more than it saves. Results are identical.
 const MOVE_PARALLEL_MIN: usize = 4 * MOVE_MIN_LEN;
+
+/// How often a lateral step that does not fit beside a neighbour is halved
+/// before it is dropped.
+const LATERAL_HALVINGS: u32 = 5;
 
 /// Errors raised while building or running a simulation.
 #[derive(Debug, thiserror::Error)]
@@ -49,26 +59,6 @@ pub enum SimError {
 struct LiveDetectors {
     det: Detectors,
     interval: f64,
-}
-
-/// One other agent considered by an agent's leader scan: the terms of
-/// plan/03-model-design.md §2, for the live inspector.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Interaction {
-    /// Store index of the other agent.
-    pub j: u32,
-    /// Distance between centres along the ribbon chain (m).
-    pub ds: f64,
-    /// Bumper-to-bumper gap (m); ≤ 0 means level with the agent (a side neighbour).
-    pub gap_s: f64,
-    /// Edge-to-edge lateral gap (m); < 0 means the footprints overlap laterally.
-    pub lateral_gap: f64,
-    /// Speed-dependent lateral clearance `c(v̄)` (m).
-    pub clearance: f64,
-    /// Leader weight ω; NaN for side neighbours.
-    pub weight: f64,
-    /// IDM acceleration toward this leader alone (m/s²); NaN for side neighbours.
-    pub leader_accel: f64,
 }
 
 /// Headline numbers for a finished run.
@@ -107,12 +97,24 @@ pub struct Simulation {
     pool: rayon::ThreadPool,
     work: Vec<(u32, u32)>,
     parallel_min: usize,
-    move_buf: Vec<(f64, u32)>,
+    move_buf: Vec<MoveOut>,
+    /// Per agent: limits of this step's lateral position (from the move phase).
+    y_limits: Vec<(f64, f64)>,
+    /// A predecessor of each ribbon, and distances between ribbon starts.
+    prev: Vec<Option<usize>>,
+    chain_offset: Vec<Vec<f64>>,
+    barriers: Vec<Barrier>,
+    /// Steps between an agent's scheduled lateral decisions.
+    decision_steps: u64,
+    conflicts: Vec<ConflictRecord>,
+    guard_restored: Vec<bool>,
     remap: Vec<u32>,
     transferred: Vec<u32>,
     records: Vec<AgentRecord>,
     events: Vec<EventRecord>,
     collision_guards: u64,
+    lateral_moves: u64,
+    lateral_decisions: u64,
     spawned: u64,
     exited: u64,
     agent_steps: u64,
@@ -180,6 +182,52 @@ impl Simulation {
             .build()
             .map_err(|e| SimError::ThreadPool(e.to_string()))?;
         let n_ribbons = net.len();
+        let mut prev = vec![None; n_ribbons];
+        for r in 0..n_ribbons {
+            if let Some(n) = net.ribbon(r).next
+                && prev[n].is_none()
+            {
+                prev[n] = Some(r);
+            }
+        }
+        let mut chain_offset = vec![vec![f64::NAN; n_ribbons]; n_ribbons];
+        for (from, row) in chain_offset.iter_mut().enumerate() {
+            let (mut at, mut off) = (from, 0.0);
+            loop {
+                row[at] = off;
+                off += net.ribbon(at).length();
+                match net.ribbon(at).next {
+                    Some(n) => at = n,
+                    None => break,
+                }
+            }
+        }
+        let mut barriers = Vec::new();
+        for b in &scenario.network.barriers {
+            let ribbon = ribbon_of(&b.ribbon).ok_or_else(|| {
+                SimError::InvalidScenario(format!(
+                    "barrier `{}`: unknown ribbon `{}`",
+                    b.id, b.ribbon
+                ))
+            })?;
+            if b.closed
+                .iter()
+                .any(|c| c.to_s.is_nan() || c.to_s <= c.from_s)
+            {
+                return Err(SimError::InvalidScenario(format!(
+                    "barrier `{}`: every closed period needs to_s > from_s",
+                    b.id
+                )));
+            }
+            barriers.push(Barrier {
+                id: b.id.clone(),
+                ribbon,
+                s: b.s,
+                closed: b.closed.iter().map(|c| (c.from_s, c.to_s)).collect(),
+                is_closed: false,
+            });
+        }
+        let decision_steps = decision_steps(&p, scenario.dt_s);
         Ok(Self {
             dt: scenario.dt_s,
             scenario,
@@ -196,11 +244,20 @@ impl Simulation {
             work: Vec::new(),
             parallel_min: MOVE_PARALLEL_MIN,
             move_buf: Vec::new(),
+            y_limits: Vec::new(),
+            prev,
+            chain_offset,
+            barriers,
+            decision_steps,
+            conflicts: Vec::new(),
+            guard_restored: Vec::new(),
             remap: Vec::new(),
             transferred: Vec::new(),
             records: Vec::new(),
             events: Vec::new(),
             collision_guards: 0,
+            lateral_moves: 0,
+            lateral_decisions: 0,
             spawned: 0,
             exited: 0,
             agent_steps: 0,
@@ -252,13 +309,13 @@ impl Simulation {
         let t0 = self.t;
         self.phase_move();
         self.phase_apply();
+        self.collision_guard(t0 + self.dt);
         self.detectors
             .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
         if let Some(live) = &mut self.live {
             live.det
                 .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
         }
-        self.collision_guard(t0 + self.dt);
         self.step += 1;
         self.t = self.step as f64 * self.dt;
         self.phase_transitions();
@@ -334,6 +391,10 @@ impl Simulation {
     /// the network keep their draws unless [`Self::resample`] is called.
     pub fn update_params(&mut self, spec: &ResolvedSpec) -> Result<(), SimError> {
         self.p = CoreParams::from_spec(spec)?;
+        self.decision_steps = decision_steps(&self.p, self.dt);
+        for i in 0..self.agents.len() {
+            self.agents.clearance_scale[i] = self.p.clearance_scale(self.agents.kappa[i]);
+        }
         for e in &mut self.demand.entries {
             for arr in &mut e.pending {
                 arr.draws = None;
@@ -378,7 +439,10 @@ impl Simulation {
                 let a = &mut self.agents;
                 let x = draw_one(self.seed, a.id[i], VehicleType::ALL[vt], &self.p, drawn);
                 match drawn {
-                    Drawn::V0 => a.v0[i] = x + a.v0_bonus[i],
+                    Drawn::V0 => {
+                        a.v0[i] += x - a.v0_base[i];
+                        a.v0_base[i] = x;
+                    }
                     Drawn::TimeGap => a.time_gap[i] = x,
                     Drawn::StandstillGap => a.standstill_gap[i] = x,
                     Drawn::MaxAccel => a.max_accel[i] = x,
@@ -444,24 +508,84 @@ impl Simulation {
         self.record(i, None)
     }
 
-    /// Every agent the leader scan of agent `i` considers this step (leaders
-    /// and side neighbours), with the terms of its acceleration.
+    /// Every agent the scan of agent `i` considers this step (leaders and
+    /// side neighbours), with the terms of its acceleration.
     pub fn interactions(&self, i: usize) -> Vec<Interaction> {
         let r = self.agents.ribbon[i] as usize;
         let Some(k) = self.orders[r].iter().position(|&x| x as usize == i) else {
             return Vec::new();
         };
-        let ctx = MoveCtx {
+        let mut out = Vec::new();
+        self.move_ctx().agent_with(r, k, i, |x| out.push(x));
+        out
+    }
+
+    /// The lateral choice agent `i` would make now (ADR-0010 §3), whether or
+    /// not a decision is due: its target and the utility terms.
+    pub fn lateral_choice(&self, i: usize) -> Option<crate::model::lateral::Choice> {
+        let r = self.agents.ribbon[i] as usize;
+        let k = self.orders[r].iter().position(|&x| x as usize == i)?;
+        let ctx = self.move_ctx();
+        let a = &self.agents;
+        let idm = Idm {
+            v0: a.v0[i],
+            time_gap: a.time_gap[i],
+            standstill_gap: a.standstill_gap[i],
+            max_accel: a.max_accel[i],
+            comfortable_decel: a.comfortable_decel[i],
+            exponent: self.p.accel_exponent,
+        };
+        Some(ctx.decide(r, k, i, &idm, f64::INFINITY))
+    }
+
+    /// Every conflict episode closed so far.
+    pub fn conflicts(&self) -> &[ConflictRecord] {
+        &self.conflicts
+    }
+
+    fn move_ctx(&self) -> MoveCtx<'_> {
+        let p = &self.p;
+        let cut = p.interaction_cutoff_distance();
+        let a = &self.agents;
+        let fold = |xs: &[f64]| xs.iter().copied().fold(0.0, f64::max);
+        let vy_max = a.vy.iter().fold(0.0, |m: f64, x| m.max(x.abs()));
+        let flat = |m: &[[f64; crate::params::N_CLASSES]; crate::params::N_CLASSES]| {
+            m.iter().flatten().copied().fold(0.0, f64::max)
+        };
+        let c_min_cap = fold(&a.clearance_scale)
+            * (flat(&p.clearance_intercept) + flat(&p.clearance_slope) * fold(&a.v)
+                - p.clearance_min_offset)
+                .max(p.clearance_min_floor);
+        MoveCtx {
             a: &self.agents,
             orders: &self.orders,
             net: &self.net,
-            p: &self.p,
-            cut: self.p.interaction_cutoff_distance(),
+            p,
+            prev: &self.prev,
+            chain_offset: &self.chain_offset,
+            barriers: &self.barriers,
+            cut,
+            steer_cut: p.steering_cutoff_distance(),
             l_max: self.agents.length.iter().copied().fold(0.0, f64::max),
-        };
-        let mut out = Vec::new();
-        ctx.accel_with(r, k, i, |x| out.push(x));
-        out
+            step: self.step,
+            decision_steps: self.decision_steps,
+            dt: self.dt,
+            choice: ChoiceParams {
+                braking_scale: p.braking_scale,
+                cutoff: cut,
+                politeness: p.politeness,
+                safe_decel: p.safe_decel,
+                comfort_weight: p.comfort_weight,
+                move_cost: p.move_cost,
+                edge_clearance: p.edge_clearance,
+                switch_threshold: p.switch_threshold,
+                step: p.candidate_step,
+                range: p.candidate_range,
+            },
+            vy_max,
+            c_min_cap,
+            v_max: fold(&a.v),
+        }
     }
 
     /// Headline KPIs if the run ended now (the same computation as `finish`).
@@ -471,7 +595,18 @@ impl Simulation {
             agents.push(self.record(i, None));
         }
         agents.sort_by_key(|r| r.agent_id);
-        self.kpis(&agents)
+        // Conflict episodes still open count as they stand.
+        let mut conflicts = self.conflicts.clone();
+        for i in 0..self.agents.len() {
+            if self.agents.conflict_other[i] != NO_AGENT {
+                conflicts.push(ConflictRecord {
+                    t_start: self.agents.conflict_t0[i],
+                    kind: conflict_kind_name(self.agents.conflict_kind[i]),
+                    ..ConflictRecord::default()
+                });
+            }
+        }
+        self.kpis_with(&agents, &conflicts)
     }
 
     // ---------------------------------------------------------------- move
@@ -482,20 +617,17 @@ impl Simulation {
             self.work
                 .extend((0..order.len() as u32).map(|k| (r as u32, k)));
         }
+        let t = self.t;
+        for b in &mut self.barriers {
+            b.is_closed = b.closed.iter().any(|&(from, to)| t >= from && t < to);
+        }
+        let mut buf = std::mem::take(&mut self.move_buf);
         {
-            let ctx = MoveCtx {
-                a: &self.agents,
-                orders: &self.orders,
-                net: &self.net,
-                p: &self.p,
-                cut: self.p.interaction_cutoff_distance(),
-                l_max: self.agents.length.iter().copied().fold(0.0, f64::max),
-            };
+            let ctx = self.move_ctx();
             let work = &self.work;
-            let buf = &mut self.move_buf;
             let one = |&(r, k): &(u32, u32)| {
                 let (r, k) = (r as usize, k as usize);
-                ctx.accel(r, k, ctx.orders[r][k] as usize)
+                ctx.agent(r, k, ctx.orders[r][k] as usize)
             };
             if work.len() < self.parallel_min || self.pool.current_num_threads() == 1 {
                 buf.clear();
@@ -505,21 +637,107 @@ impl Simulation {
                     work.par_iter()
                         .with_min_len(MOVE_MIN_LEN)
                         .map(one)
-                        .collect_into_vec(buf)
+                        .collect_into_vec(&mut buf)
                 });
             }
         }
-        for (&(r, k), &(acc, leader)) in self.work.iter().zip(&self.move_buf) {
+        self.y_limits.clear();
+        self.y_limits
+            .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
+        for (n, out) in buf.iter().enumerate() {
+            let (r, k) = self.work[n];
             let i = self.orders[r as usize][k as usize] as usize;
-            self.agents.acc[i] = acc;
-            self.agents.phys_leader[i] = leader;
+            self.agents.acc[i] = out.acc;
+            self.agents.vy[i] = out.vy;
+            self.y_limits[i] = (out.y_lo, out.y_hi);
+            if let Some(c) = out.choice {
+                self.lateral_decisions += 1;
+                self.agents.decision_leader[i] = out.leader;
+                if c.switched {
+                    self.agents.lateral_moves[i] += 1;
+                    self.lateral_moves += 1;
+                    if self.p.log_lateral_decisions {
+                        let a = &self.agents;
+                        self.events.push(EventRecord {
+                            t,
+                            kind: "lateral_move",
+                            agent_id: a.id[i],
+                            ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+                            s: a.s[i],
+                            y: a.y[i],
+                            attrs: format!(
+                                "{{\"target\":{},\"utility\":{},\"own\":{},\"polite\":{},\"comfort\":{},\"cost\":{}}}",
+                                c.target, c.utility, c.own, c.polite, c.comfort, c.cost
+                            ),
+                        });
+                    }
+                }
+                self.agents.y_target[i] = c.target;
+            }
+            self.track_conflict(i, out, t);
         }
+        self.move_buf = buf;
+    }
+
+    /// Extend, close or open agent `i`'s conflict episode (ADR-0010 §6). An
+    /// agent has one open episode at a time: with the neighbour ahead of it
+    /// in the ribbon order whose time to contact is shortest.
+    fn track_conflict(&mut self, i: usize, out: &MoveOut, t: f64) {
+        let other = out
+            .conflict
+            .map_or(NO_AGENT, |c| self.agents.id[c.other as usize]);
+        if self.agents.conflict_other[i] != other {
+            self.close_conflict(i, t);
+        }
+        let Some(c) = out.conflict else { return };
+        let a = &mut self.agents;
+        if a.conflict_other[i] == NO_AGENT {
+            a.conflict_other[i] = other;
+            a.conflict_t0[i] = t;
+            a.conflict_min_ttc[i] = f64::INFINITY;
+            a.conflict_max_drac[i] = f64::NAN;
+        }
+        if c.ttc < a.conflict_min_ttc[i] {
+            a.conflict_min_ttc[i] = c.ttc;
+            a.conflict_kind[i] = c.kind;
+            a.conflict_s[i] = a.s[i];
+            a.conflict_y[i] = a.y[i];
+        }
+        // f64::max ignores NaN, so the maximum is over the steps where DRAC is defined.
+        a.conflict_max_drac[i] = a.conflict_max_drac[i].max(c.drac);
+    }
+
+    /// Close agent `i`'s open conflict episode, if any, at time `t`.
+    fn close_conflict(&mut self, i: usize, t: f64) {
+        let a = &mut self.agents;
+        if a.conflict_other[i] == NO_AGENT {
+            return;
+        }
+        let other_id = a.conflict_other[i];
+        a.conflict_other[i] = NO_AGENT;
+        let a = &self.agents;
+        let class_of = |id: u64| VehicleClass::ALL[((id >> 40) & 0xff) as usize].key();
+        self.conflicts.push(ConflictRecord {
+            t_start: a.conflict_t0[i],
+            t_end: t,
+            agent_id: a.id[i],
+            other_id,
+            class: VehicleClass::ALL[usize::from(a.class[i])].key(),
+            other_class: class_of(other_id),
+            kind: conflict_kind_name(a.conflict_kind[i]),
+            min_ttc: a.conflict_min_ttc[i],
+            max_drac: a.conflict_max_drac[i],
+            ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+            s: a.conflict_s[i],
+            y: a.conflict_y[i],
+        });
     }
 
     // --------------------------------------------------------------- apply
 
     fn phase_apply(&mut self) {
         let dt = self.dt;
+        let p = &self.p;
         let a = &mut self.agents;
         let measured = self.t >= self.scenario.warmup_s;
         let mut max_step: f64 = 0.0;
@@ -536,14 +754,72 @@ impl Simulation {
             a.s[i] += ds;
             a.v[i] = v1.max(0.0);
             a.distance[i] += ds;
+            a.free_flow_time[i] += ds / a.v0[i];
             max_step = max_step.max(ds);
             ttd += ds;
-            if a.v[i] < self.p.stop_speed_below {
+            // Across the ribbon: the heading limit (or the creep speed when
+            // nearly stopped), the side neighbours' limits, the carriageway.
+            let creep = if a.v[i] < p.stop_speed_below {
+                p.creep_speed[usize::from(a.class[i])] * dt
+            } else {
+                0.0
+            };
+            let reach = (ds * p.max_heading_tan).max(creep);
+            let dy = (a.vy[i] * dt).clamp(-reach, reach);
+            let ribbon = self.net.ribbon(a.ribbon[i] as usize);
+            let (edge_lo, edge_hi) = ribbon.y_bounds(a.s[i]);
+            let (road_lo, road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
+            let (y0, (lim_lo, lim_hi)) = (a.y[i], self.y_limits[i]);
+            // A body widens as it turns (ADR-0010 §4): its corners swing out
+            // on both sides, so a move away from one neighbour can still
+            // reach the other. Halve the move until the body, at the heading
+            // the move gives it, stays within the room on each side; not
+            // moving always does (straightening never widens a body).
+            let (width, length, half_now) = (a.width[i], a.length[i], a.half_width[i]);
+            let fits = |dy: f64| -> bool {
+                if dy == 0.0 {
+                    return true;
+                }
+                let along = ds.max(dy.abs() / p.max_heading_tan);
+                let swing = body_half_width(width, length, dy / along) - half_now;
+                dy + swing <= lim_hi - y0 && swing - dy <= y0 - lim_lo
+            };
+            let mut dy = dy;
+            if dy != 0.0 && (lim_hi < f64::INFINITY || lim_lo > f64::NEG_INFINITY) {
+                let mut tries = 0;
+                while !fits(dy) {
+                    tries += 1;
+                    dy = if tries < LATERAL_HALVINGS {
+                        0.5 * dy
+                    } else {
+                        0.0
+                    };
+                }
+            }
+            let y1 = (y0 + dy).clamp(road_lo, road_hi);
+            let dy = y1 - y0;
+            a.y_prev[i] = y0;
+            a.y[i] = y1;
+            a.vy[i] = dy / dt;
+            a.lateral_distance[i] += dy.abs();
+            a.heading_tan_prev[i] = a.heading_tan[i];
+            // Creeping sideways at a standstill is the limit heading.
+            let along = ds.max(dy.abs() / p.max_heading_tan);
+            a.heading_tan[i] = if dy == 0.0 {
+                0.0
+            } else {
+                (dy / along).clamp(-p.max_heading_tan, p.max_heading_tan)
+            };
+            a.half_width[i] = body_half_width(a.width[i], a.length[i], a.heading_tan[i]);
+            // The median band's speed bonus follows the lateral position.
+            let in_band = y1 - edge_lo < p.median_band_width;
+            a.v0[i] = a.v0_base[i] + if in_band { a.v0_bonus[i] } else { 0.0 };
+            if a.v[i] < p.stop_speed_below {
                 if a.stop_armed[i] {
                     a.stops[i] += 1;
                     a.stop_armed[i] = false;
                 }
-            } else if a.v[i] > self.p.stop_rearm_above {
+            } else if a.v[i] > p.stop_rearm_above {
                 a.stop_armed[i] = true;
             }
         }
@@ -555,57 +831,120 @@ impl Simulation {
         }
     }
 
-    /// Resolve any physical overlap with the nearest overlapping leader that
-    /// integration produced (should not happen; counted and logged).
+    /// The body of agent `i`, `offset` m further along the chain.
+    fn body(&self, i: usize, offset: f64) -> Body {
+        let a = &self.agents;
+        Body::from_tan(
+            a.s[i] + offset,
+            a.y[i],
+            a.length[i],
+            a.width[i],
+            a.heading_tan[i],
+        )
+    }
+
+    /// Resolve any overlap of oriented bodies that integration produced
+    /// (ADR-0010 §5; should not happen: counted and logged). The rear vehicle
+    /// of an overlapping pair is put back where it was before the step; if it
+    /// already has been, the other one is. Every vehicle is put back at most
+    /// once, and the state before the step had no overlaps, so none remain.
     fn collision_guard(&mut self, t: f64) {
-        for r in 0..self.orders.len() {
-            for k in (0..self.orders[r].len()).rev() {
-                let i = self.orders[r][k] as usize;
-                let j = self.agents.phys_leader[i];
-                if j == REMOVED {
-                    continue;
+        let l_max = self.agents.length.iter().copied().fold(0.0, f64::max);
+        let w_max = self.agents.width.iter().copied().fold(0.0, f64::max);
+        // Orders are sorted by position before the step; bodies turned by the
+        // heading limit reach at most this much further along the ribbon.
+        let slack = self.max_step + w_max * self.p.max_heading_tan;
+        let mut any = false;
+        loop {
+            let mut changed = false;
+            for r in 0..self.orders.len() {
+                for k in (0..self.orders[r].len()).rev() {
+                    let i = self.orders[r][k] as usize;
+                    let reach = 0.5 * (self.agents.length[i] + l_max) + slack;
+                    let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
+                    'scan: loop {
+                        while pos < self.orders[ribbon].len() {
+                            let j = self.orders[ribbon][pos] as usize;
+                            pos += 1;
+                            let a = &self.agents;
+                            if a.s_prev[j] + offset - a.s_prev[i] > reach {
+                                break 'scan;
+                            }
+                            let ds = (a.s[j] + offset - a.s[i]).abs();
+                            if ds > 0.5 * (a.length[i] + a.length[j]) + slack
+                                || edge_gap(a.y[i], a.half_width[i], a.y[j], a.half_width[j]) > 0.0
+                            {
+                                continue;
+                            }
+                            let (bi, bj) = (self.body(i, 0.0), self.body(j, offset));
+                            if !overlap(&bi, &bj) {
+                                continue;
+                            }
+                            if !any {
+                                any = true;
+                                self.guard_restored.clear();
+                                self.guard_restored.resize(self.agents.len(), false);
+                            }
+                            let depth = penetration(&bi, &bj);
+                            let (back, other) = if !self.guard_restored[i] {
+                                (i, j)
+                            } else if !self.guard_restored[j] {
+                                (j, i)
+                            } else {
+                                continue;
+                            };
+                            self.guard_restore(back, other, depth, t);
+                            changed = true;
+                        }
+                        match self.net.ribbon(ribbon).next {
+                            Some(n) => {
+                                offset += self.net.ribbon(ribbon).length();
+                                ribbon = n;
+                                pos = 0;
+                            }
+                            None => break,
+                        }
+                    }
                 }
-                let j = j as usize;
-                let a = &self.agents;
-                let offset = self.ribbon_offset(a.ribbon[i] as usize, a.ribbon[j] as usize);
-                let gap = a.s[j] + offset - a.s[i] - 0.5 * (a.length[i] + a.length[j]);
-                if gap < 0.0 && lateral_gap(a.y[i], a.width[i], a.y[j], a.width[j]) < 0.0 {
-                    let (s_new, v_new) = (a.s[i] + gap, a.v[i].min(a.v[j]));
-                    let event = EventRecord {
-                        t,
-                        kind: "collision_guard",
-                        agent_id: a.id[i],
-                        ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
-                        s: s_new,
-                        y: a.y[i],
-                        attrs: format!("{{\"leader_id\":{},\"overlap_m\":{}}}", a.id[j], -gap),
-                    };
-                    self.agents.distance[i] += gap;
-                    self.agents.s[i] = s_new;
-                    self.agents.v[i] = v_new;
-                    self.events.push(event);
-                    self.collision_guards += 1;
-                }
+            }
+            if !changed {
+                break;
             }
         }
     }
 
-    /// Distance from the start of ribbon `from` to the start of ribbon `to`
-    /// along the chain (0 if they are the same or not connected).
-    fn ribbon_offset(&self, from: usize, to: usize) -> f64 {
-        let mut off = 0.0;
-        let mut r = from;
-        for _ in 0..self.net.len() {
-            if r == to {
-                return off;
-            }
-            off += self.net.ribbon(r).length();
-            match self.net.ribbon(r).next {
-                Some(n) => r = n,
-                None => return 0.0,
-            }
+    /// Put agent `i` back where it was before this step, because it
+    /// overlapped `other` by `depth` m, and log it.
+    fn guard_restore(&mut self, i: usize, other: usize, depth: f64, t: f64) {
+        let a = &mut self.agents;
+        let (ds, dy) = (a.s[i] - a.s_prev[i], a.y[i] - a.y_prev[i]);
+        a.s[i] = a.s_prev[i];
+        a.y[i] = a.y_prev[i];
+        a.heading_tan[i] = a.heading_tan_prev[i];
+        a.half_width[i] = body_half_width(a.width[i], a.length[i], a.heading_tan[i]);
+        a.distance[i] -= ds;
+        a.free_flow_time[i] -= ds / a.v0[i];
+        a.lateral_distance[i] -= dy.abs();
+        a.v[i] = a.v[i].min(a.v[other]);
+        a.vy[i] = 0.0;
+        if self.t >= self.scenario.warmup_s {
+            self.measured_ttd -= ds;
         }
-        0.0
+        self.guard_restored[i] = true;
+        let a = &self.agents;
+        self.events.push(EventRecord {
+            t,
+            kind: "collision_guard",
+            agent_id: a.id[i],
+            ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+            s: a.s[i],
+            y: a.y[i],
+            attrs: format!(
+                "{{\"other_id\":{},\"overlap_m\":{},\"cut_back_s\":{},\"cut_back_y\":{}}}",
+                a.id[other], depth, ds, dy
+            ),
+        });
+        self.collision_guards += 1;
     }
 
     // --------------------------------------------------------- transitions
@@ -625,6 +964,7 @@ impl Simulation {
                     Some(n) => {
                         self.agents.s[i] -= len;
                         self.agents.s_prev[i] -= len;
+                        self.agents.conflict_s[i] -= len;
                         self.agents.ribbon[i] = n as u32;
                         moved = true;
                     }
@@ -636,6 +976,7 @@ impl Simulation {
                         let overshoot = s1 - len;
                         let rec = self.record(i, Some((t_exit, overshoot)));
                         self.records.push(rec);
+                        self.close_conflict(i, t);
                         self.agents.exited[i] = true;
                         self.exited += 1;
                         break;
@@ -657,7 +998,8 @@ impl Simulation {
         };
         let end = t_exit.unwrap_or(self.t);
         let travel_time = end - a.t_entry[i];
-        let free_flow_time = distance / a.v0[i];
+        // The overshoot beyond the exit was driven at the desired speed in force.
+        let free_flow_time = a.free_flow_time[i] - (a.distance[i] - distance) / a.v0[i];
         AgentRecord {
             agent_id: a.id[i],
             vehicle_type: vtype.key(),
@@ -676,11 +1018,14 @@ impl Simulation {
             entry_y: a.entry_y[i],
             length: a.length[i],
             width: a.width[i],
-            v0: a.v0[i],
+            v0: a.v0_base[i],
             time_gap: a.time_gap[i],
             standstill_gap: a.standstill_gap[i],
             max_accel: a.max_accel[i],
             comfortable_decel: a.comfortable_decel[i],
+            kappa: a.kappa[i],
+            lateral_distance: a.lateral_distance[i],
+            lateral_moves: a.lateral_moves[i],
         }
     }
 
@@ -742,8 +1087,9 @@ impl Simulation {
             c.y.push(a.y[i]);
             c.x_world.push(x);
             c.y_world.push(yw);
-            c.heading.push(h);
+            c.heading.push(h + a.heading(i));
             c.v.push(a.v[i]);
+            c.v_lat.push(a.vy[i]);
             c.a.push(a.acc[i]);
         }
         if self.traj.len() >= TRAJECTORY_CHUNK_ROWS {
@@ -796,13 +1142,10 @@ impl Simulation {
         let free_width = (y_max - y_min - d.width).max(0.0);
         let y = y_min + 0.5 * d.width.min(y_max - y_min) + d.lateral_fraction * free_width;
         let in_band = y - y_min < self.p.median_band_width;
-        let v0_bonus = if in_band {
-            d.median_band_bonus.max(0.0)
-        } else {
-            0.0
-        };
-        let v0 = d.v0 + v0_bonus;
+        let v0_bonus = d.median_band_bonus.max(0.0);
+        let v0 = d.v0 + if in_band { v0_bonus } else { 0.0 };
         let class = arr.vtype.class();
+        let clearance_scale = self.p.clearance_scale(d.kappa);
         let idm = Idm {
             v0,
             time_gap: d.time_gap,
@@ -811,7 +1154,9 @@ impl Simulation {
             comfortable_decel: d.comfortable_decel,
             exponent: self.p.accel_exponent,
         };
-        let Some(v_ins) = self.insertion_speed(r, s_e, y, d.length, d.width, class, &idm) else {
+        let Some(v_ins) =
+            self.insertion_speed(r, s_e, y, d.length, d.width, class, clearance_scale, &idm)
+        else {
             return false;
         };
         if v_ins < self.p.stop_speed_below {
@@ -829,11 +1174,14 @@ impl Simulation {
             length: d.length,
             width: d.width,
             v0,
+            v0_base: d.v0,
             v0_bonus,
             time_gap: d.time_gap,
             standstill_gap: d.standstill_gap,
             max_accel: d.max_accel,
             comfortable_decel: d.comfortable_decel,
+            kappa: d.kappa,
+            clearance_scale,
             t_arrival: arr.t_arrival,
             t_entry: self.t,
         };
@@ -859,6 +1207,7 @@ impl Simulation {
         length: f64,
         width: f64,
         class: VehicleClass,
+        clearance_scale: f64,
         idm: &Idm,
     ) -> Option<f64> {
         let a = &self.agents;
@@ -878,18 +1227,16 @@ impl Simulation {
                 break;
             }
             let gap_s = ds - 0.5 * (length + a.length[j]);
-            let gy = lateral_gap(y, width, a.y[j], a.width[j]);
-            let c = clearance(p.clearance_intercept, p.clearance_slope, 0.5 * (v + a.v[j]));
+            let gy = swept_gap(y, 0.5 * width, a.y[j], a.y_target[j], a.half_width[j]);
+            let cj = usize::from(a.class[j]);
+            let c = clearance_scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
             if gy - c > 0.0 {
                 continue;
             }
             if gap_s <= 0.0 {
-                if gy < 0.0 {
-                    return None;
-                }
-                continue;
+                // Level with the entry point and inside the minimum clearance.
+                return None;
             }
-            let cj = usize::from(a.class[j]);
             let v_ok = idm.insertion_speed(
                 gap_s,
                 a.v[j],
@@ -898,7 +1245,7 @@ impl Simulation {
             );
             v = v.min(v_ok);
             if horizon == p.lookahead {
-                cov.add(a.y[j] - 0.5 * a.width[j] - c, a.y[j] + 0.5 * a.width[j] + c);
+                cov.add(a.y[j] - a.half_width[j] - c, a.y[j] + a.half_width[j] + c);
                 if cov.full() {
                     horizon = horizon.min(ds + 0.5 * l_max);
                 }
@@ -914,25 +1261,22 @@ impl Simulation {
                 break;
             }
             let gap_s = ds - 0.5 * (length + a.length[j]);
-            let gy = lateral_gap(y, width, a.y[j], a.width[j]);
-            let c = clearance(p.clearance_intercept, p.clearance_slope, 0.5 * (v + a.v[j]));
+            let gy = swept_gap(y, 0.5 * width, a.y[j], a.y_target[j], a.half_width[j]);
+            let cj = usize::from(a.class[j]);
+            let c = a.clearance_scale[j] * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
             if gy - c > 0.0 {
                 continue;
             }
             if gap_s <= 0.0 {
-                if gy < 0.0 {
-                    return None;
-                }
-                continue;
+                return None;
             }
-            let cj = usize::from(a.class[j]);
             let needed = a.standstill_gap[j] * p.mult_standstill_gap[cj][ci]
                 + a.v[j] * a.time_gap[j] * p.mult_time_gap[cj][ci];
             if gap_s < needed {
                 return None;
             }
             if horizon == p.lookahead {
-                cov.add(a.y[j] - 0.5 * a.width[j] - c, a.y[j] + 0.5 * a.width[j] + c);
+                cov.add(a.y[j] - a.half_width[j] - c, a.y[j] + a.half_width[j] + c);
                 if cov.full() {
                     horizon = horizon.min(ds + 0.5 * l_max);
                 }
@@ -974,7 +1318,17 @@ impl Simulation {
         }
         agents.sort_by_key(|r| r.agent_id);
         let detectors = self.detectors.records(self.scenario.duration_s);
-        let kpis = self.kpis(&agents);
+        for i in 0..self.agents.len() {
+            self.close_conflict(i, self.t);
+        }
+        let mut conflicts = std::mem::take(&mut self.conflicts);
+        conflicts.sort_by(|x, y| {
+            x.t_start
+                .total_cmp(&y.t_start)
+                .then(x.agent_id.cmp(&y.agent_id))
+                .then(x.other_id.cmp(&y.other_id))
+        });
+        let kpis = self.kpis_with(&agents, &conflicts);
         let ribbons = self.net.ribbons.iter().map(|r| r.id.clone()).collect();
         Ok((
             summary,
@@ -982,14 +1336,30 @@ impl Simulation {
                 agents,
                 detectors,
                 events: std::mem::take(&mut self.events),
+                conflicts,
                 kpis,
                 ribbons,
             },
         ))
     }
 
-    fn kpis(&self, agents: &[AgentRecord]) -> Vec<(&'static str, f64)> {
+    fn kpis_with(
+        &self,
+        agents: &[AgentRecord],
+        conflicts: &[ConflictRecord],
+    ) -> Vec<(&'static str, f64)> {
         let warm = self.scenario.warmup_s;
+        let count = |kind: &str| {
+            conflicts
+                .iter()
+                .filter(|c| c.t_start >= warm && (kind.is_empty() || c.kind == kind))
+                .count() as f64
+        };
+        let lateral_moves: u64 = agents
+            .iter()
+            .filter(|r| r.t_entry >= warm)
+            .map(|r| u64::from(r.lateral_moves))
+            .sum();
         let measured_s = (self.t - warm).max(f64::MIN_POSITIVE);
         let throughput = self
             .scenario
@@ -1046,132 +1416,24 @@ impl Simulation {
             ("saturated_headways", self.demand.saturated_headways as f64),
             ("collision_guard_events", self.collision_guards as f64),
             ("agent_steps", self.agent_steps as f64),
+            ("conflicts", count("")),
+            ("conflicts_rear_end", count("rear_end")),
+            ("conflicts_sideswipe", count("sideswipe")),
+            ("lateral_moves", lateral_moves as f64),
+            ("lateral_decisions", self.lateral_decisions as f64),
         ]
     }
 }
 
-/// Read-only context for the parallel move phase.
-struct MoveCtx<'a> {
-    a: &'a AgentStore,
-    orders: &'a [Vec<u32>],
-    net: &'a Network,
-    p: &'a CoreParams,
-    cut: f64,
-    /// Longest vehicle in the network: leaders are sorted by centre, so a
-    /// long vehicle whose centre is further ahead can still have its rear
-    /// nearer than the leader that completed the coverage.
-    l_max: f64,
+/// Lateral gap between a body at `y` and another on its way from `yj` to its
+/// lateral target `target`: an arrival must not be put in the path of a
+/// vehicle that is already moving across.
+fn swept_gap(y: f64, half: f64, yj: f64, target: f64, half_j: f64) -> f64 {
+    let (lo, hi) = (yj.min(target), yj.max(target));
+    edge_gap(y, half, y.clamp(lo, hi), half_j)
 }
 
-impl MoveCtx<'_> {
-    /// Acceleration of agent `i` at position `k` of ribbon `r`, and its nearest
-    /// physically overlapping leader (plan/03-model-design.md §2).
-    #[inline]
-    fn accel(&self, r: usize, k: usize, i: usize) -> (f64, u32) {
-        self.accel_with(r, k, i, |_| {})
-    }
-
-    /// [`Self::accel`], reporting every agent the scan considers to `seen`
-    /// (the live inspector). With a no-op `seen` it compiles to the same code.
-    #[inline(always)]
-    fn accel_with(
-        &self,
-        r: usize,
-        k: usize,
-        i: usize,
-        mut seen: impl FnMut(Interaction),
-    ) -> (f64, u32) {
-        let (a, p) = (self.a, self.p);
-        let ci = usize::from(a.class[i]);
-        let idm = Idm {
-            v0: a.v0[i],
-            time_gap: a.time_gap[i],
-            standstill_gap: a.standstill_gap[i],
-            max_accel: a.max_accel[i],
-            comfortable_decel: a.comfortable_decel[i],
-            exponent: p.accel_exponent,
-        };
-        let (v, y, w, l, s) = (a.v[i], a.y[i], a.width[i], a.length[i], a.s[i]);
-        let free = idm.free_accel(v);
-        let mut acc = free;
-        let mut phys = (f64::INFINITY, REMOVED);
-        let mut cov = Coverage::new(y - 0.5 * w, y + 0.5 * w);
-        let mut horizon = p.lookahead;
-        let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
-        'scan: loop {
-            let order = &self.orders[ribbon];
-            while pos < order.len() {
-                let j = order[pos] as usize;
-                pos += 1;
-                let ds = a.s[j] + offset - s;
-                if ds > horizon {
-                    break 'scan;
-                }
-                let gy = lateral_gap(y, w, a.y[j], a.width[j]);
-                let c = clearance(p.clearance_intercept, p.clearance_slope, 0.5 * (v + a.v[j]));
-                let excess = gy - c;
-                if excess > self.cut {
-                    continue;
-                }
-                let gap_s = ds - 0.5 * (l + a.length[j]);
-                if gap_s <= 0.0 {
-                    seen(Interaction {
-                        j: j as u32,
-                        ds,
-                        gap_s,
-                        lateral_gap: gy,
-                        clearance: c,
-                        weight: f64::NAN,
-                        leader_accel: f64::NAN,
-                    });
-                    // Level with us: a side neighbour, unless the bodies overlap.
-                    if gy < 0.0 {
-                        acc = -p.emergency_decel;
-                        if gap_s < phys.0 {
-                            phys = (gap_s, j as u32);
-                        }
-                    }
-                    continue;
-                }
-                if gy < 0.0 && gap_s < phys.0 {
-                    phys = (gap_s, j as u32);
-                }
-                let cj = usize::from(a.class[j]);
-                let leader = idm.accel(
-                    v,
-                    gap_s,
-                    v - a.v[j],
-                    p.mult_time_gap[ci][cj],
-                    p.mult_standstill_gap[ci][cj],
-                );
-                let weight = leader_weight(excess, p.braking_scale);
-                seen(Interaction {
-                    j: j as u32,
-                    ds,
-                    gap_s,
-                    lateral_gap: gy,
-                    clearance: c,
-                    weight,
-                    leader_accel: leader,
-                });
-                acc = combine(acc, free, leader, weight);
-                if excess <= 0.0 && horizon == p.lookahead {
-                    cov.add(a.y[j] - 0.5 * a.width[j] - c, a.y[j] + 0.5 * a.width[j] + c);
-                    if cov.full() {
-                        // Anything centred beyond ds + l_max/2 has its rear ahead of every covering leader.
-                        horizon = horizon.min(ds + 0.5 * self.l_max);
-                    }
-                }
-            }
-            match self.net.ribbon(ribbon).next {
-                Some(n) => {
-                    offset += self.net.ribbon(ribbon).length();
-                    ribbon = n;
-                    pos = 0;
-                }
-                None => break,
-            }
-        }
-        (acc.clamp(-p.emergency_decel, idm.max_accel), phys.1)
-    }
+/// Steps between an agent's scheduled lateral decisions.
+fn decision_steps(p: &CoreParams, dt: f64) -> u64 {
+    ((p.decision_interval / dt).round() as u64).max(1)
 }

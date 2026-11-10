@@ -131,22 +131,28 @@ mod tests {
     fn builds_chains_and_rejects_errors() {
         let ok = Network::build(&NetworkSpec {
             ribbons: vec![r("a", Some("b")), r("b", None)],
+            barriers: vec![],
         })
         .unwrap();
         assert_eq!(ok.ribbon(0).next, Some(1));
         assert_eq!(ok.index("b").unwrap(), 1);
         let cyc = Network::build(&NetworkSpec {
             ribbons: vec![r("a", Some("b")), r("b", Some("a"))],
+            barriers: vec![],
         });
         assert!(matches!(cyc, Err(NetError::Cycle(_))));
         let unk = Network::build(&NetworkSpec {
             ribbons: vec![r("a", Some("z"))],
+            barriers: vec![],
         });
         assert!(matches!(unk, Err(NetError::UnknownNext { .. })));
         let mut bad = r("a", None);
         bad.width[0].y_max = -4.0;
         assert!(matches!(
-            Network::build(&NetworkSpec { ribbons: vec![bad] }),
+            Network::build(&NetworkSpec {
+                ribbons: vec![bad],
+                barriers: vec![],
+            }),
             Err(NetError::BadWidth(_))
         ));
     }

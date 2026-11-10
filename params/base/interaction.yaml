@@ -544,7 +544,7 @@ entries:
     register_row: 9.2/lateral_clearance
     range: [0.0, 300.0]
     live: true
-    notes: "C[cm] = 0.615 v[km/h] + 120.9. P5.1 must confirm whether C is edge-to-edge or centre-to-centre, and fit smaller two-wheeler pair intercepts."
+    notes: "C[cm] = 0.615 v[km/h] + 120.9, all pairs pooled: the mean edge-to-edge clearance kept while overtaking (the desired clearance, ADR-0010). Used for class pairs the paper did not observe."
   lateral.clearance.slope:
     value: 0.615
     unit: "cm/(km/h)"
@@ -556,28 +556,228 @@ entries:
     register_row: 9.2/lateral_clearance
     range: [0.0, 3.0]
     live: true
-  lateral.clearance.slope_factor.car_two_wheeler:
-    value: 1.35
-    unit: "1"
+  lateral.clearance.pair.intercept.two_wheeler_two_wheeler:
+    value: 118.02
+    unit: "cm"
     grade: A
     role: fit
     stage: 3
-    source: "Budhkar & Maurya 2017"
+    source: "Budhkar & Maurya 2017, Table 4 (Bike-Bike, n = 87)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
-    range: [0.5, 2.0]
-    notes: "Car-bike slope about 35% steeper than same-type pairs."
-  lateral.clearance.slope_factor.car_auto_rickshaw:
-    value: 0.75
-    unit: "1"
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.two_wheeler_two_wheeler:
+    value: 0.224
+    unit: "cm/(km/h)"
     grade: A
     role: fit
     stage: 3
-    source: "Budhkar & Maurya 2017"
+    source: "Budhkar & Maurya 2017, Table 4 (Bike-Bike, n = 87)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
-    range: [0.5, 2.0]
-    notes: "Car-auto slope about 25% flatter."
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.two_wheeler_three_wheeler:
+    value: 117.27
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Auto-Bike, n = 417)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.two_wheeler_three_wheeler:
+    value: 0.739
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Auto-Bike, n = 417)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.two_wheeler_car:
+    value: 125.16
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-Bike, n = 1372)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.two_wheeler_car:
+    value: 0.612
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-Bike, n = 1372)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.three_wheeler_three_wheeler:
+    value: 114.55
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Auto-Auto, n = 140)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.three_wheeler_three_wheeler:
+    value: 1.037
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Auto-Auto, n = 140)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.three_wheeler_car:
+    value: 124.12
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-Auto, n = 897)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.three_wheeler_car:
+    value: 0.642
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-Auto, n = 897)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.three_wheeler_heavy:
+    value: 123.86
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Auto-HV, n = 131)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.three_wheeler_heavy:
+    value: 0.985
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Auto-HV, n = 131)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.car_car:
+    value: 117.31
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-Car, n = 2246)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.car_car:
+    value: 0.681
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-Car, n = 2246)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.car_lcv:
+    value: 139.78
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-LCV, n = 139)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.car_lcv:
+    value: 0.132
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-LCV, n = 139)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.pair.intercept.car_heavy:
+    value: 126.35
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-HV, n = 538)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+  lateral.clearance.pair.slope.car_heavy:
+    value: 0.675
+    unit: "cm/(km/h)"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (Car-HV, n = 538)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 3.0]
+    live: true
+  lateral.clearance.min_offset:
+    value: 117
+    unit: "cm"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Budhkar & Maurya 2017, Table 4 (lower support of the beta residual, all pairs)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 300.0]
+    live: true
+    notes: "Delta: the minimum clearance is the desired clearance minus this (ADR-0010). Braking weight and squeezing use the minimum."
+  lateral.clearance.min_floor:
+    value: 0
+    unit: "cm"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed: bodies may touch but not overlap"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 100.0]
+    live: true
+    notes: "Lower bound of the minimum clearance at any speed."
   lateral.braking_scale:
     value: 0.15
     unit: "m"
@@ -589,7 +789,7 @@ entries:
     register_row: 9.2/lateral_interaction_scales
     range: [0.02, 1.0]
     live: true
-    notes: "lambda_brake: longitudinal interaction fades as exp(-d/lambda) once the lateral gap exceeds the clearance."
+    notes: "lambda_brake: longitudinal interaction fades as exp(-d/lambda) once the lateral gap exceeds the minimum clearance (ADR-0010)."
   lateral.steering_scale:
     value: 0.3
     unit: "m"
@@ -632,7 +832,199 @@ entries:
     register_row: 9.2/mobil_politeness
     range: [0.0, 1.0]
     live: true
-    notes: "MOBIL politeness; scaled by aggressiveness in P8."
+    notes: "MOBIL politeness p0: weight of followers' acceleration change in the lateral target choice (ADR-0010). Scaled by aggressiveness in P8."
+  lateral.steering_sensitivity:
+    value: 0.4
+    unit: "s"
+    grade: A
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018, Table 2 (lateral sensitivity lambda)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_interaction_scales
+    range: [0.0, 2.0]
+    live: true
+    notes: "Desired lateral speed away from a side neighbour at its minimum clearance is this times the emergency deceleration, fading with the steering scale (ADR-0010)."
+  lateral.safe_decel:
+    value: 4.0
+    unit: "m/s2"
+    grade: B
+    role: fit
+    stage: 3
+    source: "Kesting, Treiber & Helbing 2007 (MOBIL safe braking limit; German motorway value)"
+    guide: "§2.2"
+    register_row: 9.2/mobil_politeness
+    range: [0.5, 9.0]
+    live: true
+    notes: "A lateral move may not make a follower brake harder than this."
+  lateral.switch_threshold:
+    value: 0.1
+    unit: "m/s2"
+    grade: B
+    role: fit
+    stage: 3
+    source: "Kesting, Treiber & Helbing 2007 (MOBIL changing threshold)"
+    guide: "§2.2"
+    register_row: 9.2/mobil_politeness
+    range: [0.0, 2.0]
+    live: true
+    notes: "A new lateral target is taken only if its utility exceeds this."
+  lateral.comfort_weight:
+    value: 0.5
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (ADR-0010): half a car's maximum acceleration, so a stuck two-wheeler squeezes and a stuck car does not"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 5.0]
+    live: true
+    notes: "Acceleration an agent gives up to keep the desired clearance to one neighbour instead of the minimum."
+  lateral.move_cost:
+    value: 0.05
+    unit: "m/s2"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (ADR-0010)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 1.0]
+    live: true
+    notes: "Utility cost per metre of lateral move (m/s2 per m)."
+  lateral.edge_clearance:
+    value: 0.25
+    unit: "m"
+    grade: B
+    role: fit
+    stage: 3
+    source: "Kanagaraj & Treiber 2018, Table 2 (boundary interaction scale for steering)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_interaction_scales
+    range: [0.0, 1.5]
+    live: true
+    notes: "Desired clearance to the edge of the carriageway (shy distance); the minimum is zero."
+  lateral.creep_speed.bicycle:
+    value: 0.5
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.cycle_rickshaw:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.two_wheeler:
+    value: 0.5
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.e_rickshaw:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.auto_rickshaw:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.car:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.lcv:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.bus:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.truck:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+  lateral.creep_speed.tractor:
+    value: 0
+    unit: "m/s"
+    grade: C
+    role: fit
+    stage: 3
+    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    guide: "§2.2"
+    register_row: 9.2/lateral_clearance
+    range: [0.0, 2.0]
+    live: true
+    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
   gap_acceptance.critical_gap.bicycle:
     value: {dist: log_normal_median, median: 4.4, sigma: 0.2}
     unit: "s"

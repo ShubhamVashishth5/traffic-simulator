@@ -21,6 +21,50 @@ pub enum VehicleClass {
     Tractor,
 }
 
+/// The vehicle groups of Budhkar & Maurya (2017), whose lateral clearance
+/// lines are given per pair of groups (ADR-0010 §1). Classes the paper did not
+/// observe borrow the nearest group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ClearanceGroup {
+    TwoWheeler,
+    ThreeWheeler,
+    Car,
+    Lcv,
+    Heavy,
+}
+
+impl ClearanceGroup {
+    /// The register key, e.g. `three_wheeler`.
+    pub fn key(self) -> &'static str {
+        match self {
+            ClearanceGroup::TwoWheeler => "two_wheeler",
+            ClearanceGroup::ThreeWheeler => "three_wheeler",
+            ClearanceGroup::Car => "car",
+            ClearanceGroup::Lcv => "lcv",
+            ClearanceGroup::Heavy => "heavy",
+        }
+    }
+}
+
+impl VehicleClass {
+    /// The clearance group of this class: bicycles count as two-wheelers,
+    /// cycle- and e-rickshaws as three-wheelers ("autos"), and buses, trucks
+    /// and tractors as heavy vehicles.
+    pub fn clearance_group(self) -> ClearanceGroup {
+        match self {
+            VehicleClass::Bicycle | VehicleClass::TwoWheeler => ClearanceGroup::TwoWheeler,
+            VehicleClass::CycleRickshaw | VehicleClass::ERickshaw | VehicleClass::AutoRickshaw => {
+                ClearanceGroup::ThreeWheeler
+            }
+            VehicleClass::Car => ClearanceGroup::Car,
+            VehicleClass::Lcv => ClearanceGroup::Lcv,
+            VehicleClass::Bus | VehicleClass::Truck | VehicleClass::Tractor => {
+                ClearanceGroup::Heavy
+            }
+        }
+    }
+}
+
 /// Vehicle type (sub-class): the level at which dimensions and desired speeds
 /// are drawn. 15 types, above the guide's minimum of 12.
 #[derive(

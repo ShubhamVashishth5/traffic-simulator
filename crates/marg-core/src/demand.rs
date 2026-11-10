@@ -43,6 +43,8 @@ pub struct Draws {
     /// Entry lateral position as a fraction of the free width, median side = 0.
     pub lateral_fraction: f64,
     pub median_band_bonus: f64,
+    /// Aggressiveness κ ~ N(mean, sd) (placeholder until personas, P8).
+    pub kappa: f64,
 }
 
 /// Replace a non-positive draw (possible in a normal's far tail) by the mean.
@@ -88,6 +90,9 @@ impl Draws {
                 .sample(&mut draw_rng(seed, id, 7))
                 .clamp(0.0, 1.0),
             median_band_bonus: p.median_band_bonus.sample(&mut draw_rng(seed, id, 8)),
+            kappa: p.kappa_mean
+                + p.kappa_sd
+                    * marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, 9)),
         }
     }
 }

@@ -23,6 +23,17 @@ entries:
     register_row: 9.3/aggressiveness
     range: [0.0, 3.0]
     notes: "How kappa spread combines with per-class parameter spreads is decided in the P8.1 ADR."
+  links.clearance:
+    value: 0.2
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1 names the link, not its size. Bounded above by 0.29, the coefficient of variation of Budhkar & Maurya's residual if all of it were between drivers (ADR-0010)"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [0.0, 1.0]
+    live: true
+    notes: "gamma_c: an agent's lateral clearances are scaled by exp(-gamma_c * kappa)."
   cooperative.squeeze_kappa_quantile:
     value: null
     unit: "1"
@@ -32,7 +43,7 @@ entries:
     guide: "§3.1, §8.4"
     register_row: core/experiment_switches
     range: [0.0, 1.0]
-    notes: "Unset = squeezing uses each agent's own kappa. When set (the cooperative twin), squeezing decisions use the kappa at this quantile of the population distribution instead. Read by the squeezing rule from P5; which quantile is pending (ADR-0007)."
+    notes: "Unset = squeezing uses each agent's own kappa. When set (the cooperative twin), squeezing decisions use the kappa at this quantile of the population distribution instead. Read by the feasibility check of the lateral target choice (ADR-0010 §3); the quantile is the argument of marg.bundles.cooperative (ADR-0007)."
   traits.time_pressure:
     value: {dist: normal, mean: 0, sd: 1}
     unit: "1"

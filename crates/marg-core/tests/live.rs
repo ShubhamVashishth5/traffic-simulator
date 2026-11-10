@@ -91,7 +91,7 @@ fn resample_moves_agents_in_the_network_to_their_new_draw() {
         sim.step();
     }
     let before: Vec<(u64, f64)> = (0..sim.agent_count())
-        .map(|i| (sim.agents().id[i], sim.agents().v0[i]))
+        .map(|i| (sim.agents().id[i], sim.agents().v0_base[i]))
         .collect();
     spec.set_live(&register(), V0, &fast()).unwrap();
     sim.update_params(&spec).unwrap();
@@ -105,14 +105,15 @@ fn resample_moves_agents_in_the_network_to_their_new_draw() {
     let (_, fresh) = run_all(Simulation::new(&fresh_spec, 5, 1).unwrap());
     for (i, &(id, v_old)) in before.iter().enumerate() {
         let r = fresh.agents.iter().find(|r| r.agent_id == id).unwrap();
+        // `v0_base` is the draw; the median-band bonus applies on top of it.
         if a.vtype[i] == hatchback() {
-            assert_eq!(a.v0[i], r.v0, "agent {id}");
+            assert_eq!(a.v0_base[i], r.v0, "agent {id}");
             assert!(
-                a.v0[i] > v_old - 1e-9,
+                a.v0_base[i] > v_old - 1e-9,
                 "a higher mean moves every quantile up"
             );
         } else {
-            assert_eq!(a.v0[i], v_old, "other types are untouched");
+            assert_eq!(a.v0_base[i], v_old, "other types are untouched");
         }
     }
     // Refusals.

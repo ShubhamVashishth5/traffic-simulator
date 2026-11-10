@@ -48,23 +48,22 @@ def test_same_agent_same_draws_in_every_arm(tiny, tmp_path: Path) -> None:
         not_cars = j.filter(pl.col("vehicle_type") != "hatchback")
         assert (not_cars["v0"] == not_cars["v0_b"]).all()
         if arm == "fast_cars":
-            # The rescaled distribution moves every car's drawn v0 by the same factor;
-            # cars entering in the median band also carry their (unchanged) additive bonus.
+            # `v0` is the drawn desired speed (the median-band bonus applies on top of it
+            # while an agent is in the band), so the rescaled distribution moves every
+            # car's v0 by exactly the same factor.
             f = 66.0 / marg.Register(PARAMS)["vehicles.free_flow_speed.hatchback"].mean
             cars = j.filter(pl.col("vehicle_type") == "hatchback")
-            # v0 = f·drawn + bonus in the arm, drawn + bonus in the baseline, so the
-            # implied bonus is (f·v0 − v0_b) / (f − 1): 0 or within the register's range.
-            bonus = ((f * cars["v0"] - cars["v0_b"]) / (f - 1)).to_list()
-            lo, hi = (x / 3.6 for x in (4.35, 5.78))  # vehicles.median_band.speed_bonus, km/h
-            assert all(abs(b) < 1e-6 or lo - 1e-6 <= b <= hi + 1e-6 for b in bonus), bonus
-            assert any(abs(b) < 1e-6 for b in bonus)
-    # The cooperative switches are not read before P5/P8, so the twin is identical.
+            assert cars.height > 5
+            assert ((cars["v0_b"] - f * cars["v0"]).abs() < 1e-9).all()
+    # Since P5 the squeezing rule reads the cooperative twin's κ quantile (ADR-0007,
+    # ADR-0010 §3), so the twin can differ from the observed arm although every agent
+    # has the same draws. `violations.enabled` is not read before P8.
     k = exp.results("kpis")
     idx = exp.data().index()
     out = idx.select("arm", "rep", "output_hash")
     a = out.filter(pl.col("arm") == "observed").sort("rep")["output_hash"]
     c = out.filter(pl.col("arm") == "cooperative").sort("rep")["output_hash"]
-    assert a.to_list() == c.to_list()
+    assert a.to_list() != c.to_list()
     assert k.height == 6
 
 

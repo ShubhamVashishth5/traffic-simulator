@@ -8,7 +8,9 @@ use marg_core::Simulation;
 /// follower settles at the IDM equilibrium gap for the leader's speed.
 #[test]
 fn platoon_reaches_idm_equilibrium_gaps() {
-    let yaml = corridor(4000.0, 900.0, 240.0, "{hatchback: 0.6, e_rickshaw: 0.4}");
+    // A road one vehicle wide, so nobody can pass (lateral movement, P5).
+    let yaml = corridor(4000.0, 900.0, 240.0, "{hatchback: 0.6, e_rickshaw: 0.4}")
+        .replace("y_min: -5.25, y_max: 5.25", "y_min: -1.1, y_max: 1.1");
     let spec = spec(
         &yaml,
         &[
@@ -53,11 +55,13 @@ fn platoon_reaches_idm_equilibrium_gaps() {
     assert!(checked >= 10, "only {checked} settled followers");
 }
 
-/// A slow vehicle offset laterally by more than the clearance has no effect:
-/// cars at the median side with e-rickshaws hugging the kerb have exactly the
-/// same trips as cars alone (same car arrivals and draws in both runs, because
-/// each class has its own arrival stream). With everyone on the same line,
-/// the same cars are heavily delayed.
+/// Lateral separation matters: cars entering at the median side with
+/// e-rickshaws entering at the kerb of a 10.5 m road are delayed much less
+/// than the same cars entering on the e-rickshaws' line (the same car arrivals
+/// and draws in every run, because each class has its own arrival stream).
+/// Since P5 the two streams spread towards each other, so "separated" is no
+/// longer identical to "cars alone" as it was with fixed lateral positions;
+/// measured here: 1.7 s alone, 4.8 s separated, 11.0 s on the same line.
 #[test]
 fn laterally_separated_slow_vehicles_do_not_interfere() {
     let run = |flow: f64, comp: &str, car_y: &str, erick_y: &str| {
@@ -66,6 +70,12 @@ fn laterally_separated_slow_vehicles_do_not_interfere() {
             &[
                 ("demand.entry_lateral_position.car", car_y),
                 ("demand.entry_lateral_position.e_rickshaw", erick_y),
+                // Without the median band's speed bonus, which is an
+                // incentive of its own to move towards the median.
+                (
+                    "vehicles.median_band.speed_bonus",
+                    "{dist: constant, value: 0}",
+                ),
             ],
         );
         let mut sim = Simulation::new(&spec, 5, 1).unwrap();
@@ -84,16 +94,20 @@ fn laterally_separated_slow_vehicles_do_not_interfere() {
     let separated = run(600.0, "{hatchback: 0.5, e_rickshaw: 0.5}", median, kerb);
     let same_line = run(600.0, "{hatchback: 0.5, e_rickshaw: 0.5}", median, median);
     assert!(alone.len() > 50);
-    assert_eq!(alone, separated, "separated e-rickshaws changed car trips");
+    let ids = |v: &[marg_core::AgentRecord]| v.iter().map(|r| r.agent_id).collect::<Vec<_>>();
+    assert_eq!(ids(&alone), ids(&separated), "the same cars arrive");
     let mean = |v: &[marg_core::AgentRecord]| {
         let d: Vec<f64> = v.iter().filter(|r| r.exited).map(|r| r.delay).collect();
         d.iter().sum::<f64>() / d.len() as f64
     };
+    let (alone, separated, same_line) = (mean(&alone), mean(&separated), mean(&same_line));
     assert!(
-        mean(&same_line) > mean(&alone) + 30.0,
-        "same line {:.1} s vs alone {:.1} s",
-        mean(&same_line),
-        mean(&alone)
+        alone < separated && separated - alone < 0.5 * (same_line - alone),
+        "alone {alone:.2} s, separated {separated:.2} s, same line {same_line:.2} s"
+    );
+    assert!(
+        same_line > separated + 3.0,
+        "same line {same_line:.2} s vs separated {separated:.2} s"
     );
 }
 

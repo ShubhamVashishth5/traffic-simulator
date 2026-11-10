@@ -8,6 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import TypeAliasType
 
 
+class ClosedInterval(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    from_s: float
+    to_s: float
+
+
 class DetectorSpec1(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -218,6 +226,18 @@ class WidthPoint(BaseModel):
     y_min: float
 
 
+class BarrierSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    closed: list[ClosedInterval] = Field(
+        ..., description='Periods during which the barrier is closed.'
+    )
+    id: str
+    ribbon: str
+    s: float = Field(..., description='Station of the stop line on the ribbon.')
+
+
 class EntrySpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -272,6 +292,10 @@ class DemandSpec(BaseModel):
 class NetworkSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
+    )
+    barriers: list[BarrierSpec] | None = Field(
+        None,
+        description='Stop lines that are closed during given periods (a level crossing, a\npolice barrier). Signals arrive in phase P7.',
     )
     ribbons: list[RibbonSpec]
 
