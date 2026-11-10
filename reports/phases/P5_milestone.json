@@ -1,0 +1,157 @@
+{
+ "densities": {
+  "at_kt_total": {
+   "two_wheeler": 160.36536875591574,
+   "car": 61.59544688581451,
+   "bus": 10.845072919234108,
+   "auto_rickshaw": 17.194111439035662
+  },
+  "kt_total": 250
+ },
+ "speed_flow": {
+  "max_flow_pcu_h_lane": 2421.805058094974,
+  "p95_flow_pcu_h_lane": 2183.5578189104176
+ },
+ "guard_events": 0,
+ "agent_steps": 66386434,
+ "lateral": [
+  {
+   "class": "two_wheeler",
+   "n": 724,
+   "mean": -0.8404696132596685,
+   "sd": 3.0325864278610117
+  },
+  {
+   "class": "car",
+   "n": 1347,
+   "mean": 0.29955456570155903,
+   "sd": 2.5691447267770884
+  },
+  {
+   "class": "auto_rickshaw",
+   "n": 402,
+   "mean": -0.7885572139303483,
+   "sd": 3.099120146035385
+  },
+  {
+   "class": "bus",
+   "n": 56,
+   "mean": 0.15178571428571427,
+   "sd": 2.9443038876197987
+  },
+  {
+   "class": "bicycle",
+   "n": 22,
+   "mean": -1.9318181818181819,
+   "sd": 4.099044940164428
+  },
+  {
+   "class": "e_rickshaw",
+   "n": 42,
+   "mean": -1.6428571428571428,
+   "sd": 3.9555351728181307
+  }
+ ],
+ "bands": [
+  {
+   "class": "auto_rickshaw",
+   "len": 78607,
+   "median": 0.23614945233885024,
+   "kerb": 0.1574160062080985
+  },
+  {
+   "class": "bicycle",
+   "len": 8256,
+   "median": 0.5220445736434108,
+   "kerb": 0.29893410852713176
+  },
+  {
+   "class": "bus",
+   "len": 11284,
+   "median": 0.2271357674583481,
+   "kerb": 0.29298121233605107
+  },
+  {
+   "class": "car",
+   "len": 221420,
+   "median": 0.13860988167283894,
+   "kerb": 0.14506819618823955
+  },
+  {
+   "class": "e_rickshaw",
+   "len": 12719,
+   "median": 0.46748958251434863,
+   "kerb": 0.2853211730481956
+  },
+  {
+   "class": "lcv",
+   "len": 14873,
+   "median": 0.12102467558663349,
+   "kerb": 0.2103812277280979
+  },
+  {
+   "class": "truck",
+   "len": 5786,
+   "median": 0.34047701348081577,
+   "kerb": 0.2108537849982717
+  },
+  {
+   "class": "two_wheeler",
+   "len": 124121,
+   "median": 0.1679248475278156,
+   "kerb": 0.10994916251077577
+  }
+ ],
+ "passes": [
+  [
+   141,
+   277,
+   8
+  ],
+  [
+   463,
+   415,
+   18
+  ],
+  [
+   246,
+   251,
+   10
+  ]
+ ],
+ "seepage": [
+  {
+   "two_wheeler": 1.382716049382716,
+   "e_rickshaw": 2.5,
+   "auto_rickshaw": -0.3877551020408163,
+   "car": -0.36649214659685864,
+   "lcv": -0.5,
+   "bus": -2.625
+  },
+  {
+   "two_wheeler": 1.7391304347826086,
+   "auto_rickshaw": 0.24444444444444444,
+   "car": -0.8787878787878788,
+   "lcv": -1.7,
+   "bus": -3.7
+  },
+  {
+   "two_wheeler": 1.625,
+   "e_rickshaw": 1.7777777777777777,
+   "auto_rickshaw": -0.4807692307692308,
+   "car": -0.5103448275862069,
+   "lcv": -0.4444444444444444,
+   "bus": -2.5454545454545454,
+   "truck": -3.8
+  }
+ ],
+ "perf": {
+  "median_ns": 903.3256712768988,
+  "min_ns": 840.8872614731329,
+  "agent_steps": 5062218,
+  "rtf": 787.2584024265877,
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "hash": "ef22e8c646ee28d77325d980dfdd6db3cfa9902f349ddfa581a08c0a34e775c5"
+ },
+ "guard_test": "P5.5 guard: 10000 scenarios, 210265551 agent-steps (up to 181 agents at once), 0 overlaps after the guard; 964509 guard events in 2050 scenarios = 4587.10 per 10^6 agent-steps; 964509 of the events in the 4086 scenarios whose road narrows"
+}

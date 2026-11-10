@@ -253,7 +253,7 @@ corridor budget is stated per agent-step instead.
 
 | Case | Size | Target | Measured (P2, one laptop-class core) |
 | --- | --- | --- | --- |
-| Corridor, headless, KPIs only | budget: ≤ 555 ns per agent-step (= 1 h of 3,000 agents in 60 s) | ≤ 60 s on 1 core; stretch ≤ 20 s | ~90 ns/agent-step; reference corridor (2 km, ~400 agents at once) 1 h in 1.2 s |
+| Corridor, headless, KPIs only | budget: ≤ 555 ns per agent-step (= 1 h of 3,000 agents in 60 s) | ≤ 60 s on 1 core; stretch ≤ 20 s | P2: ~90 ns/agent-step; reference corridor (2 km, ~400 agents at once) 1 h in 1.2 s. **P5 (lateral behaviour): 900–985 ns on a shared 2.1 GHz VM that ran P2 at 123 ns, so about 660–720 ns on the P2 machine: over budget** (1 h in about 5 s; see STATUS P5.9) |
 | Corridor with 1 Hz trajectories | same | ≤ 1.3× the headless time | within target |
 | Zone, multi-threaded | ~50 junctions, ~20,000 agents | ≥ 10× real time on 8 cores |
 | Live viewer | zone case | 30 fps rendering at 1× to 5× real time | P4: 20,000 agents streamed at 30 frames/s, 20.7 MB/s (5×); rendering not yet measured on a GPU |

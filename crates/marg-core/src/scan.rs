@@ -16,6 +16,13 @@ use crate::model::lateral::{
 use crate::model::longitudinal::Idm;
 use crate::params::CoreParams;
 use marg_net::Network;
+use std::cell::RefCell;
+
+thread_local! {
+    /// Neighbour lists for lateral decisions, reused by every decision on a
+    /// thread so that none builds (and zeroes) a fresh one.
+    static NEIGHBOURS: RefCell<Neighbours> = RefCell::new(Neighbours::default());
+}
 
 /// Conflict types (ADR-0010 §6), as stored in `AgentStore::conflict_kind`.
 pub const CONFLICT_REAR_END: u8 = 0;
@@ -225,6 +232,9 @@ impl MoveCtx<'_> {
         let far = (reach + self.c_min_cap).max(p.conflict_ttc * (vy.abs() + self.vy_max));
         // How much two vehicles' speeds can change towards each other in a step.
         let closing_slack = (idm.max_accel + p.emergency_decel) * self.dt;
+        // We close on a vehicle ahead at most at our own speed, so beyond
+        // this gap none can be cut in on.
+        let no_cut_in_ahead = self.no_cut_in_gap(v, closing_slack);
         let mut cov = Coverage::new(y - hw, y + hw);
         let mut horizon = p.lookahead;
         let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
@@ -282,7 +292,10 @@ impl MoveCtx<'_> {
                 // A vehicle ahead that we may draw level with during this
                 // step, or could not avoid at the safe braking rate, limits
                 // the lateral move like a side neighbour: no cutting in.
-                if gap_s > 0.0 && gap_s <= self.no_cut_in_gap(dv, closing_slack) {
+                if gap_s > 0.0
+                    && gap_s <= no_cut_in_ahead
+                    && gap_s <= self.no_cut_in_gap(dv, closing_slack)
+                {
                     sides.limit(left, y, gy);
                 }
                 let cj = usize::from(a.class[j]);
@@ -425,7 +438,7 @@ impl MoveCtx<'_> {
         let due = (self.step.wrapping_add(a.id[i])).is_multiple_of(self.decision_steps)
             || lead.1 != a.decision_leader[i];
         let (target, choice) = if due {
-            let c = self.decide(r, k, i, &idm, cap);
+            let c = NEIGHBOURS.with_borrow_mut(|nb| self.decide_with(r, k, i, &idm, cap, nb));
             (c.target, Some(c))
         } else {
             (a.y_target[i], None)
@@ -451,6 +464,20 @@ impl MoveCtx<'_> {
     /// Gather the neighbours that matter to agent `i`'s lateral choice and
     /// choose its target (ADR-0010 §3).
     pub fn decide(&self, r: usize, k: usize, i: usize, idm: &Idm, cap: f64) -> Choice {
+        self.decide_with(r, k, i, idm, cap, &mut Neighbours::default())
+    }
+
+    /// [`Self::decide`] with a neighbour list to fill (emptied first).
+    fn decide_with(
+        &self,
+        r: usize,
+        k: usize,
+        i: usize,
+        idm: &Idm,
+        cap: f64,
+        nb: &mut Neighbours,
+    ) -> Choice {
+        nb.clear();
         let (a, p) = (self.a, self.p);
         let ci = usize::from(a.class[i]);
         let (v, y, l, s) = (a.v[i], a.y[i], a.length[i], a.s[i]);
@@ -459,7 +486,6 @@ impl MoveCtx<'_> {
         let squeeze = p.squeeze_scale.unwrap_or(scale);
         let free = idm.free_accel(v);
         let range = p.candidate_range;
-        let mut nb = Neighbours::default();
         // Limits from side neighbours (the squeezing rule).
         let (mut lo, mut hi) = (f64::NEG_INFINITY, f64::INFINITY);
         let mut side = |nb: &mut Neighbours, j: usize, c_des0: f64, c_min0: f64| {
@@ -501,7 +527,7 @@ impl MoveCtx<'_> {
                 }
                 let gap_s = ds - 0.5 * (l + a.length[j]);
                 if gap_s <= 0.0 {
-                    side(&mut nb, j, c_des0, c_min0);
+                    side(nb, j, c_des0, c_min0);
                     continue;
                 }
                 let (mt, ms) = (p.mult_time_gap[ci][cj], p.mult_standstill_gap[ci][cj]);
@@ -562,7 +588,7 @@ impl MoveCtx<'_> {
                 }
                 let gap_s = ds - 0.5 * (l + a.length[j]);
                 if gap_s <= 0.0 {
-                    side(&mut nb, j, c_des0, c_min0);
+                    side(nb, j, c_des0, c_min0);
                     continue;
                 }
                 let follower = self.idm(j);
@@ -633,7 +659,7 @@ impl MoveCtx<'_> {
             cap,
             target: a.y_target[i],
         };
-        choose_target(&self.choice, &me, &mut nb)
+        choose_target(&self.choice, &me, nb)
     }
 }
 

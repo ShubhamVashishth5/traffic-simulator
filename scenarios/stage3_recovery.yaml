@@ -1,0 +1,33 @@
+name: stage3_recovery
+description: >
+  P5.8: a medium-density mixed corridor (1 km, 10.5 m, 2,400 veh/h of two-wheelers, cars and
+  auto-rickshaws) for stage-3 (lateral behaviour) statistics: lateral positions at a section,
+  partial densities and side-by-side gaps, from trajectories sampled every 0.5 s. Used by the
+  synthetic recovery test (scripts/p5_stage3_recovery.py).
+duration_s: 720
+warmup_s: 120
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1000, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 2400}
+      composition:
+        motorcycle: 0.2
+        scooter: 0.2
+        hatchback: 0.3
+        sedan: 0.1
+        auto_rickshaw: 0.2
+detectors:
+  - {kind: screenline, id: s600, ribbon: main, s: 600, interval_s: 60}
+  - {kind: area, id: a400_800, ribbon: main, s_from: 400, s_to: 800, interval_s: 60}
+kpi:
+  throughput_detector: s600
+outputs:
+  trajectories: {every_s: 0.5, s_from: 300, s_to: 850}

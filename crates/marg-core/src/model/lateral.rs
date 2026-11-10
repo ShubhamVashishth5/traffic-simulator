@@ -153,6 +153,13 @@ impl Default for Neighbours {
 }
 
 impl Neighbours {
+    /// Remove every neighbour.
+    pub fn clear(&mut self) {
+        self.n_leaders = 0;
+        self.n_followers = 0;
+        self.n_sides = 0;
+    }
+
     /// Add a leader; returns `false` when full.
     pub fn push_leader(&mut self, l: LeaderTerm) -> bool {
         if self.n_leaders == MAX_NEIGHBOURS {
@@ -238,15 +245,232 @@ pub struct Choice {
     pub cost: f64,
 }
 
-/// What being at lateral position `y` is worth: the agent's own acceleration,
-/// the sum of its followers' accelerations, its clearance shortfalls, and
-/// whether every follower stays within the safe braking limit.
-#[derive(Debug, Clone, Copy)]
-struct Value {
-    own: f64,
-    followers: f64,
-    shortfall: f64,
-    safe: bool,
+/// Candidates scored together. Longer candidate lists (a fine step over a
+/// wide range) are scored in consecutive batches of this size.
+const BATCH: usize = 32;
+
+/// Margin on the utility bound used to drop candidates before they are fully
+/// scored (m/s²); far above rounding error, far below any utility difference
+/// that matters.
+const PRUNE_SLACK: f64 = 1e-9; // allow-literal: rounding tolerance, not behaviour
+
+/// What being at each of up to [`BATCH`] lateral positions is worth: the
+/// agent's own acceleration, the sum of its followers' accelerations, its
+/// clearance shortfalls, and whether every follower stays within the safe
+/// braking limit.
+///
+/// Positions are scored neighbour by neighbour over the whole batch, in two
+/// stages: the leaders' effect on the agent's own acceleration first, then
+/// everything else, only for positions that the first stage leaves able to
+/// beat the switching threshold. Each position sees the same operations in
+/// the same order as if it were scored alone, so the result does not depend
+/// on the batch it is in (tested against one-at-a-time scoring).
+struct Batch {
+    y: [f64; BATCH],
+    free: [f64; BATCH],
+    own: [f64; BATCH],
+    followers: [f64; BATCH],
+    shortfall: [f64; BATCH],
+    safe: [bool; BATCH],
+    n: usize,
+}
+
+impl Batch {
+    fn new() -> Self {
+        Self {
+            y: [0.0; BATCH],
+            free: [0.0; BATCH],
+            own: [0.0; BATCH],
+            followers: [0.0; BATCH],
+            shortfall: [0.0; BATCH],
+            safe: [true; BATCH],
+            n: 0,
+        }
+    }
+
+    fn push(&mut self, y: f64) {
+        self.y[self.n] = y;
+        self.n += 1;
+    }
+
+    fn full(&self) -> bool {
+        self.n == BATCH
+    }
+}
+
+/// The neighbours of one decision, with what each follower's other leaders
+/// allow it (`others`) and what the agent imposes on it now (`imposed_now`).
+struct Scene<'a> {
+    p: &'a ChoiceParams,
+    me: &'a Subject,
+    leaders: &'a [LeaderTerm],
+    followers: &'a [FollowerTerm],
+    sides: &'a [SideTerm],
+    others: &'a [f64],
+    imposed_now: &'a [f64],
+}
+
+impl Scene<'_> {
+    /// Score every position in `b`.
+    fn evaluate(&self, b: &mut Batch) {
+        self.own_terms(b);
+        self.other_terms(b);
+    }
+
+    /// First stage: the free and own accelerations, and the shortfall to
+    /// the road edges.
+    fn own_terms(&self, b: &mut Batch) {
+        let (p, me, n) = (self.p, self.me, b.n);
+        for m in 0..n {
+            let y = b.y[m];
+            let free = if y < me.band_y {
+                me.free_band
+            } else {
+                me.free_out
+            };
+            b.free[m] = free;
+            b.own[m] = free.min(me.cap);
+            b.shortfall[m] = shortfall(p.edge_clearance, 0.0, y - me.half_width - me.edge_lo)
+                + shortfall(p.edge_clearance, 0.0, me.edge_hi - y - me.half_width);
+            b.followers[m] = 0.0;
+            b.safe[m] = true;
+        }
+        for l in self.leaders {
+            for m in 0..n {
+                if l.accel < b.own[m] {
+                    let excess = edge_gap(b.y[m], me.half_width, l.y, l.half_width) - l.c_min;
+                    if excess <= p.cutoff {
+                        let free = b.free[m];
+                        b.own[m] = b.own[m]
+                            .min(free + leader_weight(excess, p.braking_scale) * (l.accel - free));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Second stage: shortfalls to neighbours, and the followers.
+    fn other_terms(&self, b: &mut Batch) {
+        let (p, me, n) = (self.p, self.me, b.n);
+        for l in self.leaders.iter().filter(|l| l.near) {
+            for m in 0..n {
+                let gap = edge_gap(b.y[m], me.half_width, l.y, l.half_width);
+                b.shortfall[m] += shortfall(l.c_des, l.c_min, gap);
+            }
+        }
+        for (k, f) in self.followers.iter().enumerate() {
+            let (other, now) = (self.others[k], self.imposed_now[k]);
+            for m in 0..n {
+                let gap = edge_gap(b.y[m], me.half_width, f.y, f.half_width);
+                if f.near {
+                    b.shortfall[m] += shortfall(f.c_des_own, f.c_min_own, gap);
+                }
+                let excess = gap - f.c_min;
+                let imposed = if excess > p.cutoff {
+                    f.free
+                } else {
+                    f.free + leader_weight(excess, p.braking_scale) * (f.imposed - f.free)
+                };
+                b.followers[m] += other.min(imposed);
+                if imposed < -p.safe_decel && imposed < now {
+                    b.safe[m] = false;
+                }
+            }
+        }
+        for s in self.sides {
+            for m in 0..n {
+                b.shortfall[m] += shortfall(
+                    s.c_des,
+                    s.c_min,
+                    edge_gap(b.y[m], me.half_width, s.y, s.half_width),
+                );
+            }
+        }
+    }
+
+    /// The most the politeness term can add at any position: every
+    /// follower at the most it could be allowed (or, with negative
+    /// politeness, the least). `None` if the comfort term has no upper bound.
+    fn polite_bound(&self, base: &Batch) -> Option<f64> {
+        let p = self.p;
+        if p.comfort_weight.is_nan() || p.comfort_weight < 0.0 {
+            return None;
+        }
+        let (mut hi, mut lo) = (0.0, 0.0);
+        for (f, &other) in self.followers.iter().zip(self.others) {
+            hi += other.min(f.free.max(f.imposed));
+            lo += other.min(f.free.min(f.imposed));
+        }
+        let sum = if p.politeness >= 0.0 { hi } else { lo };
+        Some(p.politeness * (sum - base.followers[0]))
+    }
+
+    /// Drop the positions of a batch scored by [`Self::own_terms`] whose
+    /// utility cannot exceed the switching threshold whatever the second
+    /// stage adds: shortfalls only grow, and the politeness term is at most
+    /// `polite`. Positions keep their order.
+    fn prune(&self, b: &mut Batch, base: &Batch, polite: f64) {
+        let (p, me) = (self.p, self.me);
+        let mut k = 0;
+        for m in 0..b.n {
+            let bound = (b.own[m] - base.own[0])
+                + polite
+                + p.comfort_weight * (base.shortfall[0] - b.shortfall[m])
+                - p.move_cost * (b.y[m] - me.y).abs();
+            if bound + PRUNE_SLACK > p.switch_threshold {
+                b.y[k] = b.y[m];
+                b.free[k] = b.free[m];
+                b.own[k] = b.own[m];
+                b.shortfall[k] = b.shortfall[m];
+                k += 1;
+            }
+        }
+        b.n = k;
+    }
+
+    /// The utility of position `m` of a scored batch relative to `base`
+    /// (position 0 of a batch holding only the current position), or `None`
+    /// if a follower would have to brake harder than the safe limit.
+    fn choice(&self, b: &Batch, m: usize, base: &Batch) -> Option<Choice> {
+        if !b.safe[m] {
+            return None;
+        }
+        let (p, y) = (self.p, b.y[m]);
+        let own = b.own[m] - base.own[0];
+        let polite = p.politeness * (b.followers[m] - base.followers[0]);
+        let comfort = -p.comfort_weight * (b.shortfall[m] - base.shortfall[0]);
+        let cost = -p.move_cost * (y - self.me.y).abs();
+        Some(Choice {
+            target: y,
+            switched: true,
+            utility: own + polite + comfort + cost,
+            own,
+            polite,
+            comfort,
+            cost,
+        })
+    }
+
+    /// Score the batch and keep the first position, in batch order, whose
+    /// utility beats both the switching threshold and `best`.
+    fn best_of(&self, b: &mut Batch, base: &Batch, polite: Option<f64>, best: &mut Option<Choice>) {
+        if b.n == 0 {
+            return;
+        }
+        self.own_terms(b);
+        if let Some(polite) = polite {
+            self.prune(b, base, polite);
+        }
+        self.other_terms(b);
+        for m in 0..b.n {
+            if let Some(c) = self.choice(b, m, base)
+                && c.utility > best.map_or(self.p.switch_threshold, |x| x.utility)
+            {
+                *best = Some(c);
+            }
+        }
+        b.n = 0;
+    }
 }
 
 /// Choose the lateral target (ADR-0010 §3): the feasible candidate with the
@@ -254,8 +478,8 @@ struct Value {
 /// current target, pulled into the feasible interval (or the current
 /// position, if moving on towards the target has become worse than staying).
 pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Choice {
-    // Leaders in order of the acceleration they allow: the scan over them
-    // can stop adding weights once none can lower the running minimum.
+    // Leaders in order of the acceleration they allow: a position stops
+    // adding weights once none can lower its running minimum.
     nb.leaders[..nb.n_leaders].sort_unstable_by(|a, b| a.accel.total_cmp(&b.accel));
     let (leaders, followers, sides) = (
         &nb.leaders[..nb.n_leaders],
@@ -276,60 +500,18 @@ pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Cho
         imposed_now[k] = now;
         others[k] = if f.acc_now < now { f.acc_now } else { f.free };
     }
-    let value = |y: f64| -> Value {
-        let free = if y < me.band_y {
-            me.free_band
-        } else {
-            me.free_out
-        };
-        let mut own = free.min(me.cap);
-        let mut short = shortfall(p.edge_clearance, 0.0, y - me.half_width - me.edge_lo)
-            + shortfall(p.edge_clearance, 0.0, me.edge_hi - y - me.half_width);
-        for l in leaders {
-            let gap = edge_gap(y, me.half_width, l.y, l.half_width);
-            if l.near {
-                short += shortfall(l.c_des, l.c_min, gap);
-            }
-            if l.accel < own {
-                let excess = gap - l.c_min;
-                if excess <= p.cutoff {
-                    own = own.min(free + leader_weight(excess, p.braking_scale) * (l.accel - free));
-                }
-            }
-        }
-        let mut sum = 0.0;
-        let mut safe = true;
-        for (k, f) in followers.iter().enumerate() {
-            let gap = edge_gap(y, me.half_width, f.y, f.half_width);
-            if f.near {
-                short += shortfall(f.c_des_own, f.c_min_own, gap);
-            }
-            let excess = gap - f.c_min;
-            let imposed = if excess > p.cutoff {
-                f.free
-            } else {
-                f.free + leader_weight(excess, p.braking_scale) * (f.imposed - f.free)
-            };
-            sum += others[k].min(imposed);
-            if imposed < -p.safe_decel && imposed < imposed_now[k] {
-                safe = false;
-            }
-        }
-        for s in sides {
-            short += shortfall(
-                s.c_des,
-                s.c_min,
-                edge_gap(y, me.half_width, s.y, s.half_width),
-            );
-        }
-        Value {
-            own,
-            followers: sum,
-            shortfall: short,
-            safe,
-        }
+    let scene = Scene {
+        p,
+        me,
+        leaders,
+        followers,
+        sides,
+        others: &others[..followers.len()],
+        imposed_now: &imposed_now[..followers.len()],
     };
-    let base = value(me.y);
+    let mut base = Batch::new();
+    base.push(me.y);
+    scene.evaluate(&mut base);
     // An upper bound on any candidate's utility: the agent at its best free
     // acceleration, every follower unhindered by it, no shortfall, no cost.
     // If even that cannot beat the threshold, no candidate needs scoring.
@@ -344,38 +526,20 @@ pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Cho
         .zip(&others)
         .map(|(f, o)| o.min(f.free))
         .sum();
-    let bound = (best_free.min(me.cap) - base.own)
-        + p.politeness * (unhindered - base.followers)
-        + p.comfort_weight * base.shortfall;
+    let bound = (best_free.min(me.cap) - base.own[0])
+        + p.politeness * (unhindered - base.followers[0])
+        + p.comfort_weight * base.shortfall[0];
     let worth_scoring = bound > p.switch_threshold;
-    let score = |y: f64| -> Option<Choice> {
-        let v = value(y);
-        if !v.safe {
-            return None;
-        }
-        let own = v.own - base.own;
-        let polite = p.politeness * (v.followers - base.followers);
-        let comfort = -p.comfort_weight * (v.shortfall - base.shortfall);
-        let cost = -p.move_cost * (y - me.y).abs();
-        Some(Choice {
-            target: y,
-            switched: true,
-            utility: own + polite + comfort + cost,
-            own,
-            polite,
-            comfort,
-            cost,
-        })
-    };
+    let polite = scene.polite_bound(&base);
     let mut best: Option<Choice> = None;
-    let mut consider = |y: f64| {
+    let mut batch = Batch::new();
+    let consider = |y: f64, batch: &mut Batch, best: &mut Option<Choice>| {
         if y < me.lo || y > me.hi {
             return;
         }
-        if let Some(c) = score(y)
-            && c.utility > best.map_or(p.switch_threshold, |b| b.utility)
-        {
-            best = Some(c);
+        batch.push(y);
+        if batch.full() {
+            scene.best_of(batch, &base, polite, best);
         }
     };
     // Nearest candidates first, so ties go to the smaller move.
@@ -389,18 +553,19 @@ pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Cho
             if y < me.lo && !lo_done {
                 lo_done = true;
                 if me.lo < me.y {
-                    consider(me.lo);
+                    consider(me.lo, &mut batch, &mut best);
                 }
             } else if y > me.hi && !hi_done {
                 hi_done = true;
                 if me.hi > me.y {
-                    consider(me.hi);
+                    consider(me.hi, &mut batch, &mut best);
                 }
             } else {
-                consider(y);
+                consider(y, &mut batch, &mut best);
             }
         }
     }
+    scene.best_of(&mut batch, &base, polite, &mut best);
     if let Some(c) = best {
         return Choice {
             switched: (c.target - me.target).abs() >= 0.5 * p.step,
@@ -422,7 +587,9 @@ pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Cho
     if target == me.y {
         return hold;
     }
-    match score(target) {
+    batch.push(target);
+    scene.evaluate(&mut batch);
+    match scene.choice(&batch, 0, &base) {
         Some(c) if c.utility >= 0.0 => Choice {
             switched: false,
             ..c
@@ -434,6 +601,321 @@ pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Cho
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What being at lateral position `y` is worth: the agent's own acceleration,
+    /// the sum of its followers' accelerations, its clearance shortfalls, and
+    /// whether every follower stays within the safe braking limit.
+    #[derive(Debug, Clone, Copy)]
+    struct Value {
+        own: f64,
+        followers: f64,
+        shortfall: f64,
+        safe: bool,
+    }
+
+    /// The choice as first implemented (one candidate at a time, no pruning),
+    /// kept to check that batching and pruning give the same answer.
+    /// Choose the lateral target (ADR-0010 §3): the feasible candidate with the
+    /// highest utility, if it beats the switching threshold; otherwise the
+    /// current target, pulled into the feasible interval (or the current
+    /// position, if moving on towards the target has become worse than staying).
+    fn reference_choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Choice {
+        // Leaders in order of the acceleration they allow: the scan over them
+        // can stop adding weights once none can lower the running minimum.
+        nb.leaders[..nb.n_leaders].sort_unstable_by(|a, b| a.accel.total_cmp(&b.accel));
+        let (leaders, followers, sides) = (
+            &nb.leaders[..nb.n_leaders],
+            &nb.followers[..nb.n_followers],
+            &nb.sides[..nb.n_sides],
+        );
+        // What each follower's other leaders allow it, and what the agent
+        // imposes on it now.
+        let mut others = [0.0; MAX_NEIGHBOURS];
+        let mut imposed_now = [0.0; MAX_NEIGHBOURS];
+        for (k, f) in followers.iter().enumerate() {
+            let excess = edge_gap(me.y, me.half_width, f.y, f.half_width) - f.c_min;
+            let now = if excess > p.cutoff {
+                f.free
+            } else {
+                f.free + leader_weight(excess, p.braking_scale) * (f.imposed - f.free)
+            };
+            imposed_now[k] = now;
+            others[k] = if f.acc_now < now { f.acc_now } else { f.free };
+        }
+        let value = |y: f64| -> Value {
+            let free = if y < me.band_y {
+                me.free_band
+            } else {
+                me.free_out
+            };
+            let mut own = free.min(me.cap);
+            let mut short = shortfall(p.edge_clearance, 0.0, y - me.half_width - me.edge_lo)
+                + shortfall(p.edge_clearance, 0.0, me.edge_hi - y - me.half_width);
+            for l in leaders {
+                let gap = edge_gap(y, me.half_width, l.y, l.half_width);
+                if l.near {
+                    short += shortfall(l.c_des, l.c_min, gap);
+                }
+                if l.accel < own {
+                    let excess = gap - l.c_min;
+                    if excess <= p.cutoff {
+                        own = own
+                            .min(free + leader_weight(excess, p.braking_scale) * (l.accel - free));
+                    }
+                }
+            }
+            let mut sum = 0.0;
+            let mut safe = true;
+            for (k, f) in followers.iter().enumerate() {
+                let gap = edge_gap(y, me.half_width, f.y, f.half_width);
+                if f.near {
+                    short += shortfall(f.c_des_own, f.c_min_own, gap);
+                }
+                let excess = gap - f.c_min;
+                let imposed = if excess > p.cutoff {
+                    f.free
+                } else {
+                    f.free + leader_weight(excess, p.braking_scale) * (f.imposed - f.free)
+                };
+                sum += others[k].min(imposed);
+                if imposed < -p.safe_decel && imposed < imposed_now[k] {
+                    safe = false;
+                }
+            }
+            for s in sides {
+                short += shortfall(
+                    s.c_des,
+                    s.c_min,
+                    edge_gap(y, me.half_width, s.y, s.half_width),
+                );
+            }
+            Value {
+                own,
+                followers: sum,
+                shortfall: short,
+                safe,
+            }
+        };
+        let base = value(me.y);
+        // An upper bound on any candidate's utility: the agent at its best free
+        // acceleration, every follower unhindered by it, no shortfall, no cost.
+        // If even that cannot beat the threshold, no candidate needs scoring.
+        let reach_lo = me.lo.max(me.y - p.range);
+        let best_free = if reach_lo < me.band_y {
+            me.free_band.max(me.free_out)
+        } else {
+            me.free_out
+        };
+        let unhindered: f64 = followers
+            .iter()
+            .zip(&others)
+            .map(|(f, o)| o.min(f.free))
+            .sum();
+        let bound = (best_free.min(me.cap) - base.own)
+            + p.politeness * (unhindered - base.followers)
+            + p.comfort_weight * base.shortfall;
+        let worth_scoring = bound > p.switch_threshold;
+        let score = |y: f64| -> Option<Choice> {
+            let v = value(y);
+            if !v.safe {
+                return None;
+            }
+            let own = v.own - base.own;
+            let polite = p.politeness * (v.followers - base.followers);
+            let comfort = -p.comfort_weight * (v.shortfall - base.shortfall);
+            let cost = -p.move_cost * (y - me.y).abs();
+            Some(Choice {
+                target: y,
+                switched: true,
+                utility: own + polite + comfort + cost,
+                own,
+                polite,
+                comfort,
+                cost,
+            })
+        };
+        let mut best: Option<Choice> = None;
+        let mut consider = |y: f64| {
+            if y < me.lo || y > me.hi {
+                return;
+            }
+            if let Some(c) = score(y)
+                && c.utility > best.map_or(p.switch_threshold, |b| b.utility)
+            {
+                best = Some(c);
+            }
+        };
+        // Nearest candidates first, so ties go to the smaller move.
+        let steps = (p.range / p.step).floor() as i32;
+        let (mut lo_done, mut hi_done) = (false, false);
+        for m in 1..=if worth_scoring { steps } else { 0 } {
+            let d = f64::from(m) * p.step;
+            for y in [me.y - d, me.y + d] {
+                // The ends of the feasible interval are candidates too: the
+                // tightest position beside a neighbour may be the one that fits.
+                if y < me.lo && !lo_done {
+                    lo_done = true;
+                    if me.lo < me.y {
+                        consider(me.lo);
+                    }
+                } else if y > me.hi && !hi_done {
+                    hi_done = true;
+                    if me.hi > me.y {
+                        consider(me.hi);
+                    }
+                } else {
+                    consider(y);
+                }
+            }
+        }
+        if let Some(c) = best {
+            return Choice {
+                switched: (c.target - me.target).abs() >= 0.5 * p.step,
+                ..c
+            };
+        }
+        // Nothing is worth a new move: carry on to the current target unless
+        // that has become worse than staying here.
+        let target = me.target.clamp(me.lo.min(me.y), me.hi.max(me.y));
+        let hold = Choice {
+            target: me.y,
+            switched: false,
+            utility: 0.0,
+            own: 0.0,
+            polite: 0.0,
+            comfort: 0.0,
+            cost: 0.0,
+        };
+        if target == me.y {
+            return hold;
+        }
+        match score(target) {
+            Some(c) if c.utility >= 0.0 => Choice {
+                switched: false,
+                ..c
+            },
+            _ => hold,
+        }
+    }
+
+    /// Batched, pruned scoring chooses exactly what scoring each candidate on
+    /// its own does, on random scenes.
+    #[test]
+    fn batched_choice_equals_the_reference() {
+        use proptest::prelude::*;
+        let leader = (
+            -4.0..4.0f64,
+            0.3..1.3f64,
+            -9.0..1.5f64,
+            0.0..0.4f64,
+            0.0..1.0f64,
+            any::<bool>(),
+        )
+            .prop_map(|(y, half_width, accel, c_min, extra, near)| LeaderTerm {
+                y,
+                half_width,
+                accel,
+                c_min,
+                c_des: c_min + extra,
+                near,
+            });
+        let follower = (
+            (
+                -4.0..4.0f64,
+                0.3..1.3f64,
+                -2.0..1.5f64,
+                -9.0..1.5f64,
+                -3.0..1.5f64,
+            ),
+            (0.0..0.4f64, 0.0..0.4f64, 0.0..1.0f64, any::<bool>()),
+        )
+            .prop_map(
+                |((y, half_width, free, imposed, acc_now), (c_min, c_min_own, extra, near))| {
+                    FollowerTerm {
+                        y,
+                        half_width,
+                        free,
+                        imposed,
+                        acc_now,
+                        c_min,
+                        c_min_own,
+                        c_des_own: c_min_own + extra,
+                        near,
+                    }
+                },
+            );
+        let side = (-3.0..3.0f64, 0.3..1.3f64, 0.0..0.4f64, 0.0..1.0f64).prop_map(
+            |(y, half_width, c_min, extra)| SideTerm {
+                y,
+                half_width,
+                c_min,
+                c_des: c_min + extra,
+            },
+        );
+        let scene = (
+            proptest::collection::vec(leader, 0..8),
+            proptest::collection::vec(follower, 0..8),
+            proptest::collection::vec(side, 0..3),
+            (
+                -2.0..2.0f64,
+                0.3..1.2f64,
+                -5.0..0.0f64,
+                0.0..5.0f64,
+                -2.0..2.0f64,
+            ),
+            (
+                -1.0..1.5f64,
+                -1.0..1.5f64,
+                -6.0..6.0f64,
+                -2.0..3.0f64,
+                0.0..0.3f64,
+            ),
+        );
+        let config = proptest::test_runner::Config {
+            cases: 4096,
+            ..Default::default()
+        };
+        let rng = proptest::test_runner::TestRng::deterministic_rng(
+            proptest::test_runner::RngAlgorithm::ChaCha,
+        );
+        let mut runner = proptest::test_runner::TestRunner::new_with_rng(config, rng);
+        let switched = std::cell::Cell::new(0);
+        runner
+            .run(
+                &scene,
+                |(ls, fs, ss, (y, hw, lo, hi, target), (fb, fo, band, cap, step))| {
+                    let mut nb = Neighbours::default();
+                    ls.iter().for_each(|&l| assert!(nb.push_leader(l)));
+                    fs.iter().for_each(|&f| assert!(nb.push_follower(f)));
+                    ss.iter().for_each(|&s| nb.push_side(s));
+                    let me = Subject {
+                        y,
+                        half_width: hw,
+                        lo: y + lo,
+                        hi: y + hi,
+                        edge_lo: -5.25,
+                        edge_hi: 5.25,
+                        free_band: fb,
+                        free_out: fo,
+                        band_y: band,
+                        cap,
+                        target: y + target,
+                    };
+                    let p = ChoiceParams {
+                        step: 0.05 + step,
+                        ..params()
+                    };
+                    let got = choose_target(&p, &me, &mut nb.clone());
+                    let want = reference_choose_target(&p, &me, &mut nb);
+                    prop_assert_eq!(got, want);
+                    switched.set(switched.get() + usize::from(got.switched));
+                    Ok(())
+                },
+            )
+            .unwrap();
+        // The scenes exercise real choices, not only "stay".
+        assert!(switched.get() > 4096 / 5, "{}", switched.get());
+    }
 
     const BM: (f64, f64, f64, f64) = (1.209, 0.615 * 0.036, 1.17, 0.0);
 

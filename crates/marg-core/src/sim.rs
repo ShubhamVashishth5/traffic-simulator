@@ -27,6 +27,8 @@ use marg_net::Network;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
 use rayon::prelude::*;
 
+/// State bytes buffered before they are hashed.
+const HASH_BATCH_BYTES: usize = 1 << 18;
 /// Rows buffered before a trajectory chunk is handed to the sink.
 const TRAJECTORY_CHUNK_ROWS: usize = 1 << 16;
 /// Minimum work per rayon task in the move phase.
@@ -341,7 +343,11 @@ impl Simulation {
             spawned: self.spawned,
             exited: self.exited,
             agent_steps: self.agent_steps,
-            output_hash: self.hasher.clone().finalize().to_hex().to_string(),
+            output_hash: {
+                let mut h = self.hasher.clone();
+                h.update(&self.hash_buf);
+                h.finalize().to_hex().to_string()
+            },
         }
     }
 
@@ -1053,10 +1059,11 @@ impl Simulation {
         }
         let (s, id) = (&self.agents.s, &self.agents.id);
         for order in &mut self.orders {
-            order.sort_by(|&x, &y| {
+            sort_nearly_sorted(order, |x, y| {
                 s[x as usize]
                     .total_cmp(&s[y as usize])
                     .then(id[x as usize].cmp(&id[y as usize]))
+                    .is_lt()
             });
         }
     }
@@ -1289,7 +1296,6 @@ impl Simulation {
 
     fn phase_hash(&mut self) {
         let a = &self.agents;
-        self.hash_buf.clear();
         self.hash_buf.extend_from_slice(&self.step.to_le_bytes());
         for i in 0..a.len() {
             self.hash_buf.extend_from_slice(&a.id[i].to_le_bytes());
@@ -1300,7 +1306,12 @@ impl Simulation {
             self.hash_buf
                 .extend_from_slice(&a.v[i].to_bits().to_le_bytes());
         }
-        self.hasher.update(&self.hash_buf);
+        // blake3 is fastest on large inputs, and the digest does not depend
+        // on how its input is split, so several steps go in at once.
+        if self.hash_buf.len() >= HASH_BATCH_BYTES {
+            self.hasher.update(&self.hash_buf);
+            self.hash_buf.clear();
+        }
     }
 
     // -------------------------------------------------------------- finish
@@ -1431,6 +1442,39 @@ impl Simulation {
 fn swept_gap(y: f64, half: f64, yj: f64, target: f64, half_j: f64) -> f64 {
     let (lo, hi) = (yj.min(target), yj.max(target));
     edge_gap(y, half, y.clamp(lo, hi), half_j)
+}
+
+/// Sort `v` by `less`. Orders move little between steps, so insertion sort
+/// (linear when nothing changed) is used unless many elements are out of
+/// place. Keys are unique (ids break ties), so the result is the same as any
+/// other sort.
+fn sort_nearly_sorted(v: &mut [u32], less: impl Fn(u32, u32) -> bool) {
+    /// Element moves beyond which insertion sort gives way to a full sort.
+    const MAX_SHIFTS_PER_ELEMENT: usize = 4;
+    let budget = MAX_SHIFTS_PER_ELEMENT * v.len();
+    let mut shifts = 0;
+    for i in 1..v.len() {
+        let x = v[i];
+        let mut j = i;
+        while j > 0 && less(x, v[j - 1]) {
+            v[j] = v[j - 1];
+            j -= 1;
+        }
+        v[j] = x;
+        shifts += i - j;
+        if shifts > budget {
+            v.sort_unstable_by(|&a, &b| {
+                if less(a, b) {
+                    std::cmp::Ordering::Less
+                } else if less(b, a) {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            });
+            return;
+        }
+    }
 }
 
 /// Steps between an agent's scheduled lateral decisions.
