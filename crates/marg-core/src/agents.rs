@@ -241,11 +241,10 @@ impl AgentStore {
         if next as usize == n {
             return false;
         }
-        let keep: Vec<bool> = self.exited.iter().map(|e| !e).collect();
         macro_rules! retain_col {
             ($col:expr) => {{
-                let mut k = keep.iter();
-                $col.retain(|_| *k.next().unwrap());
+                let mut k = remap.iter();
+                $col.retain(|_| *k.next().unwrap() != REMOVED);
             }};
         }
         each_column!(self, retain_col);

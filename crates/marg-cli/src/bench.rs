@@ -12,12 +12,14 @@ pub fn run(
 ) -> Result<serde_json::Value> {
     let mut best = f64::INFINITY;
     let mut agent_steps = 0;
+    let mut output_hash = String::new();
     for _ in 0..repeat.max(1) {
         let start = Instant::now();
         let mut sim = Simulation::new(spec, 1, threads)?;
         let s = sim.run_to_end();
         best = best.min(start.elapsed().as_secs_f64());
         agent_steps = s.agent_steps;
+        output_hash = s.output_hash;
     }
     let ns = best * 1e9 / agent_steps.max(1) as f64;
     Ok(serde_json::json!({
@@ -29,5 +31,7 @@ pub fn run(
         "ns_per_agent_step": ns,
         "agent_steps_per_s": 1e9 / ns,
         "real_time_factor": spec.scenario.duration_s / best,
+        // Optimisations that must not change results can be checked against this.
+        "output_hash": output_hash,
     }))
 }
