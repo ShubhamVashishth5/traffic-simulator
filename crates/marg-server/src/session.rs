@@ -276,6 +276,46 @@ impl Session {
         true
     }
 
+    /// Every road object, with its footprint in frame coordinates.
+    fn objects(&self) -> ServerMessage {
+        let sim = self.sim();
+        let net = sim.network();
+        let [ox, oy] = self.hello.origin;
+        let finite = |x: f64| x.is_finite().then_some(x);
+        let objects = sim
+            .objects()
+            .iter()
+            .map(|o| {
+                let r = net.ribbon(o.ribbon);
+                let (hl, hw) = (0.5 * o.length, 0.5 * o.width);
+                let corner = |ds: f64, dy: f64| {
+                    let (x, y, _) = r.to_world(o.s + ds, o.y + dy);
+                    [x - ox, y - oy]
+                };
+                ObjectView {
+                    id: o.id.clone(),
+                    ribbon: r.id.clone(),
+                    s: o.s,
+                    y: o.y,
+                    length: o.length,
+                    width: o.width,
+                    shape: vec![
+                        corner(-hl, -hw),
+                        corner(hl, -hw),
+                        corner(hl, hw),
+                        corner(-hl, hw),
+                    ],
+                    present: o
+                        .present
+                        .iter()
+                        .map(|&(a, b)| [finite(a), finite(b)])
+                        .collect(),
+                }
+            })
+            .collect();
+        ServerMessage::Objects { objects }
+    }
+
     fn greet(&mut self, conn: u64) {
         let hello = ServerMessage::Hello(Box::new(self.hello.clone()));
         self.send_conn(Some(conn), &hello);
@@ -283,6 +323,8 @@ impl Session {
         self.send_conn(Some(conn), &status);
         let history = self.history();
         self.send_conn(Some(conn), &history);
+        let objects = self.objects();
+        self.send_conn(Some(conn), &objects);
         // Catch up on the dashboard windows closed so far.
         let mut kpi = self.kpi_frame(false);
         kpi.windows = rows(self.sim().live_detector_records(0, self.windows_sent));
@@ -423,16 +465,16 @@ impl Session {
                 json!({ "junction": junction, "state": state }),
                 Err("signals are not modelled yet (phase P8)".into()),
             ),
-            ClientMessage::AddObject { object } => self.log(
-                name,
-                json!({ "object": object }),
-                Err("road objects are not modelled yet (phase P6)".into()),
-            ),
-            ClientMessage::RemoveObject { id } => self.log(
-                name,
-                json!({ "id": id }),
-                Err("road objects are not modelled yet (phase P6)".into()),
-            ),
+            ClientMessage::AddObject { object } => {
+                let _ = self.state_command(name, json!({ "object": object }));
+                let m = self.objects();
+                self.send(&m);
+            }
+            ClientMessage::RemoveObject { id } => {
+                let _ = self.state_command(name, json!({ "id": id }));
+                let m = self.objects();
+                self.send(&m);
+            }
             ClientMessage::Save => self.save(),
             ClientMessage::View {
                 viewport,

@@ -30,7 +30,7 @@ function frame(protocol: string) {
 
 describe("decodeFrame", () => {
   it("reads columns and metadata, keeping 64-bit ids exact", () => {
-    const f = decodeFrame(frame("1"));
+    const f = decodeFrame(frame("2"));
     expect(f.n).toBe(3);
     expect(f.total).toBe(7);
     expect(f.t).toBe(12.5);
@@ -40,6 +40,6 @@ describe("decodeFrame", () => {
     expect(f.length[2]).toBe(10);
   });
   it("refuses another protocol version", () => {
-    expect(() => decodeFrame(frame("2"))).toThrow(/protocol/);
+    expect(() => decodeFrame(frame("1"))).toThrow(/protocol/);
   });
 });

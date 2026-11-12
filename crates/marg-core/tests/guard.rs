@@ -3,12 +3,13 @@
 //! barriers, oversaturated mixed demand), and the guard-event rate is
 //! reported.
 //!
-//! Guard events come only from bottlenecks: the lateral model does not look
-//! ahead at the road's width profile, so where the road narrows the
-//! carriageway pushes vehicles sideways into their neighbours and the guard
-//! steps in. Reacting to width changes ahead is road-object work (P6.1);
-//! until then the test requires zero guard events where the width does not
-//! change.
+//! Where the width does not change the guard must never step in. Where the
+//! road narrows it used to step in 4,587 times per 10⁶ agent-steps, because
+//! the kerb pushed vehicles sideways into their neighbours. Since P6.1
+//! vehicles see the narrowing ahead and the one in front goes first; what is
+//! left (under 1 per 10⁶ agent-steps) is a vehicle stopped short at the kerb
+//! because a neighbour did not give way in time. The test bounds that rate
+//! and checks that the bottlenecks still discharge.
 //!
 //! `cargo test --release -p marg-core --test guard` runs a sample;
 //! `-- --ignored` runs the full 10⁴ scenarios of the task card.
@@ -33,6 +34,9 @@ struct Tally {
     /// Scenarios with at least one guard event.
     guarded_scenarios: u64,
     overlaps: u64,
+    /// Vehicles that left the network (in scenarios whose road narrows).
+    exited: u64,
+    bottleneck_exited: u64,
 }
 
 impl Tally {
@@ -45,6 +49,8 @@ impl Tally {
         self.guard_events += o.guard_events;
         self.guarded_scenarios += o.guarded_scenarios;
         self.overlaps += o.overlaps;
+        self.exited += o.exited;
+        self.bottleneck_exited += o.bottleneck_exited;
     }
 }
 
@@ -186,6 +192,10 @@ fn run_case(case: u64) -> Tally {
     }
     t.guarded_scenarios = u64::from(guards > 0);
     t.agent_steps = sim.summary().agent_steps;
+    t.exited = sim.summary().exited;
+    if bottleneck {
+        t.bottleneck_exited = t.exited;
+    }
     t
 }
 
@@ -213,7 +223,8 @@ fn run_many(n: u64) -> Tally {
     eprintln!(
         "P5.5 guard: {} scenarios, {} agent-steps (up to {} agents at once), {} overlaps after the guard; \
          {} guard events in {} scenarios = {:.2} per 10^6 agent-steps; \
-         {} of the events in the {} scenarios whose road narrows",
+         {} of the events in the {} scenarios whose road narrows; \
+         {} vehicles left the network, {} of them in the scenarios whose road narrows",
         total.scenarios,
         total.agent_steps,
         total.max_agents,
@@ -223,6 +234,8 @@ fn run_many(n: u64) -> Tally {
         total.guard_events as f64 * 1e6 / total.agent_steps.max(1) as f64,
         total.bottleneck_guard_events,
         total.bottlenecks,
+        total.exited,
+        total.bottleneck_exited,
     );
     total
 }
@@ -240,21 +253,75 @@ fn scenarios_are_dense_and_varied() {
     assert!(share(&|k| k.0.contains("next: b")) > 30, "chained ribbons");
 }
 
-/// Zero overlaps; and where the road does not narrow, zero guard events.
-fn check(t: &Tally) {
+/// Guard events per 10⁶ agent-steps allowed over all scenarios (0.65 in the
+/// 10⁴ scenarios when P6.1 was done; 4,587 before it).
+const MAX_GUARD_RATE: f64 = 2.0;
+
+/// Zero overlaps; where the road does not narrow, zero guard events; where
+/// it does, very few; and `min_exits` vehicles got through the bottlenecks.
+fn check(t: &Tally, min_exits: u64) {
     assert_eq!(t.overlaps, 0, "{t:?}");
     assert_eq!(t.guard_events, t.bottleneck_guard_events, "{t:?}");
+    let rate = t.guard_events as f64 * 1e6 / t.agent_steps as f64;
+    assert!(
+        rate < MAX_GUARD_RATE,
+        "{rate} guard events per 10^6 agent-steps"
+    );
+    assert!(t.bottleneck_exited >= min_exits, "{t:?}");
 }
 
 /// A sample of the random scenarios (fast enough for every test run).
 #[test]
 fn no_overlaps_after_the_guard_sample() {
-    check(&run_many(200));
+    // 1,895 vehicles got through when the kerb still pushed them (before P6.1).
+    check(&run_many(200), 1_800);
 }
 
 /// The task card's 10⁴ scenarios (a few minutes on 4 cores, release build).
 #[test]
 #[ignore]
 fn no_overlaps_after_the_guard_10k() {
-    check(&run_many(10_000));
+    // 89,775 before P6.1.
+    check(&run_many(10_000), 88_000);
+}
+
+/// Diagnostic: which scenarios still need the guard, and for what.
+#[test]
+#[ignore]
+fn diagnose() {
+    let n: u64 = std::env::var("GUARD_N")
+        .ok()
+        .and_then(|x| x.parse().ok())
+        .unwrap_or(200);
+    for case in 0..n {
+        let (yaml, bottleneck) = random_scenario(case);
+        if !bottleneck {
+            continue;
+        }
+        let spec = spec(&yaml, &[]);
+        let mut sim = Simulation::new(&spec, case, 1).unwrap();
+        while !sim.finished() {
+            sim.step();
+        }
+        let ev: Vec<_> = sim
+            .events()
+            .iter()
+            .filter(|e| e.kind == "collision_guard")
+            .collect();
+        if ev.is_empty() {
+            continue;
+        }
+        let edge = ev.iter().filter(|e| e.attrs.contains("edge")).count();
+        eprintln!(
+            "case {case}: {} guard events ({edge} edge stops); first: t={:.1} s={:.1} y={:.2} {}",
+            ev.len(),
+            ev[0].t,
+            ev[0].s,
+            ev[0].y,
+            ev[0].attrs
+        );
+        if std::env::var("GUARD_YAML").is_ok() {
+            eprintln!("{yaml}");
+        }
+    }
 }

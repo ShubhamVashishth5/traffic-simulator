@@ -25,6 +25,10 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
     narrowing, and none from the 5,914 scenarios without it.
 - **Done when:** an object placed in the viewer is avoided by agents, and the P5.5 bottleneck
   scenarios log no guard events.
+- **Outcome (2026-11-12):** see [ADR-0012](../decisions/ADR-0012-road-objects-and-narrowing.md).
+  Guard events in the bottleneck scenarios fell from 964,509 to 136, not to zero. Standing
+  bodies gridlock traffic above about 1,000 veh/h until part 2 of the ADR is decided, which
+  blocks P6.2 onwards.
 
 ### P6.2 Kerbside parking and double parking
 - **Do:**

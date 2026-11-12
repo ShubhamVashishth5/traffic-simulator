@@ -10,10 +10,11 @@ use crate::agents::{AgentStore, NO_AGENT};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Approach, Body, time_to_contact};
 use crate::model::lateral::{
-    Choice, ChoiceParams, FollowerTerm, LeaderTerm, Neighbours, SideTerm, Subject, choose_target,
-    edge_gap, leader_weight, steering_speed, track,
+    Choice, ChoiceParams, FollowerTerm, LeaderTerm, Neighbours, SideTerm, Subject, Wall,
+    choose_target, edge_gap, leader_weight, steering_speed, track,
 };
 use crate::model::longitudinal::Idm;
+use crate::objects::{EDGE_LEADER, EdgeAhead, Narrowings, Objects};
 use crate::params::CoreParams;
 use marg_net::Network;
 use std::cell::RefCell;
@@ -81,6 +82,10 @@ pub struct MoveOut {
     /// the free gap to each side neighbour.
     pub y_lo: f64,
     pub y_hi: f64,
+    /// How far the kerb of a narrowing road may move it (within the limits
+    /// above; a vehicle coming up behind has no say in this).
+    pub kerb_lo: f64,
+    pub kerb_hi: f64,
     /// Id of the most constraining leader, or `NO_AGENT`.
     pub leader: u64,
     /// The lateral decision, if one was due this step.
@@ -110,6 +115,9 @@ pub struct MoveCtx<'a> {
     /// the start of `to` along the chain; NaN if `to` is not downstream.
     pub chain_offset: &'a [Vec<f64>],
     pub barriers: &'a [Barrier],
+    /// Road objects, and where the carriageway narrows.
+    pub objects: &'a Objects,
+    pub narrow: &'a Narrowings,
     /// Lateral distance beyond the minimum clearance at which a leader's
     /// weight, and a side neighbour's steering response, are cut off.
     pub cut: f64,
@@ -136,6 +144,19 @@ struct Sides {
     repulsion: f64,
     y_lo: f64,
     y_hi: f64,
+    /// Where the kerb of a narrowing road may move the vehicle to: the
+    /// limits above without those set by vehicles coming up behind, which
+    /// give way to the one in front.
+    kerb_lo: f64,
+    kerb_hi: f64,
+    /// Where the kerb of a narrowing road may move the vehicle to without
+    /// taking it inside its minimum clearance of a neighbour (within
+    /// `y_lo..y_hi`): beyond these it brakes for the kerb.
+    clear_lo: f64,
+    clear_hi: f64,
+    /// The carriageway narrows ahead: the room that vehicles level with
+    /// this one leave the kerb is worked out apart from their limits.
+    narrowing: bool,
 }
 
 impl Sides {
@@ -149,17 +170,67 @@ impl Sides {
         } else {
             self.repulsion += push;
         }
-        self.limit(left, y, gy);
+        if self.narrowing {
+            self.hard(left, y, gy);
+        } else {
+            self.limit(left, y, gy);
+        }
     }
 
-    /// Each of two vehicles may take half of the free gap between them.
+    /// [`Self::limit`] without a say in where the vehicle brakes for the kerb.
     #[inline]
-    fn limit(&mut self, left: bool, y: f64, gy: f64) {
+    fn hard(&mut self, left: bool, y: f64, gy: f64) {
+        let room = 0.5 * gy.max(0.0);
+        if left {
+            self.y_hi = self.y_hi.min(y + room);
+            self.kerb_hi = self.kerb_hi.min(y + room);
+        } else {
+            self.y_lo = self.y_lo.max(y - room);
+            self.kerb_lo = self.kerb_lo.max(y - room);
+        }
+    }
+
+    /// [`Self::limit`] for the vehicle's own moves only.
+    #[inline]
+    fn behind(&mut self, left: bool, y: f64, gy: f64) {
         let room = 0.5 * gy.max(0.0);
         if left {
             self.y_hi = self.y_hi.min(y + room);
         } else {
             self.y_lo = self.y_lo.max(y - room);
+        }
+    }
+
+    /// Each of two vehicles may take half of the free gap between them.
+    #[inline]
+    fn limit(&mut self, left: bool, y: f64, gy: f64) {
+        self.room(left, y, 0.5 * gy.max(0.0));
+    }
+
+    /// A standing body does not move: the whole gap to it can be used.
+    #[inline]
+    fn wall(&mut self, left: bool, y: f64, gy: f64) {
+        self.room(left, y, gy.max(0.0));
+    }
+
+    #[inline]
+    fn room(&mut self, left: bool, y: f64, room: f64) {
+        if left {
+            self.y_hi = self.y_hi.min(y + room);
+            self.kerb_hi = self.kerb_hi.min(y + room);
+        } else {
+            self.y_lo = self.y_lo.max(y - room);
+            self.kerb_lo = self.kerb_lo.max(y - room);
+        }
+        self.clear(left, y, room);
+    }
+
+    #[inline]
+    fn clear(&mut self, left: bool, y: f64, room: f64) {
+        if left {
+            self.clear_hi = self.clear_hi.min(y + room);
+        } else {
+            self.clear_lo = self.clear_lo.max(y - room);
         }
     }
 }
@@ -224,6 +295,11 @@ impl MoveCtx<'_> {
             repulsion: 0.0,
             y_lo: f64::NEG_INFINITY,
             y_hi: f64::INFINITY,
+            kerb_lo: f64::NEG_INFINITY,
+            kerb_hi: f64::INFINITY,
+            clear_lo: f64::NEG_INFINITY,
+            clear_hi: f64::INFINITY,
+            narrowing: false,
         };
         let mut conflict: Option<Conflict> = None;
         let strength = p.steering_sensitivity * p.emergency_decel;
@@ -235,6 +311,13 @@ impl MoveCtx<'_> {
         // We close on a vehicle ahead at most at our own speed, so beyond
         // this gap none can be cut in on.
         let no_cut_in_ahead = self.no_cut_in_gap(v, closing_slack);
+        // Where the carriageway narrows within the lookahead, its edges ahead.
+        let half_body = 0.5 * a.width[i];
+        let edges = self
+            .narrow
+            .within(r, s, p.lookahead)
+            .then(|| EdgeAhead::gather(self.net, r, s, p.lookahead));
+        sides.narrowing = edges.is_some();
         let mut cov = Coverage::new(y - hw, y + hw);
         let mut horizon = p.lookahead;
         let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
@@ -249,6 +332,11 @@ impl MoveCtx<'_> {
                 }
                 let hwj = a.half_width[j];
                 let gy = edge_gap(y, hw, a.y[j], hwj);
+                if let Some(edges) = &edges {
+                    self.narrowing_ahead(
+                        i, j, ds, gy, edges, &idm, free, &mut acc, &mut lead, &mut sides,
+                    );
+                }
                 if gy > far {
                     continue;
                 }
@@ -379,11 +467,25 @@ impl MoveCtx<'_> {
                 }
                 let gap_s = ds - 0.5 * (l + a.length[j]);
                 let gy = edge_gap(y, hw, a.y[j], a.half_width[j]);
+                if let Some(edges) = &edges
+                    && gap_s <= 0.0
+                {
+                    // As for a vehicle level with us whose centre is ahead.
+                    self.level_in_narrowing(
+                        i, j, gy, -ds, edges, &idm, free, &mut acc, &mut lead, &mut sides,
+                    );
+                }
                 if gap_s > 0.0 {
                     // A vehicle behind that may draw level during this step, or
-                    // could not avoid us at the safe braking rate.
+                    // could not avoid us at the safe braking rate. Where the
+                    // road narrows it is the one behind that gives way: it
+                    // does not hold the kerb's push back.
                     if gap_s <= self.no_cut_in_gap(a.v[j] - v, closing_slack) {
-                        sides.limit(self.is_left(i, j), y, gy);
+                        if edges.is_some() {
+                            sides.behind(self.is_left(i, j), y, gy);
+                        } else {
+                            sides.limit(self.is_left(i, j), y, gy);
+                        }
                     }
                     continue;
                 }
@@ -420,6 +522,78 @@ impl MoveCtx<'_> {
                 None => break,
             }
         }
+        // Road objects: standing bodies. One ahead is a leader, one level
+        // with the vehicle a side neighbour (plan/03-model-design.md §10).
+        if self.objects.any_active() {
+            // Objects are found by their rear end, vehicles by their centre.
+            let ahead = if horizon == p.lookahead {
+                horizon
+            } else {
+                horizon - 0.5 * self.l_max
+            };
+            let near = |o: &crate::objects::RoadObject, ds: f64| {
+                if !o.blocks[ci] {
+                    return;
+                }
+                let half_o = 0.5 * o.width;
+                let gy = edge_gap(y, hw, o.y, half_o);
+                if gy > far {
+                    return;
+                }
+                let gap_s = ds.abs() - 0.5 * (l + o.length);
+                if gap_s > 0.0 && ds < 0.0 {
+                    return;
+                }
+                let left = o.y >= y;
+                let c_min = scale * p.object_clearance(ci, o.clearance_class, 0.5 * v).1;
+                let excess = gy - c_min;
+                if gap_s <= 0.0 {
+                    // An object that appeared on top of the vehicle is
+                    // ignored until the vehicle has left it.
+                    if edge_gap(y, half_body, o.y, half_o) >= 0.0 && excess <= reach {
+                        let push = steering_speed(excess, strength, p.steering_scale);
+                        sides.repulsion += if left { -push } else { push };
+                        sides.wall(left, y, gy);
+                        sides.clear(left, y, excess.max(0.0));
+                    }
+                    return;
+                }
+                // No steering into the path of something that cannot be
+                // stopped for at the safe braking rate.
+                if gap_s <= no_cut_in_ahead {
+                    sides.wall(left, y, gy);
+                }
+                if excess > self.cut {
+                    return;
+                }
+                let (mt, ms) = p.object_multipliers(ci, o.clearance_class);
+                let leader = (free - idm.interaction(v, gap_s, v, mt, ms)).max(-p.emergency_decel);
+                let weighted = free + leader_weight(excess, p.braking_scale) * (leader - free);
+                if weighted < lead.0 {
+                    lead = (weighted, o.leader_id());
+                }
+                acc = acc.min(weighted);
+            };
+            self.objects
+                .near(self.net, self.prev, r, s, 0.5 * l, ahead, near);
+        }
+        // The carriageway ahead. The kerb moves a vehicle sideways as the
+        // road narrows; where that would take it beyond the room its
+        // neighbours leave, the kerb is a standing obstacle to brake for.
+        if let Some(edges) = &edges
+            && let Some(d) = edges.contact(sides.clear_hi - half_body, sides.clear_lo + half_body)
+            && d <= p.lookahead
+        {
+            let wall = if d > 0.0 {
+                (free - idm.interaction(v, d, v, 1.0, 1.0)).max(-p.emergency_decel)
+            } else {
+                -p.emergency_decel
+            };
+            if wall < lead.0 {
+                lead = (wall, EDGE_LEADER);
+            }
+            acc = acc.min(wall);
+        }
         // Closed barriers ahead: a standing virtual vehicle across the road.
         let mut cap = f64::INFINITY;
         for b in self.barriers {
@@ -455,10 +629,183 @@ impl MoveCtx<'_> {
             ),
             y_lo: sides.y_lo,
             y_hi: sides.y_hi,
+            kerb_lo: sides.kerb_lo,
+            kerb_hi: sides.kerb_hi,
             leader: lead.1,
             choice,
             conflict,
         }
+    }
+
+    /// What vehicle `j`, `ds` m ahead of `i` with edge gap `gy`, means to
+    /// `i` where the carriageway narrows ahead (`edges`), however far to the
+    /// side it is. Level with `i`: see [`Self::level_in_narrowing`]. Ahead
+    /// of `i`, it is a leader, to be followed, if within the lookahead
+    ///
+    /// - the kerb on `i`'s side closes the space beside `j` to less than
+    ///   `i`'s width and minimum clearance before `i` could be past `j`, or
+    /// - the road becomes too narrow for the two abreast before then, or
+    /// - the kerb on `j`'s side brings `j` into `i`'s line.
+    ///
+    /// The vehicle in front goes first; the one behind does not draw level.
+    #[allow(clippy::too_many_arguments)]
+    #[inline]
+    fn narrowing_ahead(
+        &self,
+        i: usize,
+        j: usize,
+        ds: f64,
+        gy: f64,
+        edges: &EdgeAhead,
+        idm: &Idm,
+        free: f64,
+        acc: &mut f64,
+        lead: &mut (f64, u64),
+        sides: &mut Sides,
+    ) {
+        let (a, p) = (self.a, self.p);
+        let (y, v, width) = (a.y[i], a.v[i], a.width[i]);
+        let reach = 0.5 * (a.length[i] + a.length[j]);
+        let gap_s = ds - reach;
+        if gap_s <= 0.0 {
+            self.level_in_narrowing(i, j, gy, ds, edges, idm, free, acc, lead, sides);
+            return;
+        }
+        let (ci, cj) = (usize::from(a.class[i]), usize::from(a.class[j]));
+        let c_min = a.clearance_scale[i] * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+        let room = width + c_min;
+        let (hwj, wj) = (a.half_width[j], a.width[j]);
+        let passed = ds + reach;
+        let within = |x: Option<f64>, limit: f64| x.is_some_and(|x| x <= limit);
+        let closes = if self.is_left(i, j) {
+            let (j_edge, my_edge) = (a.y[j] - hwj, y + 0.5 * width);
+            within(edges.first(0.0, |lo, _| j_edge - room - lo), passed)
+                || within(
+                    edges.first(ds, |_, hi| hi - wj - my_edge - c_min),
+                    p.lookahead,
+                )
+        } else {
+            let (j_edge, my_edge) = (a.y[j] + hwj, y - 0.5 * width);
+            within(edges.first(0.0, |_, hi| hi - j_edge - room), passed)
+                || within(
+                    edges.first(ds, |lo, _| my_edge - c_min - lo - wj),
+                    p.lookahead,
+                )
+        } || within(edges.narrower(0.0, room + wj), passed);
+        if !closes {
+            return;
+        }
+        let leader = (free
+            - idm.interaction(
+                v,
+                gap_s,
+                v - a.v[j],
+                p.mult_time_gap[ci][cj],
+                p.mult_standstill_gap[ci][cj],
+            ))
+        .max(-p.emergency_decel);
+        if leader < lead.0 {
+            *lead = (leader, a.id[j]);
+        }
+        *acc = acc.min(leader);
+    }
+
+    /// A vehicle `j` level with `i`, with edge gap `gy`, where the
+    /// carriageway narrows ahead, however far to the side it is; `j`'s
+    /// centre is `ds` m ahead of `i`'s (negative: behind).
+    ///
+    /// The kerb may move `i` over by half of the gap, like any move. `i`
+    /// brakes for the kerb where that would take it inside its minimum
+    /// clearance of `j` (each keeps half of what the gap has above it).
+    ///
+    /// But if further on the two cannot be abreast (the road is narrower
+    /// than both with that clearance, or the kerb leaves no way past the
+    /// other where it is now), the one whose front is ahead goes first. It
+    /// counts on the other waiting: it brakes for the kerb only where that
+    /// would take it into the other's body before it is past. The other
+    /// brakes so as not to be level with it where they cannot be abreast.
+    #[allow(clippy::too_many_arguments)]
+    #[inline]
+    fn level_in_narrowing(
+        &self,
+        i: usize,
+        j: usize,
+        gy: f64,
+        ds: f64,
+        edges: &EdgeAhead,
+        idm: &Idm,
+        free: f64,
+        acc: &mut f64,
+        lead: &mut (f64, u64),
+        sides: &mut Sides,
+    ) {
+        let (a, p) = (self.a, self.p);
+        let (y, v) = (a.y[i], a.v[i]);
+        let (ci, cj) = (usize::from(a.class[i]), usize::from(a.class[j]));
+        let c_min = a.clearance_scale[i] * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+        let left = self.is_left(i, j);
+        sides.hard(left, y, gy);
+        let spare = 0.5 * (gy - c_min).max(0.0);
+        let (wi, wj) = (a.width[i], a.width[j]);
+        let reach = 0.5 * (a.length[i] + a.length[j]);
+        let ahead = ds + 0.5 * (a.length[j] - a.length[i]);
+        let first = ahead < 0.0 || (ahead == 0.0 && a.id[i] < a.id[j]);
+        let (j_edge, my_edge) = if left {
+            (a.y[j] - a.half_width[j], y + 0.5 * wi)
+        } else {
+            (a.y[j] + a.half_width[j], y - 0.5 * wi)
+        };
+        // The kerb leaves the one that goes first no way past the other.
+        let blocked = match (first, left) {
+            (true, true) => edges.first(0.0, |lo, _| j_edge - wi - lo),
+            (true, false) => edges.first(0.0, |_, hi| hi - j_edge - wi),
+            (false, true) => edges.first(0.0, |_, hi| hi - my_edge - wj),
+            (false, false) => edges.first(0.0, |lo, _| my_edge - wj - lo),
+        };
+        let nearest = |x: Option<f64>, z: Option<f64>| match (x, z) {
+            (Some(x), Some(z)) => Some(x.min(z)),
+            (x, z) => x.or(z),
+        };
+        let Some(pinch) =
+            nearest(edges.narrower(0.0, wi + wj + c_min), blocked).filter(|&x| x <= p.lookahead)
+        else {
+            sides.clear(left, y, spare);
+            return;
+        };
+        let (wait, leader) = if first {
+            // Until we are past it, the kerb must not take us into it.
+            let room = gy.max(0.0);
+            let touch = if left {
+                edges.first(0.0, |lo, _| y + room - 0.5 * wi - lo)
+            } else {
+                edges.first(0.0, |_, hi| hi - 0.5 * wi - (y - room))
+            };
+            let Some(touch) = touch.filter(|&x| x <= ds + reach) else {
+                return;
+            };
+            let wait = if touch > 0.0 {
+                (free - idm.interaction(v, touch, v, 1.0, 1.0)).max(-p.emergency_decel)
+            } else {
+                -p.emergency_decel
+            };
+            (wait, EDGE_LEADER)
+        } else {
+            sides.clear(left, y, spare);
+            let room = pinch - reach;
+            let wait = if room > 0.0 {
+                (free - idm.interaction(v, room, v, 1.0, 1.0)).max(-p.emergency_decel)
+            } else if nearest(edges.narrower(0.0, wi + wj), blocked).is_some_and(|x| x <= reach) {
+                -p.emergency_decel
+            } else {
+                // Only the clearance is short: drop back without alarm.
+                -idm.comfortable_decel
+            };
+            (wait, a.id[j])
+        };
+        if wait < lead.0 {
+            *lead = (wait, leader);
+        }
+        *acc = acc.min(wait);
     }
 
     /// Gather the neighbours that matter to agent `i`'s lateral choice and
@@ -488,20 +835,24 @@ impl MoveCtx<'_> {
         let range = p.candidate_range;
         // Limits from side neighbours (the squeezing rule).
         let (mut lo, mut hi) = (f64::NEG_INFINITY, f64::INFINITY);
+        let mut beside =
+            |nb: &mut Neighbours, left: bool, yj: f64, hwj: f64, c_des0: f64, c_min0: f64| {
+                nb.push_side(SideTerm {
+                    y: yj,
+                    half_width: hwj,
+                    c_min: scale * c_min0,
+                    c_des: scale * c_des0,
+                });
+                let room = hwj + hw + squeeze * c_min0;
+                if left {
+                    hi = hi.min(yj - room);
+                } else {
+                    lo = lo.max(yj + room);
+                }
+            };
         let mut side = |nb: &mut Neighbours, j: usize, c_des0: f64, c_min0: f64| {
-            let hwj = a.half_width[j];
-            nb.push_side(SideTerm {
-                y: a.y[j],
-                half_width: hwj,
-                c_min: scale * c_min0,
-                c_des: scale * c_des0,
-            });
-            let room = hwj + hw + squeeze * c_min0;
-            if self.is_left(i, j) {
-                hi = hi.min(a.y[j] - room);
-            } else {
-                lo = lo.max(a.y[j] + room);
-            }
+            let left = self.is_left(i, j);
+            beside(nb, left, a.y[j], a.half_width[j], c_des0, c_min0);
         };
         // Ahead.
         let mut cov = Coverage::new(y - range - hw, y + range + hw);
@@ -630,6 +981,48 @@ impl MoveCtx<'_> {
                 None => break,
             }
         }
+        // Road objects: leaders ahead, side neighbours when level.
+        let mut full = false;
+        if self.objects.any_active() {
+            let near = |o: &crate::objects::RoadObject, ds: f64| {
+                if !o.blocks[ci] || full {
+                    return;
+                }
+                let half_o = 0.5 * o.width;
+                let nearest = ((o.y - y).abs() - range).max(0.0) - hw - half_o;
+                let (c_des0, c_min0) = p.object_clearance(ci, o.clearance_class, 0.5 * v);
+                let (c_des, c_min) = (scale * c_des0, scale * c_min0);
+                if nearest > c_des.max(c_min + self.cut) {
+                    return;
+                }
+                let gap_s = ds.abs() - 0.5 * (l + o.length);
+                if gap_s <= 0.0 {
+                    if edge_gap(y, hw, o.y, half_o) >= 0.0 {
+                        beside(nb, o.y >= y, o.y, half_o, c_des0, c_min0);
+                    }
+                    return;
+                }
+                if ds < 0.0 {
+                    return;
+                }
+                let (mt, ms) = p.object_multipliers(ci, o.clearance_class);
+                let cost = idm.interaction(v, gap_s, v, mt, ms);
+                let near = gap_s < idm.standstill_gap * ms + v * idm.time_gap * mt;
+                if !near && cost < p.switch_threshold {
+                    return;
+                }
+                full = !nb.push_leader(LeaderTerm {
+                    y: o.y,
+                    half_width: half_o,
+                    accel: (free - cost).max(-p.emergency_decel),
+                    c_min,
+                    c_des,
+                    near,
+                });
+            };
+            self.objects
+                .near(self.net, self.prev, r, s, 0.5 * l, p.lookahead, near);
+        }
         // The feasible interval: never across a side neighbour, never off the road.
         let (edge_lo, edge_hi) = self.net.ribbon(r).y_bounds(s);
         let (road_lo, road_hi) = centre_bounds(edge_lo, edge_hi, hw);
@@ -658,6 +1051,15 @@ impl MoveCtx<'_> {
             band_y: edge_lo + p.median_band_width,
             cap,
             target: a.y_target[i],
+            // Where the carriageway narrows ahead, a line that runs into
+            // the kerb is worth what following a standing obstacle there is.
+            wall: self.narrow.within(r, s, p.lookahead).then(|| Wall {
+                edges: EdgeAhead::gather(self.net, r, s, p.lookahead),
+                desired_gap: idm.desired_gap(v, v, 1.0, 1.0),
+                max_accel: idm.max_accel,
+                floor: -p.emergency_decel,
+                reach: p.lookahead,
+            }),
         };
         choose_target(&self.choice, &me, nb)
     }

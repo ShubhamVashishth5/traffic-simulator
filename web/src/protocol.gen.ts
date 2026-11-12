@@ -60,7 +60,7 @@ export type ClientMessage =
     }
   | {
       cmd: "add_object";
-      object: unknown;
+      object: ObjectSpec;
       [k: string]: unknown;
     }
   | {
@@ -175,6 +175,24 @@ export type BreakpointOn =
       [k: string]: unknown;
     };
 /**
+ * Vehicle class: the level at which most interaction parameters are given.
+ */
+export type VehicleClass =
+  | "bicycle"
+  | "cycle_rickshaw"
+  | "two_wheeler"
+  | "e_rickshaw"
+  | "auto_rickshaw"
+  | "car"
+  | "lcv"
+  | "bus"
+  | "truck"
+  | "tractor";
+/**
+ * How one vehicle class responds to a road object.
+ */
+export type ObjectResponse = "block" | "ignore";
+/**
  * What the per-agent `colour` value of a frame holds.
  */
 export type ColourBy =
@@ -262,6 +280,14 @@ export type ServerMessage =
       };
       type: "error";
       [k: string]: unknown;
+    }
+  | {
+      data: {
+        objects: ObjectView[];
+        [k: string]: unknown;
+      };
+      type: "objects";
+      [k: string]: unknown;
     };
 /**
  * A virtual detector.
@@ -297,6 +323,69 @@ export interface ViewerProtocol {
 export interface MixtureComponent {
   dist: Dist;
   weight: number;
+}
+/**
+ * A road object: a rectangle lying along a ribbon (a parked vehicle, a
+ * vendor's cart, debris). Vehicles see it as a standing body: they keep
+ * their lateral clearance to it, brake for it and steer around it like
+ * they do for a stopped vehicle.
+ */
+export interface ObjectSpec {
+  /**
+   * The vehicle class whose lateral-clearance line and following
+   * multipliers apply to this object (a parked car is passed like a
+   * car). Omit for the pooled clearance line.
+   */
+  clearance_as?: VehicleClass | null;
+  id: string;
+  /**
+   * What a road object is.
+   */
+  kind?: "obstacle";
+  /**
+   * Extent of the footprint along the ribbon (m).
+   */
+  length: number;
+  /**
+   * Periods during which the object is on the road; empty means always.
+   */
+  present?: ClosedInterval[];
+  /**
+   * How each vehicle class responds; classes not listed are blocked.
+   */
+  response?: {
+    auto_rickshaw?: ObjectResponse;
+    bicycle?: ObjectResponse;
+    bus?: ObjectResponse;
+    car?: ObjectResponse;
+    cycle_rickshaw?: ObjectResponse;
+    e_rickshaw?: ObjectResponse;
+    lcv?: ObjectResponse;
+    tractor?: ObjectResponse;
+    truck?: ObjectResponse;
+    two_wheeler?: ObjectResponse;
+  };
+  ribbon: string;
+  /**
+   * Station of the footprint's centre on the ribbon (m).
+   */
+  s: number;
+  /**
+   * Extent of the footprint across the ribbon (m).
+   */
+  width: number;
+  /**
+   * Lateral position of the footprint's centre (m).
+   */
+  y: number;
+}
+/**
+ * A period `from_s <= t < to_s` (simulated seconds): a barrier is closed,
+ * or an object is on the road.
+ */
+export interface ClosedInterval {
+  from_s: number;
+  to_s: number;
 }
 /**
  * First message of every connection.
@@ -503,6 +592,13 @@ export interface NetworkSpec {
    * police barrier). Signals arrive in phase P7.
    */
   barriers?: BarrierSpec[];
+  /**
+   * Road objects: things with a position and a footprint that vehicles
+   * react to (G§6, plan/03-model-design.md §10). They act only through
+   * usable width, speed caps, gap supply and incentives; there is no
+   * capacity or flow factor to set (ADR-0005).
+   */
+  objects?: ObjectSpec[];
   ribbons: RibbonSpec[];
 }
 /**
@@ -521,13 +617,6 @@ export interface BarrierSpec {
    * Station of the stop line on the ribbon.
    */
   s: number;
-}
-/**
- * The barrier is closed for `from_s <= t < to_s` (simulated seconds).
- */
-export interface ClosedInterval {
-  from_s: number;
-  to_s: number;
 }
 /**
  * A ribbon: a reference polyline with a lateral width profile. `y` is
@@ -795,6 +884,26 @@ export interface EventRow {
   ribbon: string;
   s: number;
   t: number;
+  y: number;
+  [k: string]: unknown;
+}
+/**
+ * A road object and when it is on the road.
+ */
+export interface ObjectView {
+  id: string;
+  length: number;
+  /**
+   * Periods `[from, to)` on the road; `null` = no bound on that side.
+   */
+  present: [number | null, number | null][];
+  ribbon: string;
+  s: number;
+  /**
+   * Corners of the footprint, relative to `Hello.origin`.
+   */
+  shape: [number, number][];
+  width: number;
   y: number;
   [k: string]: unknown;
 }

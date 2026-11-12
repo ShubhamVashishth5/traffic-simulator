@@ -5,7 +5,7 @@
 import { type Table, tableFromIPC } from "apache-arrow";
 
 /** Protocol version this viewer speaks; the server refuses others. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** One decoded agent frame: columns as typed arrays (positions relative to `Hello.origin`). */
 export interface AgentFrame {

@@ -109,7 +109,7 @@
       ]
     },
     "ClosedInterval": {
-      "description": "The barrier is closed for `from_s <= t < to_s` (simulated seconds).",
+      "description": "A period `from_s <= t < to_s` (simulated seconds): a barrier is closed,\nor an object is on the road.",
       "type": "object",
       "properties": {
         "from_s": {
@@ -706,6 +706,13 @@
             "$ref": "#/$defs/BarrierSpec"
           }
         },
+        "objects": {
+          "description": "Road objects: things with a position and a footprint that vehicles\nreact to (G§6, plan/03-model-design.md §10). They act only through\nusable width, speed caps, gap supply and incentives; there is no\ncapacity or flow factor to set (ADR-0005).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectSpec"
+          }
+        },
         "ribbons": {
           "type": "array",
           "items": {
@@ -716,6 +723,131 @@
       "additionalProperties": false,
       "required": [
         "ribbons"
+      ]
+    },
+    "ObjectKind": {
+      "description": "What a road object is.",
+      "oneOf": [
+        {
+          "description": "A solid body on the carriageway.",
+          "type": "string",
+          "const": "obstacle"
+        }
+      ]
+    },
+    "ObjectResponse": {
+      "description": "How one vehicle class responds to a road object.",
+      "oneOf": [
+        {
+          "description": "The footprint is not usable: the class goes around it or stops.",
+          "type": "string",
+          "const": "block"
+        },
+        {
+          "description": "The class takes no notice of the object.",
+          "type": "string",
+          "const": "ignore"
+        }
+      ]
+    },
+    "ObjectSpec": {
+      "description": "A road object: a rectangle lying along a ribbon (a parked vehicle, a\nvendor's cart, debris). Vehicles see it as a standing body: they keep\ntheir lateral clearance to it, brake for it and steer around it like\nthey do for a stopped vehicle.",
+      "type": "object",
+      "properties": {
+        "clearance_as": {
+          "description": "The vehicle class whose lateral-clearance line and following\nmultipliers apply to this object (a parked car is passed like a\ncar). Omit for the pooled clearance line.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VehicleClass"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ObjectKind",
+          "default": "obstacle"
+        },
+        "length": {
+          "description": "Extent of the footprint along the ribbon (m).",
+          "type": "number",
+          "format": "double"
+        },
+        "present": {
+          "description": "Periods during which the object is on the road; empty means always.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClosedInterval"
+          }
+        },
+        "response": {
+          "description": "How each vehicle class responds; classes not listed are blocked.",
+          "type": "object",
+          "properties": {
+            "auto_rickshaw": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "bicycle": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "bus": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "car": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "cycle_rickshaw": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "e_rickshaw": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "lcv": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "tractor": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "truck": {
+              "$ref": "#/$defs/ObjectResponse"
+            },
+            "two_wheeler": {
+              "$ref": "#/$defs/ObjectResponse"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "description": "Station of the footprint's centre on the ribbon (m).",
+          "type": "number",
+          "format": "double"
+        },
+        "width": {
+          "description": "Extent of the footprint across the ribbon (m).",
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "description": "Lateral position of the footprint's centre (m).",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s",
+        "y",
+        "length",
+        "width"
       ]
     },
     "OutputSpec": {
@@ -831,6 +963,22 @@
       "additionalProperties": false,
       "required": [
         "every_s"
+      ]
+    },
+    "VehicleClass": {
+      "description": "Vehicle class: the level at which most interaction parameters are given.",
+      "type": "string",
+      "enum": [
+        "bicycle",
+        "cycle_rickshaw",
+        "two_wheeler",
+        "e_rickshaw",
+        "auto_rickshaw",
+        "car",
+        "lcv",
+        "bus",
+        "truck",
+        "tractor"
       ]
     },
     "WidthPoint": {

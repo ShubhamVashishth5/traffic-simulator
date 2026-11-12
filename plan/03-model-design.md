@@ -275,6 +275,10 @@ As `u` rises:
 
 ## 10. Road objects (G§6)
 
+> **P6.1:** how objects and a narrowing carriageway enter the lateral model, and an open
+> decision on pulling out from behind a standing body, are in
+> [ADR-0012](decisions/ADR-0012-road-objects-and-narrowing.md).
+
 Every object has a position, a footprint and per-class effects through the four channels. None of
 them has a capacity multiplier.
 

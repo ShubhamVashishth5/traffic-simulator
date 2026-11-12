@@ -75,6 +75,11 @@ impl Ribbon {
         st
     }
 
+    /// The width profile's points, sorted by station.
+    pub fn width_points(&self) -> &[WidthPoint] {
+        &self.width
+    }
+
     /// Lateral bounds `(y_min, y_max)` at station `s` (constant beyond the ends).
     pub fn y_bounds(&self, s: f64) -> (f64, f64) {
         let w = &self.width;

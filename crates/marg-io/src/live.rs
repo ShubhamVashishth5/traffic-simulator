@@ -6,8 +6,8 @@
 //!
 //! Every command is stamped with the number of steps completed when it took
 //! effect (`step`) and the simulated time (`t`): it acts between step `step`
-//! and step `step + 1`. Only two commands change the simulation, and only
-//! those are re-applied on replay:
+//! and step `step + 1`. Only these commands change the simulation, and only
+//! they are re-applied on replay:
 //!
 //! - `set_param(path, value)`: the `live` layer of the resolver (register
 //!   entries with `live: true` only). Population-level values act on every
@@ -15,6 +15,8 @@
 //!   entered yet.
 //! - `resample(path)`: re-draw that per-agent parameter for every agent in
 //!   the network, from each agent's own random numbers.
+//! - `add_object(object)` and `remove_object(id)`: a road object, in ribbon
+//!   coordinates, is on the road (or gone) from the next step on.
 //!
 //! Everything else (play, pause, speed, select, breakpoints, …) is logged for
 //! the record but does not change the run.
@@ -28,13 +30,14 @@ use arrow::array::{Array, ArrayRef, BooleanArray, Float64Array, StringArray, UIn
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use marg_core::Simulation;
+use marg_params::spec::ObjectSpec;
 use marg_params::{ParamValue, ResolvedSpec, Scenario};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Commands that change the simulation (re-applied by [`replay`]).
-pub const STATE_COMMANDS: [&str; 2] = ["set_param", "resample"];
+pub const STATE_COMMANDS: [&str; 4] = ["set_param", "resample", "add_object", "remove_object"];
 
 /// One logged command (a row of `commands.parquet`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -248,7 +251,7 @@ impl LiveRun {
         self.push(cmd, args, result, wall_s)
     }
 
-    /// Apply a state-changing command (`set_param` or `resample`) with JSON
+    /// Apply a state-changing command ([`STATE_COMMANDS`]) with JSON
     /// arguments, and log it. Returns the log position and the outcome.
     pub fn command(
         &mut self,
@@ -262,6 +265,8 @@ impl LiveRun {
                 Err(e) => (Err(e), None),
             },
             "resample" => (self.apply_resample(args), None),
+            "add_object" => (self.apply_add_object(args), None),
+            "remove_object" => (self.apply_remove_object(args), None),
             other => (Err(format!("`{other}` is not a state command")), None),
         };
         let seq = self.push(cmd, args, &result, wall_s);
@@ -318,6 +323,32 @@ impl LiveRun {
         }
         let n = self.sim.resample(&path).map_err(|e| e.to_string())?;
         Ok(format!("resampled {path} for {n} agents"))
+    }
+
+    /// `add_object {object}`: a road object (`ObjectSpec`, in ribbon
+    /// coordinates) on the road from the next step on.
+    fn apply_add_object(&mut self, args: &serde_json::Value) -> Result<String, String> {
+        let object: ObjectSpec = serde_json::from_value(
+            args.get("object")
+                .cloned()
+                .ok_or_else(|| "missing `object`".to_string())?,
+        )
+        .map_err(|e| format!("bad object: {e}"))?;
+        self.sim.add_object(&object).map_err(|e| e.to_string())?;
+        Ok(format!(
+            "object `{}` on `{}` at s = {:.1} m, y = {:.2} m ({:.1} × {:.1} m)",
+            object.id, object.ribbon, object.s, object.y, object.length, object.width
+        ))
+    }
+
+    /// `remove_object {id}`: the object is gone from the next step on.
+    fn apply_remove_object(&mut self, args: &serde_json::Value) -> Result<String, String> {
+        let id = args
+            .get("id")
+            .and_then(|p| p.as_str())
+            .ok_or_else(|| "missing `id`".to_string())?;
+        self.sim.remove_object(id).map_err(|e| e.to_string())?;
+        Ok(format!("object `{id}` removed"))
     }
 
     /// Write the session folder: `scenario.yaml`, `params/` (register

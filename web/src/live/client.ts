@@ -4,7 +4,7 @@
  */
 import type { AgentFrame } from "../protocol";
 import { PROTOCOL_VERSION, decodeFrame } from "../protocol";
-import type { ChangeView, ClientMessage, DetectorRow, Hello, Inspector, Kpi, ServerMessage, Status } from "../protocol.gen";
+import type { ChangeView, ClientMessage, DetectorRow, Hello, Inspector, Kpi, ObjectView, ServerMessage, Status } from "../protocol.gen";
 import { Store } from "../store";
 
 export interface Ack {
@@ -27,6 +27,8 @@ export interface LiveState {
   ts: { ribbon: string; t: number[]; s: number[]; v: number[] };
   inspector?: Inspector;
   history: ChangeView[];
+  /** Every road object, on the road now or not. */
+  objects: ObjectView[];
   acks: Ack[];
   breakpoint?: { reason: string; t: number };
   saved?: Extract<ServerMessage, { type: "saved" }>["data"];
@@ -58,6 +60,7 @@ export class LiveClient {
     windows: [],
     ts: { ribbon: "", t: [], s: [], v: [] },
     history: [],
+    objects: [],
     acks: [],
     rate: { fps: 0, mbps: 0 },
   });
@@ -140,6 +143,9 @@ export class LiveClient {
         break;
       case "history":
         this.state.set((s) => ({ ...s, history: m.data.changes }));
+        break;
+      case "objects":
+        this.state.set((s) => ({ ...s, objects: m.data.objects }));
         break;
       case "ack": {
         const a = m.data;
