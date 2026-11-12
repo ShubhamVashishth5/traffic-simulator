@@ -13,7 +13,7 @@ use crate::agents::{AgentStore, NO_AGENT, NewAgent, REMOVED};
 use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
-use crate::model::lateral::{ChoiceParams, body_half_width, edge_gap};
+use crate::model::lateral::{ChoiceParams, body_half_width, body_stretch, edge_gap};
 use crate::model::longitudinal::Idm;
 use crate::objects::{Narrowings, Objects, RoadObject};
 use crate::observe::Detectors;
@@ -108,6 +108,8 @@ pub struct Simulation {
     y_limits: Vec<(f64, f64)>,
     /// Per agent: how far the kerb of a narrowing road may move it this step.
     kerb_limits: Vec<(f64, f64)>,
+    /// Per agent: how far a turn may lengthen its footprint at each end.
+    turn_room: Vec<f64>,
     /// A predecessor of each ribbon, and distances between ribbon starts.
     prev: Vec<Option<usize>>,
     chain_offset: Vec<Vec<f64>>,
@@ -265,6 +267,7 @@ impl Simulation {
             move_buf: Vec::new(),
             y_limits: Vec::new(),
             kerb_limits: Vec::new(),
+            turn_room: Vec::new(),
             prev,
             chain_offset,
             barriers,
@@ -712,6 +715,8 @@ impl Simulation {
         self.kerb_limits.clear();
         self.kerb_limits
             .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
+        self.turn_room.clear();
+        self.turn_room.resize(self.agents.len(), f64::INFINITY);
         self.y_limits.clear();
         self.y_limits
             .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
@@ -722,6 +727,7 @@ impl Simulation {
             self.agents.vy[i] = out.vy;
             self.y_limits[i] = (out.y_lo, out.y_hi);
             self.kerb_limits[i] = (out.kerb_lo, out.kerb_hi);
+            self.turn_room[i] = out.turn_room;
             if let Some(c) = out.choice {
                 self.lateral_decisions += 1;
                 self.agents.decision_leader[i] = out.leader;
@@ -848,16 +854,29 @@ impl Simulation {
             // the move gives it, stays within the room on each side; not
             // moving always does (straightening never widens a body).
             let (width, length, half_now) = (a.width[i], a.length[i], a.half_width[i]);
+            let turn_room = self.turn_room[i];
+            let stretch_now = body_stretch(width, length, a.heading_tan[i]);
             let fits = |dy: f64| -> bool {
                 if dy == 0.0 {
                     return true;
                 }
                 let along = ds.max(dy.abs() / p.max_heading_tan);
                 let swing = body_half_width(width, length, dy / along) - half_now;
-                dy + swing <= lim_hi - y0 && swing - dy <= y0 - lim_lo
+                // A body that creeps sideways faster than its forward
+                // movement allows turns on the spot, and turned it is also
+                // longer along the road: it must not reach a body just in
+                // front of or behind it (ADR-0012 part 2).
+                let stretch = body_stretch(width, length, dy / along);
+                dy + swing <= lim_hi - y0
+                    && swing - dy <= y0 - lim_lo
+                    && (along <= ds || stretch <= turn_room || stretch <= stretch_now)
             };
             let mut dy = dy;
-            if dy != 0.0 && (lim_hi < f64::INFINITY || lim_lo > f64::NEG_INFINITY) {
+            if dy != 0.0
+                && (lim_hi < f64::INFINITY
+                    || lim_lo > f64::NEG_INFINITY
+                    || turn_room < f64::INFINITY)
+            {
                 let mut tries = 0;
                 while !fits(dy) {
                     tries += 1;

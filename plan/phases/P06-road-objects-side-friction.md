@@ -27,8 +27,8 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
   scenarios log no guard events.
 - **Outcome (2026-11-12):** see [ADR-0012](../decisions/ADR-0012-road-objects-and-narrowing.md).
   Guard events in the bottleneck scenarios fell from 964,509 to 136, not to zero. Standing
-  bodies gridlock traffic above about 1,000 veh/h until part 2 of the ADR is decided, which
-  blocks P6.2 onwards.
+  bodies gridlocked traffic above about 1,000 veh/h until part 2 of the ADR was decided
+  (option A, every class can creep: 93 guard events, one parked car passes 1,194 of 1,200 veh/h).
 
 ### P6.2 Kerbside parking and double parking
 - **Do:**

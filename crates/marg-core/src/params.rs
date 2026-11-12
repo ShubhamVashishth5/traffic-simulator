@@ -108,6 +108,7 @@ pub struct CoreParams {
     /// `θ_max` (rad) and its tangent.
     pub max_heading: f64,
     pub max_heading_tan: f64,
+    pub max_heading_sin: f64,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -294,6 +295,7 @@ impl CoreParams {
             lateral_time_constant: spec.scalar_si("interaction.lateral.time_constant")?,
             max_heading,
             max_heading_tan: libm::tan(max_heading),
+            max_heading_sin: libm::sin(max_heading),
             politeness: spec.scalar_si("interaction.lateral.politeness")?,
             safe_decel: spec.scalar_si("interaction.lateral.safe_decel")?,
             switch_threshold: spec.scalar_si("interaction.lateral.switch_threshold")?,

@@ -356,21 +356,61 @@ fn objects_and_narrowing_are_deterministic() {
     assert_eq!(one, run(4));
 }
 
+/// ADR-0012 part 2: traffic does not lock up behind a standing body. With a
+/// parked car in the middle of a 10.5 m road at 1,800 veh/h, vehicles that
+/// stop behind it pull out (every class can creep sideways), and the stream
+/// gets through.
+#[test]
+fn stopped_vehicles_pull_out_from_behind_a_parked_car() {
+    let yaml = road(900.0, 1800.0, MIXED, "", PARKED);
+    let mut sim = Simulation::new(&spec(&yaml, &[]), 1, 1).unwrap();
+    let mut stopped_behind = std::collections::BTreeSet::new();
+    while !sim.finished() {
+        sim.step();
+        let a = sim.agents();
+        for i in 0..a.len() {
+            if a.v[i] < 0.05 && a.s[i] > 380.0 && a.s[i] < 400.0 && a.y[i].abs() < 1.5 {
+                stopped_behind.insert(a.id[i]);
+            }
+        }
+    }
+    let a = sim.agents();
+    let standing = (0..a.len())
+        .filter(|&i| a.v[i] < 0.05 && a.s[i] < 400.0)
+        .count();
+    assert!(
+        standing <= 3,
+        "{standing} standing behind the object at the end"
+    );
+    let still_there = (0..a.len())
+        .filter(|&i| stopped_behind.contains(&a.id[i]) && a.s[i] < 400.0)
+        .count();
+    let (_, out) = sim.finish().unwrap();
+    assert!(
+        kpi(&out, "throughput_veh_h") > 1600.0,
+        "{}",
+        kpi(&out, "throughput_veh_h")
+    );
+    assert_eq!(kpi(&out, "collision_guard_events"), 0.0);
+    eprintln!(
+        "{} vehicles stopped behind the parked car; {still_there} of them still behind it at the end",
+        stopped_behind.len()
+    );
+    assert!(still_there <= 3);
+}
+
 /// Measurement for ADR-0012 (not a check): a parked car in the middle of a
-/// 10.5 m road, at three demands, with the register's creep speeds and with
-/// every class able to creep. `cargo test --release -p marg-core --test
-/// objects standing_obstacle -- --ignored --nocapture`.
+/// 10.5 m road, at four demands, with the register's creep speeds (every
+/// class, option A) and with those before the decision (two-wheelers and
+/// bicycles only). `cargo test --release -p marg-core --test objects
+/// standing_obstacle -- --ignored --nocapture`.
 #[test]
 #[ignore]
 fn standing_obstacle_measurement() {
     let creep: Vec<(String, &str)> = marg_params::VehicleClass::ALL
         .iter()
-        .map(|c| {
-            (
-                format!("interaction.lateral.creep_speed.{}", c.key()),
-                "0.5",
-            )
-        })
+        .filter(|c| !matches!(c.key(), "two_wheeler" | "bicycle"))
+        .map(|c| (format!("interaction.lateral.creep_speed.{}", c.key()), "0"))
         .collect();
     let creep: Vec<(&str, &str)> = creep.iter().map(|(k, v)| (k.as_str(), *v)).collect();
     eprintln!(
@@ -379,8 +419,8 @@ fn standing_obstacle_measurement() {
     eprintln!("| --- | --- | --- | --- | --- | --- |");
     for flow in [600.0, 1200.0, 1800.0, 4000.0] {
         for (name, over) in [
-            ("register (two-wheelers, bicycles)", &[][..]),
-            ("every class, 0.5 m/s", &creep[..]),
+            ("two-wheelers and bicycles only", &creep[..]),
+            ("register (every class)", &[][..]),
         ] {
             let yaml = road(1800.0, flow, MIXED, "", PARKED);
             let mut sim = Simulation::new(&spec(&yaml, over), 1, 1).unwrap();

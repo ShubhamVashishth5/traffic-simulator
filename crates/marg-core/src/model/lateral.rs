@@ -57,6 +57,15 @@ pub fn body_half_width(width: f64, length: f64, heading_tan: f64) -> f64 {
     0.5 * (width + length * heading_tan.abs()) / (1.0 + heading_tan * heading_tan).sqrt()
 }
 
+/// How much further a body reaches along the road, at each end, when turned
+/// by a heading with tangent `heading_tan`: `(l cos ψ + w sin|ψ|) / 2 − l / 2`
+/// (negative for a slender body at a large angle).
+#[inline]
+pub fn body_stretch(width: f64, length: f64, heading_tan: f64) -> f64 {
+    0.5 * (length + width * heading_tan.abs()) / (1.0 + heading_tan * heading_tan).sqrt()
+        - 0.5 * length
+}
+
 /// How far a lateral gap `gap` falls short of the desired clearance, from 0
 /// (at or beyond the desired clearance) to 1 (at or below the minimum).
 #[inline]

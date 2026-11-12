@@ -11,7 +11,7 @@ use crate::model::coverage::Coverage;
 use crate::model::geometry::{Approach, Body, time_to_contact};
 use crate::model::lateral::{
     Choice, ChoiceParams, FollowerTerm, LeaderTerm, Neighbours, SideTerm, Subject, Wall,
-    choose_target, edge_gap, leader_weight, steering_speed, track,
+    body_half_width, body_stretch, choose_target, edge_gap, leader_weight, steering_speed, track,
 };
 use crate::model::longitudinal::Idm;
 use crate::objects::{EDGE_LEADER, EdgeAhead, Narrowings, Objects};
@@ -86,6 +86,11 @@ pub struct MoveOut {
     /// above; a vehicle coming up behind has no say in this).
     pub kerb_lo: f64,
     pub kerb_hi: f64,
+    /// How much further the body may reach along the road, at either end,
+    /// when it turns: the gap to the nearest body in front of or behind it
+    /// that a turn could bring it against (a turned rectangle is longer
+    /// along the road as well as wider across it).
+    pub turn_room: f64,
     /// Id of the most constraining leader, or `NO_AGENT`.
     pub leader: u64,
     /// The lateral decision, if one was due this step.
@@ -320,6 +325,22 @@ impl MoveCtx<'_> {
         sides.narrowing = edges.is_some();
         let mut cov = Coverage::new(y - hw, y + hw);
         let mut horizon = p.lookahead;
+        // A vehicle that creeps sideways at a standstill turns on the spot
+        // (ADR-0012 part 2). Turned to the heading limit its body reaches
+        // `stretch` further at each end and `swing` further to each side,
+        // which can be more than the side neighbours' range for a long
+        // vehicle: bodies within that reach limit the creep.
+        let creeping = v < p.stop_speed_below && p.creep_speed[ci] > 0.0;
+        let (stretch, swing) = if creeping {
+            (
+                body_stretch(a.width[i], l, p.max_heading_tan).max(0.0),
+                body_half_width(a.width[i], l, p.max_heading_tan) - hw
+                    + 2.0 * self.vy_max * self.dt,
+            )
+        } else {
+            (f64::NEG_INFINITY, f64::NEG_INFINITY)
+        };
+        let mut turn_room = f64::INFINITY;
         let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
         'scan: loop {
             let order = &self.orders[ribbon];
@@ -337,10 +358,21 @@ impl MoveCtx<'_> {
                         i, j, ds, gy, edges, &idm, free, &mut acc, &mut lead, &mut sides,
                     );
                 }
+                let gap_s = ds - 0.5 * (l + a.length[j]);
+                if gap_s > 0.0 {
+                    let theirs = 0.5 * a.width[j] * p.max_heading_sin;
+                    if gap_s <= stretch + theirs
+                        && gy <= swing + 0.5 * a.length[j] * p.max_heading_sin
+                    {
+                        turn_room = turn_room.min(gap_s - theirs);
+                    }
+                }
+                if gap_s <= 0.0 && gy <= swing + 0.5 * a.length[j] * p.max_heading_sin {
+                    sides.behind(self.is_left(i, j), y, gy);
+                }
                 if gy > far {
                     continue;
                 }
-                let gap_s = ds - 0.5 * (l + a.length[j]);
                 let left = self.is_left(i, j);
                 // Conflicts: a cheap bound on when the two could touch, then
                 // the exact time to contact of the oriented rectangles.
@@ -476,6 +508,12 @@ impl MoveCtx<'_> {
                     );
                 }
                 if gap_s > 0.0 {
+                    let theirs = 0.5 * a.width[j] * p.max_heading_sin;
+                    if gap_s <= stretch + theirs
+                        && gy <= swing + 0.5 * a.length[j] * p.max_heading_sin
+                    {
+                        turn_room = turn_room.min(gap_s - theirs);
+                    }
                     // A vehicle behind that may draw level during this step, or
                     // could not avoid us at the safe braking rate. Where the
                     // road narrows it is the one behind that gives way: it
@@ -488,6 +526,9 @@ impl MoveCtx<'_> {
                         }
                     }
                     continue;
+                }
+                if gy <= swing + 0.5 * a.length[j] * p.max_heading_sin {
+                    sides.behind(self.is_left(i, j), y, gy);
                 }
                 let cj = usize::from(a.class[j]);
                 let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
@@ -541,6 +582,9 @@ impl MoveCtx<'_> {
                     return;
                 }
                 let gap_s = ds.abs() - 0.5 * (l + o.length);
+                if gap_s > 0.0 && gap_s <= stretch && gy <= swing {
+                    turn_room = turn_room.min(gap_s);
+                }
                 if gap_s > 0.0 && ds < 0.0 {
                     return;
                 }
@@ -550,6 +594,9 @@ impl MoveCtx<'_> {
                 if gap_s <= 0.0 {
                     // An object that appeared on top of the vehicle is
                     // ignored until the vehicle has left it.
+                    if edge_gap(y, half_body, o.y, half_o) >= 0.0 && excess > reach && gy <= swing {
+                        sides.behind(left, y, 2.0 * gy);
+                    }
                     if edge_gap(y, half_body, o.y, half_o) >= 0.0 && excess <= reach {
                         let push = steering_speed(excess, strength, p.steering_scale);
                         sides.repulsion += if left { -push } else { push };
@@ -631,6 +678,7 @@ impl MoveCtx<'_> {
             y_hi: sides.y_hi,
             kerb_lo: sides.kerb_lo,
             kerb_hi: sides.kerb_hi,
+            turn_room,
             leader: lead.1,
             choice,
             conflict,

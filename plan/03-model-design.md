@@ -114,8 +114,9 @@ v_y = clamp(v_y, −max(v_s·tan θ_max, v_creep), +max(v_s·tan θ_max, v_creep
 ```
 
 The defaults are `τ_lat = 1 s`, `θ_max = 0.2 rad` and `λ_steer = 0.30 m` (Kanagaraj & Treiber 2018).
-`v_creep` is a small lateral speed for two-wheelers in near-stopped queues, which gives seepage to the
-front of a queue at a red light.
+`v_creep` is a small lateral speed available when nearly stopped. For two-wheelers it gives seepage
+to the front of a queue at a red light. Every class has one (smaller for larger vehicles), so that
+a vehicle stopped behind a standing body can pull out (ADR-0012 part 2).
 
 **Collision guard.** After integration, overlap between oriented bounding boxes is resolved by
 cutting back the step. Each resolution is logged as a `collision_guard` event. Tests require zero
@@ -275,8 +276,8 @@ As `u` rises:
 
 ## 10. Road objects (G§6)
 
-> **P6.1:** how objects and a narrowing carriageway enter the lateral model, and an open
-> decision on pulling out from behind a standing body, are in
+> **P6.1:** how objects and a narrowing carriageway enter the lateral model, and how a vehicle
+> pulls out from behind a standing body (every class has a creep speed), are in
 > [ADR-0012](decisions/ADR-0012-road-objects-and-narrowing.md).
 
 Every object has a position, a footprint and per-class effects through the four channels. None of

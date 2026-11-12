@@ -1,7 +1,8 @@
 # ADR-0012: Road objects, a narrowing carriageway, and pulling out from a standstill
 
-- **Status:** proposed. Part 1 is implemented and needs review (it adds rules the plan did not
-  spell out). **Part 2 needs a decision before P6.2**: nothing is chosen, the register is unchanged.
+- **Status:** part 1 implemented, needs review (it adds rules the plan did not spell out).
+  **Part 2 decided by the user on 2026-11-12: option A** (a creep speed for every class);
+  implemented, see "Decision" below.
 - **Date:** 2026-11-12
 - **Phase / task:** P6.1 (governs P6.2–P6.8)
 
@@ -91,7 +92,7 @@ their tails. A test now requires the taper to keep discharging.
 - The kerb acts at a vehicle's centre station, as before, so the front corner of a long vehicle
   can still cross a taper's line.
 
-## Part 2. Decision needed: pulling out from behind something that stands still
+## Part 2. Pulling out from behind something that stands still
 
 ### The problem
 
@@ -142,11 +143,55 @@ It then pulls out moving forward, within the heading limit.
 **C. Leave it.** Objects are then usable only in light traffic.
 - Against: blocks stage 5.
 
-### Recommendation
+### Decision (2026-11-12): option A
 
-A, with smaller values for larger vehicles, as the way to unblock P6.2–P6.4 now, with B noted
-as the better model to return to if the creep values turn out to matter in the stage-3 or
-stage-5 fits. This is a recommendation only: the register is unchanged until you decide.
+The user chose A. Option B stays the model to return to if the creep values turn out to matter
+in the stage-3 or stage-5 fits.
+
+**Register.** `interaction.lateral.creep_speed.<class>` (grade C, `fit`, stage 3, all assumed,
+none measured):
+
+| Classes | Creep speed (m/s) |
+| --- | --- |
+| two-wheeler, bicycle | 0.5 (unchanged) |
+| car, auto-rickshaw, e-rickshaw, cycle-rickshaw | 0.3 |
+| LCV, bus, truck, tractor | 0.15 |
+
+**Two rules were needed with it (please review).** ADR-0010 §4 turns a body that creeps at a
+standstill to the heading limit at once. That was harmless for a 1.9 m motorcycle. For a car
+or a bus it is not:
+
+1. *A turned body is longer along the road as well as wider.* A 4.7 m car at 0.2 rad reaches
+   0.13 m further at each end. A vehicle does not creep if that would reach a body just in
+   front of or behind it (each vehicle's own possible turn is allowed for).
+2. *The corners of a long vehicle swing further than its side neighbours' range.* A 12 m bus
+   swings 1.2 m to each side. A creeping vehicle's lateral limits now count every body within
+   its swing, with half of the gap each, as for side neighbours.
+
+Both apply only to a vehicle that is creeping (below the stop speed, moving sideways faster
+than its forward movement allows). A moving vehicle is treated exactly as before, so scenarios
+in which nothing stops give bitwise the same results (reference corridor: same output hash).
+
+**Results.**
+
+| Check | Before (two-wheelers and bicycles creep) | After (every class) |
+| --- | --- | --- |
+| One parked car, 10.5 m road, 600 veh/h: throughput | 584 | 584 |
+| 1,200 veh/h: throughput / standing behind it at the end | 602 / 311 | **1,194 / 0** |
+| 1,800 veh/h | 508 / 367 | **1,804 / 2** |
+| 4,000 veh/h (over capacity) | 320 / 347 | **3,292 / 47** |
+| Barrier queue (P5.4), places gained in the queue: two-wheelers / cars | +1.4 to +1.7 / −0.4 to −0.9 | **+2.35 / −0.55** (seed 1, three closures) |
+| Guard events, 10⁴ random dense scenarios | 136 in 72 scenarios | **93 in 44**, all where the road narrows |
+| Overlapping bodies after the guard | 0 | 0 |
+| Reference corridor: output hash, ns per agent-step | | unchanged, 940 (944 before) |
+
+The P5.4 result holds: two-wheelers still gain places at a barrier and cars still lose them.
+Cars rarely creep in a packed queue because the swing of their corners needs room on both
+sides. Without the two rules above the barrier scenario logged 8 guard events and the random
+scenarios 14 outside narrowings; with them, none.
+
+`standing_obstacle_measurement` (ignored test) reproduces the first four rows;
+`stopped_vehicles_pull_out_from_behind_a_parked_car` is the regression test.
 
 ## Consequences
 
