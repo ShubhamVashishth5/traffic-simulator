@@ -283,6 +283,9 @@ As `u` rises:
 > **P6.2:** how parked vehicles are placed, when a parking manoeuvre begins and what it blocks,
 > cruising, and what the effective-width observer reports are in
 > [ADR-0013](decisions/ADR-0013-kerbside-parking.md).
+>
+> **P6.3:** how a vehicle stops to pick up or set down, and where those events come from, are in
+> [ADR-0014](decisions/ADR-0014-stop-anywhere.md).
 
 Every object has a position, a footprint and per-class effects through the four channels. None of
 them has a capacity multiplier.

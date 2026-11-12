@@ -51,6 +51,7 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Stage-3 parameters lateral data cannot identify: demote to `sweep` | **needs your decision** (P5.8) | [ADR-0011](decisions/ADR-0011-stage3-identifiability.md) |
 | Road objects as standing bodies; rules for a narrowing road; every class can creep to pull out from behind a standing body | part 1 proposed (P6.1); part 2 accepted (your choice, option A) | [ADR-0012](decisions/ADR-0012-road-objects-and-narrowing.md) |
 | Kerbside parking: placement, manoeuvres, cruising, the effective-width observer; survey inputs come from the scenario | proposed (P6.2) | [ADR-0013](decisions/ADR-0013-kerbside-parking.md) |
+| Stop-anywhere: pull over or stop in the stream by a per-class probability; events per vehicle-km, multiplied at attractors | accepted (your choice, P6.3) | [ADR-0014](decisions/ADR-0014-stop-anywhere.md) |
 
 ## Folder map
 

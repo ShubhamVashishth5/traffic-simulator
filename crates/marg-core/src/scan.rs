@@ -6,7 +6,9 @@
 //! lateral speed, the limits on this step's lateral position, the lateral
 //! target if a decision was due, and the most critical conflict.
 
-use crate::agents::{AgentStore, NO_AGENT};
+use crate::agents::{
+    AgentStore, NO_AGENT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
+};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Approach, Body, time_to_contact};
 use crate::model::lateral::{
@@ -655,10 +657,40 @@ impl MoveCtx<'_> {
             }
         }
         acc = acc.min(cap);
+        // A vehicle that is stopping to pick up or set down (ADR-0014)
+        // brakes for its stop point as for something standing there, and
+        // makes for the kerb or holds its line; one that stands, stands.
+        let stop = a.stop_state[i];
+        if stop == STOP_STANDING {
+            return MoveOut {
+                acc: -idm.comfortable_decel,
+                vy: 0.0,
+                y_lo: sides.y_lo,
+                y_hi: sides.y_hi,
+                kerb_lo: sides.kerb_lo,
+                kerb_hi: sides.kerb_hi,
+                turn_room,
+                leader: lead.1,
+                choice: None,
+                conflict,
+            };
+        }
+        if stop != STOP_NONE {
+            let gap = a.stop_point[i] - a.distance[i];
+            acc = acc.min(if gap > 0.0 {
+                (free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel)
+            } else {
+                -idm.comfortable_decel
+            });
+        }
         // Lateral target: on the agent's schedule, or when its leader changed.
         let due = (self.step.wrapping_add(a.id[i])).is_multiple_of(self.decision_steps)
             || lead.1 != a.decision_leader[i];
-        let (target, choice) = if due {
+        let (target, choice) = if stop == STOP_PULLING_OVER {
+            (self.net.ribbon(r).y_bounds(s).1 - 0.5 * a.width[i], None)
+        } else if stop == STOP_IN_PLACE {
+            (a.y_target[i], None)
+        } else if due {
             let c = NEIGHBOURS.with_borrow_mut(|nb| self.decide_with(r, k, i, &idm, cap, nb));
             (c.target, Some(c))
         } else {

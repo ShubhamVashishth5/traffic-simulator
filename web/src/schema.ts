@@ -216,6 +216,11 @@ export interface KpiSpec {
  */
 export interface NetworkSpec {
   /**
+   * Places where vehicles stop to pick up and set down more often (a
+   * metro exit, a market): G§6.2, ADR-0014.
+   */
+  attractors?: AttractorSpec[];
+  /**
    * Stop lines that are closed during given periods (a level crossing, a
    * police barrier). Signals arrive in phase P7.
    */
@@ -233,6 +238,22 @@ export interface NetworkSpec {
    */
   parking?: ParkingSpec[];
   ribbons: RibbonSpec[];
+}
+/**
+ * A stretch of a ribbon along which the stop-anywhere rate of every class
+ * (`road.stop_anywhere.rate.*`) is multiplied. It changes an incentive and
+ * nothing else (ADR-0005).
+ */
+export interface AttractorSpec {
+  id: string;
+  ribbon: string;
+  s_from: number;
+  s_to: number;
+  /**
+   * Factor on the rate of stops per vehicle-kilometre (not on flow or
+   * capacity).
+   */
+  stop_rate_multiplier: number;
 }
 /**
  * A stop line across the whole carriageway. While it is closed, vehicles

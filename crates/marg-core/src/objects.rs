@@ -505,6 +505,7 @@ mod tests {
             barriers: vec![],
             objects: vec![],
             parking: vec![],
+            attractors: vec![],
         })
         .unwrap()
     }

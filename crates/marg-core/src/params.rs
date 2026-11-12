@@ -112,6 +112,8 @@ pub struct CoreParams {
     /// Kerbside parking (G§6.2). Unset in the register unless a scenario
     /// or a calibration supplies them; a parking stretch may give its own.
     pub parking: ParkingParams,
+    /// Stop-anywhere events (G§6.2, ADR-0014); unset unless supplied.
+    pub stopping: StopParams,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -177,6 +179,17 @@ fn pair_matrix(
         }
     }
     Ok(m)
+}
+
+/// Stop-anywhere parameters as the register has them (`None`: unset).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct StopParams {
+    /// Stops per metre travelled, by class.
+    pub rate: [Option<f64>; N_CLASSES],
+    /// Probability that a stopping vehicle makes for the kerb, by class.
+    pub pull_over: [Option<f64>; N_CLASSES],
+    /// How long a stopped vehicle stands (s).
+    pub dwell: Option<Dist>,
 }
 
 /// Kerbside-parking parameters as the register has them (`None`: unset).
@@ -324,6 +337,23 @@ impl CoreParams {
             max_heading,
             max_heading_tan: libm::tan(max_heading),
             max_heading_sin: libm::sin(max_heading),
+            stopping: {
+                let mut s = StopParams {
+                    dwell: optional_dist(spec, "road.stop_anywhere.dwell")?,
+                    ..StopParams::default()
+                };
+                for c in VehicleClass::ALL {
+                    let rate = format!("road.stop_anywhere.rate.{}", c.key());
+                    if spec.contains(&rate) {
+                        s.rate[c.index()] = optional_scalar(spec, &rate)?;
+                        s.pull_over[c.index()] = optional_scalar(
+                            spec,
+                            &format!("road.stop_anywhere.pull_over_probability.{}", c.key()),
+                        )?;
+                    }
+                }
+                s
+            },
             parking: ParkingParams {
                 offset_from_kerb: optional_dist(spec, "road.parking.offset_from_kerb")?,
                 double_parking_probability: optional_scalar(

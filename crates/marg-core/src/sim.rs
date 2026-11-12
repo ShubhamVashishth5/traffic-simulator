@@ -9,7 +9,10 @@
 //! Only the move phase runs in parallel, and it writes per-agent results in
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
-use crate::agents::{AgentStore, NO_AGENT, NewAgent, REMOVED};
+use crate::agents::{
+    AgentStore, NO_AGENT, NewAgent, REMOVED, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER,
+    STOP_STANDING,
+};
 use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
@@ -25,6 +28,7 @@ use crate::params::{CoreParams, Drawn};
 use crate::parking::Parking;
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
+use crate::stopping::Stopping;
 use crate::width::WidthObservers;
 use marg_net::Network;
 use marg_params::spec::ObjectSpec;
@@ -40,6 +44,9 @@ const MOVE_MIN_LEN: usize = 256;
 /// Below this many agents the move phase runs on the calling thread: the
 /// thread-pool round trip costs more than it saves. Results are identical.
 const MOVE_PARALLEL_MIN: usize = 4 * MOVE_MIN_LEN;
+
+/// Metres per kilometre, for reporting rates per kilometre.
+const METRES_PER_KM: f64 = 1000.0;
 
 /// How often a lateral step that does not fit beside a neighbour is halved
 /// before it is dropped.
@@ -117,6 +124,8 @@ pub struct Simulation {
     chain_offset: Vec<Vec<f64>>,
     barriers: Vec<Barrier>,
     objects: Objects,
+    /// Stop-anywhere events (ADR-0014).
+    stopping: Stopping,
     /// Effective-width observers (G§6.2).
     widths: WidthObservers,
     /// Kerbside parking: parked vehicles are objects; this runs the
@@ -256,6 +265,8 @@ impl Simulation {
         }
         let parking = Parking::new(&scenario.network.parking, &net, &p, seed, &mut objects)
             .map_err(SimError::InvalidScenario)?;
+        let stopping = Stopping::new(&scenario.network.attractors, &net, &p, seed)
+            .map_err(SimError::InvalidScenario)?;
         let widths = WidthObservers::new(&scenario.outputs.effective_width, &net, &p)
             .map_err(SimError::InvalidScenario)?;
         let narrow = Narrowings::new(&net);
@@ -284,6 +295,7 @@ impl Simulation {
             barriers,
             objects,
             parking,
+            stopping,
             widths,
             narrow,
             edge_stops: Vec::new(),
@@ -879,6 +891,7 @@ impl Simulation {
         let mut ttd = 0.0;
         self.edge_stops.clear();
         let cruising = self.parking.any_cruising();
+        let stopping = self.stopping.enabled();
         for i in 0..a.len() {
             let (v, acc) = (a.v[i], a.acc[i]);
             let v1 = v + acc * dt;
@@ -1010,6 +1023,82 @@ impl Simulation {
                         .cruising_cap(r, a.s[i], usize::from(a.class[i]), a.cruising[i])
             {
                 a.v0[i] = a.v0[i].min(cap);
+            }
+            if stopping && a.stop_exposure[i] < f64::INFINITY {
+                let class = usize::from(a.class[i]);
+                match a.stop_state[i] {
+                    STOP_NONE => {
+                        let multiplier = self.stopping.multiplier(r, a.s[i]);
+                        a.stop_exposure[i] -= ds * multiplier;
+                        if a.stop_exposure[i] <= 0.0 {
+                            let d = self.stopping.decide(a.id[i], class, a.stop_count[i]);
+                            let idm = Idm {
+                                v0: a.v0[i],
+                                time_gap: a.time_gap[i],
+                                standstill_gap: a.standstill_gap[i],
+                                max_accel: a.max_accel[i],
+                                comfortable_decel: a.comfortable_decel[i],
+                                exponent: p.accel_exponent,
+                            };
+                            // Where its following model would begin to
+                            // respond to something standing in its way.
+                            let ahead = idm.desired_gap(a.v[i], a.v[i], 1.0, 1.0);
+                            a.stop_state[i] = if d.pull_over {
+                                STOP_PULLING_OVER
+                            } else {
+                                STOP_IN_PLACE
+                            };
+                            a.stop_point[i] = a.distance[i] + ahead;
+                            a.stop_until[i] = d.dwell;
+                            a.y_target[i] = y1;
+                            self.events.push(EventRecord {
+                                t: self.t + dt,
+                                kind: "stop_anywhere",
+                                agent_id: a.id[i],
+                                ribbon: self.net.ribbon(r).id.clone(),
+                                s: a.s[i],
+                                y: y1,
+                                attrs: format!(
+                                    "{{\"rate_per_km\":{},\"multiplier\":{multiplier},\"pull_over\":{},\"pull_over_probability\":{},\"dwell_s\":{},\"stop_in_m\":{ahead}}}",
+                                    self.stopping.rate(class) * METRES_PER_KM,
+                                    d.pull_over,
+                                    d.pull_over_probability,
+                                    d.dwell
+                                ),
+                            });
+                        }
+                    }
+                    STOP_STANDING => {
+                        if self.t + dt >= a.stop_until[i] {
+                            a.stop_state[i] = STOP_NONE;
+                            a.stop_count[i] += 1;
+                            a.stop_exposure[i] =
+                                self.stopping.exposure(a.id[i], class, a.stop_count[i]);
+                            a.decision_leader[i] = crate::agents::UNDECIDED;
+                        }
+                    }
+                    _ => {
+                        if a.v[i] < p.stop_speed_below {
+                            let pulled_over = a.stop_state[i] == STOP_PULLING_OVER;
+                            a.stop_state[i] = STOP_STANDING;
+                            a.stop_until[i] += self.t + dt;
+                            a.y_target[i] = y1;
+                            self.events.push(EventRecord {
+                                t: self.t + dt,
+                                kind: "stop_anywhere_standing",
+                                agent_id: a.id[i],
+                                ribbon: self.net.ribbon(r).id.clone(),
+                                s: a.s[i],
+                                y: y1,
+                                attrs: format!(
+                                    "{{\"pull_over\":{pulled_over},\"kerb_gap_m\":{},\"until\":{}}}",
+                                    edge_hi - y1 - 0.5 * a.width[i],
+                                    a.stop_until[i]
+                                ),
+                            });
+                        }
+                    }
+                }
             }
             if a.v[i] < p.stop_speed_below {
                 if a.stop_armed[i] {
@@ -1455,6 +1544,10 @@ impl Simulation {
             t_entry: self.t,
         };
         let i = self.agents.push(new);
+        if self.stopping.enabled() {
+            self.agents.stop_exposure[i as usize] =
+                self.stopping.exposure(arr.id, class.index(), 0);
+        }
         self.agents.stop_armed[i as usize] = v_ins > self.p.stop_rearm_above;
         let (s, id) = (&self.agents.s, &self.agents.id);
         let order = &mut self.orders[r];

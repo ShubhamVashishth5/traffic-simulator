@@ -9,6 +9,20 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import TypeAliasType
 
 
+class AttractorSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: str
+    ribbon: str
+    s_from: float
+    s_to: float
+    stop_rate_multiplier: float = Field(
+        ...,
+        description='Factor on the rate of stops per vehicle-kilometre (not on flow or\ncapacity).',
+    )
+
+
 class ClosedInterval(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -436,6 +450,10 @@ class MixtureComponent(BaseModel):
 class NetworkSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
+    )
+    attractors: list[AttractorSpec] | None = Field(
+        None,
+        description='Places where vehicles stop to pick up and set down more often (a\nmetro exit, a market): G§6.2, ADR-0014.',
     )
     barriers: list[BarrierSpec] | None = Field(
         None,

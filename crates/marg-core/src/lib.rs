@@ -16,6 +16,7 @@ pub mod parking;
 pub mod rng;
 pub mod scan;
 pub mod sim;
+pub mod stopping;
 pub mod width;
 
 pub use output::{

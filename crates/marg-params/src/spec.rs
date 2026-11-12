@@ -70,6 +70,25 @@ pub struct NetworkSpec {
     /// is a road object; parking and unparking block space for a while.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parking: Vec<ParkingSpec>,
+    /// Places where vehicles stop to pick up and set down more often (a
+    /// metro exit, a market): G§6.2, ADR-0014.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attractors: Vec<AttractorSpec>,
+}
+
+/// A stretch of a ribbon along which the stop-anywhere rate of every class
+/// (`road.stop_anywhere.rate.*`) is multiplied. It changes an incentive and
+/// nothing else (ADR-0005).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttractorSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Factor on the rate of stops per vehicle-kilometre (not on flow or
+    /// capacity).
+    pub stop_rate_multiplier: f64,
 }
 
 /// Kerbside parking along one side of a ribbon (G§6.2). Parked vehicles are

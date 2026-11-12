@@ -53,6 +53,17 @@ pub struct AgentStore {
     pub clearance_scale: Vec<f64>,
     /// The agent's cruising draw (see [`crate::demand::Draws::cruising`]).
     pub cruising: Vec<f64>,
+    /// Stop-anywhere state (ADR-0014): one of the `STOP_*` values.
+    pub stop_state: Vec<u8>,
+    /// Exposure left until the next stop-anywhere event (m of travel, an
+    /// attractor's multiplier applied); infinite for a class that never stops.
+    pub stop_exposure: Vec<f64>,
+    /// Travelled distance at which a stopping vehicle aims to stand.
+    pub stop_point: Vec<f64>,
+    /// While stopping: the dwell drawn (s). While standing: when it ends.
+    pub stop_until: Vec<f64>,
+    /// Stop-anywhere events so far.
+    pub stop_count: Vec<u32>,
     pub t_arrival: Vec<f64>,
     pub t_entry: Vec<f64>,
     pub entry_y: Vec<f64>,
@@ -107,6 +118,13 @@ pub struct NewAgent {
     pub t_entry: f64,
 }
 
+/// Stop-anywhere states: driving; braking for a stop while making for the
+/// kerb; braking for a stop where it is; standing.
+pub const STOP_NONE: u8 = 0;
+pub const STOP_PULLING_OVER: u8 = 1;
+pub const STOP_IN_PLACE: u8 = 2;
+pub const STOP_STANDING: u8 = 3;
+
 /// Marker for a removed agent in a remap table.
 pub const REMOVED: u32 = u32::MAX;
 
@@ -142,6 +160,11 @@ macro_rules! each_column {
         $m!($s.kappa);
         $m!($s.clearance_scale);
         $m!($s.cruising);
+        $m!($s.stop_state);
+        $m!($s.stop_exposure);
+        $m!($s.stop_point);
+        $m!($s.stop_until);
+        $m!($s.stop_count);
         $m!($s.t_arrival);
         $m!($s.t_entry);
         $m!($s.entry_y);
@@ -208,6 +231,11 @@ impl AgentStore {
         self.kappa.push(a.kappa);
         self.clearance_scale.push(a.clearance_scale);
         self.cruising.push(a.cruising);
+        self.stop_state.push(STOP_NONE);
+        self.stop_exposure.push(f64::INFINITY);
+        self.stop_point.push(0.0);
+        self.stop_until.push(0.0);
+        self.stop_count.push(0);
         self.t_arrival.push(a.t_arrival);
         self.t_entry.push(a.t_entry);
         self.entry_y.push(a.y);

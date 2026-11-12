@@ -48,6 +48,9 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
 - **Do:** persona-driven Poisson hail and stop events (autos, e-rickshaws, cabs, bike taxis), with
   lognormal dwell; attractors (metro exits, markets) that raise the rate locally.
 - **Done when:** events appear at the expected rates per class over seeds.
+- **Outcome (2026-11-12):** done, by [ADR-0014](../decisions/ADR-0014-stop-anywhere.md) (your
+  decision: pull over or not by a per-class probability; events per vehicle-kilometre).
+  Events come at the asked rate within Poisson error; an attractor multiplies it locally.
 
 ### P6.4 Bus stops
 - **Do:**

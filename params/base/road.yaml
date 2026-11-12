@@ -145,6 +145,105 @@ entries:
     register_row: 9.6/parking_manoeuvres
     range: [1.0, 60.0]
     notes: "Speed cap of a vehicle looking for a space, along a stretch of kerb with parking. Needed only where the cruising share is above zero."
+  stop_anywhere.rate.auto_rickshaw:
+    value: null
+    unit: "1/km"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Guide §6.2 (Poisson by persona; no number given)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 20.0]
+    notes: "Stops to pick up or set down per vehicle-kilometre, auto-rickshaws. Multiplied inside an attractor. P8 replaces the constant by the violation propensity (ADR-0014). The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.rate.e_rickshaw:
+    value: null
+    unit: "1/km"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Guide §6.2 (Poisson by persona; no number given)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 20.0]
+    notes: "Stops to pick up or set down per vehicle-kilometre, e-rickshaws. Multiplied inside an attractor. P8 replaces the constant by the violation propensity (ADR-0014). The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.rate.car:
+    value: null
+    unit: "1/km"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Guide §6.2 (Poisson by persona; no number given)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 20.0]
+    notes: "Stops to pick up or set down per vehicle-kilometre, cars (cabs). Multiplied inside an attractor. P8 replaces the constant by the violation propensity (ADR-0014). The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.rate.two_wheeler:
+    value: null
+    unit: "1/km"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Guide §6.2 (Poisson by persona; no number given)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 20.0]
+    notes: "Stops to pick up or set down per vehicle-kilometre, two-wheelers (bike taxis). Multiplied inside an attractor. P8 replaces the constant by the violation propensity (ADR-0014). The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.pull_over_probability.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Assumed (ADR-0014: the user's knob for stops that do not pull over)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 1.0]
+    notes: "Probability that a stopping vehicle makes for the kerb, auto-rickshaws. Otherwise it stops where it is, in the stream. The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.pull_over_probability.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Assumed (ADR-0014: the user's knob for stops that do not pull over)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 1.0]
+    notes: "Probability that a stopping vehicle makes for the kerb, e-rickshaws. Otherwise it stops where it is, in the stream. The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.pull_over_probability.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Assumed (ADR-0014: the user's knob for stops that do not pull over)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 1.0]
+    notes: "Probability that a stopping vehicle makes for the kerb, cars (cabs). Otherwise it stops where it is, in the stream. The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.pull_over_probability.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Assumed (ADR-0014: the user's knob for stops that do not pull over)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [0.0, 1.0]
+    notes: "Probability that a stopping vehicle makes for the kerb, two-wheelers (bike taxis). Otherwise it stops where it is, in the stream. The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
+  stop_anywhere.dwell:
+    value: null
+    unit: "s"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Guide §6.2 (dwell lognormal; no number given)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [1.0, 600.0]
+    notes: "How long a vehicle that stopped to pick up or set down stands. The guide's §9 has no row of its own for this; it is filed under the kerbside-events row of §6.2."
   bus.dwell_time:
     value: null
     unit: "s"

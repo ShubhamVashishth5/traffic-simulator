@@ -644,7 +644,8 @@ pub fn data_dictionary() -> String {
                     "f64, utf8, u64",
                     "s",
                     "kinds so far: collision_guard, lateral_move, object_added, object_removed, \
-                     parking_manoeuvre (agent_id is 2⁶⁴ − 1 for the object and parking events)",
+                     parking_manoeuvre, stop_anywhere, stop_anywhere_standing (agent_id is \
+                     2⁶⁴ − 1 for the object and parking events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
@@ -659,7 +660,10 @@ pub fn data_dictionary() -> String {
                      centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object \
                      (the id of the footprint that blocks the strip), action (park or unpark), \
                      duration_s, waited_s (how long it waited for the strip to be clear). \
-                     lateral_move \
+                     stop_anywhere (a vehicle decides to stop, ADR-0014): rate_per_km, \
+                     multiplier (the attractor's), pull_over, pull_over_probability, dwell_s, \
+                     stop_in_m. stop_anywhere_standing (it has come to a stand): pull_over, \
+                     kerb_gap_m, until (s). lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",
                 ),

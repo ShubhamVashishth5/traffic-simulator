@@ -179,6 +179,39 @@
         "heading"
       ]
     },
+    "AttractorSpec": {
+      "description": "A stretch of a ribbon along which the stop-anywhere rate of every class\n(`road.stop_anywhere.rate.*`) is multiplied. It changes an incentive and\nnothing else (ADR-0005).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s_from": {
+          "type": "number",
+          "format": "double"
+        },
+        "s_to": {
+          "type": "number",
+          "format": "double"
+        },
+        "stop_rate_multiplier": {
+          "description": "Factor on the rate of stops per vehicle-kilometre (not on flow or\ncapacity).",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s_from",
+        "s_to",
+        "stop_rate_multiplier"
+      ]
+    },
     "BarrierSpec": {
       "description": "A stop line across the whole carriageway. While it is closed, vehicles\nthat have not crossed it stop before it (ADR-0010; Kanagaraj & Treiber\nmodel a red light as a standing virtual vehicle across the road).",
       "type": "object",
@@ -1857,6 +1890,13 @@
       "description": "Road geometry as a set of ribbons (ADR-0002).",
       "type": "object",
       "properties": {
+        "attractors": {
+          "description": "Places where vehicles stop to pick up and set down more often (a\nmetro exit, a market): G§6.2, ADR-0014.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttractorSpec"
+          }
+        },
         "barriers": {
           "description": "Stop lines that are closed during given periods (a level crossing, a\npolice barrier). Signals arrive in phase P7.",
           "type": "array",

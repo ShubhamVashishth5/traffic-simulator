@@ -84,9 +84,9 @@ One row per discrete event.
 
 | Column | Type | Unit | Meaning |
 | --- | --- | --- | --- |
-| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed, parking_manoeuvre (agent_id is 2⁶⁴ − 1 for the object and parking events) |
+| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed, parking_manoeuvre, stop_anywhere, stop_anywhere_standing (agent_id is 2⁶⁴ − 1 for the object and parking events) |
 | ribbon, s, y | utf8, f64, f64 | m | where |
-| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), kind (obstacle, parked_vehicle, parking_manoeuvre), length, width, with the footprint's centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object (the id of the footprint that blocks the strip), action (park or unpark), duration_s, waited_s (how long it waited for the strip to be clear). lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
+| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), kind (obstacle, parked_vehicle, parking_manoeuvre), length, width, with the footprint's centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object (the id of the footprint that blocks the strip), action (park or unpark), duration_s, waited_s (how long it waited for the strip to be clear). stop_anywhere (a vehicle decides to stop, ADR-0014): rate_per_km, multiplier (the attractor's), pull_over, pull_over_probability, dwell_s, stop_in_m. stop_anywhere_standing (it has come to a stand): pull_over, kerb_gap_m, until (s). lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
 
 ## effective_width.parquet
 
