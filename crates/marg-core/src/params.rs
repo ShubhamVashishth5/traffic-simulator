@@ -109,6 +109,9 @@ pub struct CoreParams {
     pub max_heading: f64,
     pub max_heading_tan: f64,
     pub max_heading_sin: f64,
+    /// Kerbside parking (G§6.2). Unset in the register unless a scenario
+    /// or a calibration supplies them; a parking stretch may give its own.
+    pub parking: ParkingParams,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -174,6 +177,31 @@ fn pair_matrix(
         }
     }
     Ok(m)
+}
+
+/// Kerbside-parking parameters as the register has them (`None`: unset).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ParkingParams {
+    /// Gap between the kerb and a parked vehicle (m).
+    pub offset_from_kerb: Option<Dist>,
+    pub double_parking_probability: Option<f64>,
+    /// Manoeuvres per second for the register's reference length of kerb
+    /// (100 m: the register's unit is events per 100 m per hour).
+    pub manoeuvre_rate: Option<f64>,
+    /// How long a manoeuvre blocks the strip beside the space (s).
+    pub manoeuvre_duration: Option<Dist>,
+    pub cruising_share: Option<f64>,
+    /// Speed cap of a vehicle looking for a space (m/s).
+    pub cruising_speed: Option<f64>,
+}
+
+/// A distribution that may be unset (`null`) in the register.
+fn optional_dist(spec: &ResolvedSpec, path: &str) -> Result<Option<Dist>, ResolveError> {
+    match spec.dist_si(path) {
+        Ok(x) => Ok(Some(x)),
+        Err(ResolveError::Unset { .. }) => Ok(None),
+        Err(e) => Err(e),
+    }
 }
 
 /// A scalar that may be unset (`null`) in the register.
@@ -296,6 +324,17 @@ impl CoreParams {
             max_heading,
             max_heading_tan: libm::tan(max_heading),
             max_heading_sin: libm::sin(max_heading),
+            parking: ParkingParams {
+                offset_from_kerb: optional_dist(spec, "road.parking.offset_from_kerb")?,
+                double_parking_probability: optional_scalar(
+                    spec,
+                    "road.parking.double_parking_probability",
+                )?,
+                manoeuvre_rate: optional_scalar(spec, "road.parking.manoeuvre_rate")?,
+                manoeuvre_duration: optional_dist(spec, "road.parking.manoeuvre_duration")?,
+                cruising_share: optional_scalar(spec, "road.parking.cruising_share")?,
+                cruising_speed: optional_scalar(spec, "road.parking.cruising_speed")?,
+            },
             politeness: spec.scalar_si("interaction.lateral.politeness")?,
             safe_decel: spec.scalar_si("interaction.lateral.safe_decel")?,
             switch_threshold: spec.scalar_si("interaction.lateral.switch_threshold")?,

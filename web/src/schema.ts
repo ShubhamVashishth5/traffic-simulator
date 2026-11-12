@@ -38,10 +38,6 @@ export type VehicleClass =
  */
 export type ObjectResponse = "block" | "ignore";
 /**
- * A parameter value: a plain number or a distribution.
- */
-export type ParamValue = number | Dist;
-/**
  * A univariate distribution.
  *
  * Several lognormal forms are accepted for readability in the register; they
@@ -113,6 +109,10 @@ export type Dist =
       components: MixtureComponent[];
       dist: "mixture";
     };
+/**
+ * A parameter value: a plain number or a distribution.
+ */
+export type ParamValue = number | Dist;
 
 /**
  * A scenario: what to simulate, for how long, and what to record.
@@ -227,6 +227,11 @@ export interface NetworkSpec {
    * capacity or flow factor to set (ADR-0005).
    */
   objects?: ObjectSpec[];
+  /**
+   * Stretches of kerb where vehicles park (G§6.2). Each parked vehicle
+   * is a road object; parking and unparking block space for a while.
+   */
+  parking?: ParkingSpec[];
   ribbons: RibbonSpec[];
 }
 /**
@@ -271,7 +276,7 @@ export interface ObjectSpec {
   /**
    * What a road object is.
    */
-  kind?: "obstacle";
+  kind?: "obstacle" | "parked_vehicle" | "parking_manoeuvre";
   /**
    * Extent of the footprint along the ribbon (m).
    */
@@ -310,6 +315,78 @@ export interface ObjectSpec {
   y: number;
 }
 /**
+ * Kerbside parking along one side of a ribbon (G§6.2). Parked vehicles are
+ * drawn at the start of the run to fill `occupancy` of the kerb length;
+ * they are road objects, so they act only by taking width (ADR-0005).
+ *
+ * The survey quantities (`offset_from_kerb`, `double_parking_probability`,
+ * `manoeuvres_per_100m_h`, `cruising_share`) may be given here for this
+ * stretch; where omitted, the register value is used
+ * (`road.parking.*`), and the run is refused if that is unset too.
+ */
+export interface ParkingSpec {
+  /**
+   * Vehicle types that park here, with weights.
+   */
+  composition: {
+    auto_rickshaw?: number;
+    bicycle?: number;
+    bus?: number;
+    cycle_rickshaw?: number;
+    e_rickshaw?: number;
+    e_two_wheeler?: number;
+    hatchback?: number;
+    lcv?: number;
+    moped?: number;
+    motorcycle?: number;
+    scooter?: number;
+    sedan?: number;
+    suv?: number;
+    tractor?: number;
+    truck?: number;
+  };
+  /**
+   * Share of passing vehicles (of the types that park here) that are
+   * looking for a space and slow down along this stretch.
+   */
+  cruising_share?: number | null;
+  /**
+   * Probability that a parked vehicle has another standing beside it.
+   */
+  double_parking_probability?: number | null;
+  id: string;
+  /**
+   * Parking and unparking manoeuvres per 100 m of kerb per hour.
+   */
+  manoeuvres_per_100m_h?: number | null;
+  /**
+   * Share of the kerb length taken by parked vehicles at the start, 0–1
+   * (measure it from video or imagery).
+   */
+  occupancy: number;
+  /**
+   * Gap between the kerb and a parked vehicle (m).
+   */
+  offset_from_kerb?: Dist | null;
+  ribbon: string;
+  /**
+   * The stretch of kerb, by station (m).
+   */
+  s_from: number;
+  s_to: number;
+  /**
+   * Which edge of the carriageway the vehicles park at.
+   */
+  side?: "left" | "right";
+}
+/**
+ * One weighted component of a [`Dist::Mixture`].
+ */
+export interface MixtureComponent {
+  dist: Dist;
+  weight: number;
+}
+/**
  * A ribbon: a reference polyline with a lateral width profile. `y` is
  * positive to the left of the direction of travel; for left-hand traffic the
  * kerb is on the left (`y_max`) and the median on the right (`y_min`).
@@ -343,9 +420,31 @@ export interface WidthPoint {
  */
 export interface OutputSpec {
   /**
+   * Effective-width observers: how much of the carriageway traffic
+   * uses, against what road objects leave free (G§6.2).
+   */
+  effective_width?: EffectiveWidthSpec[];
+  /**
    * Trajectory sampling; omit to write no trajectories.
    */
   trajectories?: TrajectorySpec | null;
+}
+/**
+ * An effective-width observer over `[s_from, s_to]` of a ribbon, in bins
+ * of `bin_m` along the road. Per bin it reports the width road objects
+ * leave free, the shy distance the clearance model predicts for the
+ * vehicles that passed, and the width those vehicles actually used
+ * (`effective_width.parquet`). It reports; it changes nothing.
+ */
+export interface EffectiveWidthSpec {
+  /**
+   * Length of a bin along the road (m).
+   */
+  bin_m: number;
+  id: string;
+  ribbon: string;
+  s_from: number;
+  s_to: number;
 }
 /**
  * Trajectory sampling rate and window.
@@ -364,11 +463,4 @@ export interface TrajectorySpec {
    */
   s_from?: number | null;
   s_to?: number | null;
-}
-/**
- * One weighted component of a [`Dist::Mixture`].
- */
-export interface MixtureComponent {
-  dist: Dist;
-  weight: number;
 }

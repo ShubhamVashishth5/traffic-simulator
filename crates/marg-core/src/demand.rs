@@ -45,6 +45,9 @@ pub struct Draws {
     pub median_band_bonus: f64,
     /// Aggressiveness κ ~ N(mean, sd) (placeholder until personas, P8).
     pub kappa: f64,
+    /// Uniform in [0, 1): the vehicle looks for a parking space along a
+    /// stretch whose cruising share is above this (G§6.2).
+    pub cruising: f64,
 }
 
 /// Replace a non-positive draw (possible in a normal's far tail) by the mean.
@@ -93,6 +96,7 @@ impl Draws {
             kappa: p.kappa_mean
                 + p.kappa_sd
                     * marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, 9)),
+            cruising: draw_rng(seed, id, 10).uniform(),
         }
     }
 }

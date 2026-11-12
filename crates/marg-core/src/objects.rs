@@ -79,6 +79,8 @@ pub struct Objects {
     /// Longest active object (m).
     l_max: f64,
     next_serial: u64,
+    /// Counts the changes to the set of objects on the road.
+    generation: u64,
 }
 
 impl Objects {
@@ -93,6 +95,13 @@ impl Objects {
     #[inline]
     pub fn any_active(&self) -> bool {
         self.l_max > 0.0
+    }
+
+    /// A number that changes whenever an object appears on the road or
+    /// leaves it.
+    #[inline]
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// Validate `spec` and add it. `from` is when a live addition appears
@@ -192,6 +201,7 @@ impl Objects {
         if !any {
             return;
         }
+        self.generation += 1;
         for list in &mut self.by_ribbon {
             list.clear();
         }
@@ -494,6 +504,7 @@ mod tests {
             ],
             barriers: vec![],
             objects: vec![],
+            parking: vec![],
         })
         .unwrap()
     }

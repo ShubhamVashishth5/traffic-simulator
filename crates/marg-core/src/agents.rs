@@ -51,6 +51,8 @@ pub struct AgentStore {
     pub kappa: Vec<f64>,
     /// `exp(−γ_c κ)`: the agent's scale on lateral clearances.
     pub clearance_scale: Vec<f64>,
+    /// The agent's cruising draw (see [`crate::demand::Draws::cruising`]).
+    pub cruising: Vec<f64>,
     pub t_arrival: Vec<f64>,
     pub t_entry: Vec<f64>,
     pub entry_y: Vec<f64>,
@@ -100,6 +102,7 @@ pub struct NewAgent {
     pub comfortable_decel: f64,
     pub kappa: f64,
     pub clearance_scale: f64,
+    pub cruising: f64,
     pub t_arrival: f64,
     pub t_entry: f64,
 }
@@ -138,6 +141,7 @@ macro_rules! each_column {
         $m!($s.comfortable_decel);
         $m!($s.kappa);
         $m!($s.clearance_scale);
+        $m!($s.cruising);
         $m!($s.t_arrival);
         $m!($s.t_entry);
         $m!($s.entry_y);
@@ -203,6 +207,7 @@ impl AgentStore {
         self.comfortable_decel.push(a.comfortable_decel);
         self.kappa.push(a.kappa);
         self.clearance_scale.push(a.clearance_scale);
+        self.cruising.push(a.cruising);
         self.t_arrival.push(a.t_arrival);
         self.t_entry.push(a.t_entry);
         self.entry_y.push(a.y);
@@ -287,6 +292,7 @@ mod tests {
             comfortable_decel: 1.0,
             kappa: 0.0,
             clearance_scale: 1.0,
+            cruising: 0.0,
             t_arrival: 0.0,
             t_entry: 0.0,
         }

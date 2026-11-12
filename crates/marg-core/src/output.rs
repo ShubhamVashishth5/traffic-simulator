@@ -58,6 +58,43 @@ pub struct ConflictRecord {
     pub y: f64,
 }
 
+/// One bin of an effective-width observer over the measured period
+/// (G§6.2: `W_eff = W − Σ w_i − c_shy`). NaN where no vehicle passed.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EffectiveWidthRecord {
+    pub observer_id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Mean carriageway width over the bin (m).
+    pub road_width: f64,
+    /// Width road objects took, averaged over the bin and the period:
+    /// footprints plus strips too narrow for any vehicle.
+    pub blocked_width: f64,
+    pub free_width: f64,
+    /// The desired and the minimum lateral clearance to the nearest object,
+    /// from the clearance model, averaged over the time vehicles spent
+    /// beside one.
+    pub shy_desired: f64,
+    pub shy_minimum: f64,
+    /// `free_width − shy_desired`.
+    pub effective_width_model: f64,
+    /// The gap to the nearest object that vehicles beside one were within
+    /// for 5% of their time, and the smallest gap seen.
+    pub shy_observed: f64,
+    pub shy_observed_min: f64,
+    /// `free_width − shy_observed`.
+    pub effective_width_observed: f64,
+    /// Lateral band that vehicle bodies covered.
+    pub used_lo: f64,
+    pub used_hi: f64,
+    /// Time vehicles spent beside an object, and in the bin (veh·s).
+    pub time_beside: f64,
+    pub time_spent: f64,
+    /// Space-mean speed in the bin (m/s).
+    pub mean_speed: f64,
+}
+
 /// Aggregates for one detector, interval and vehicle type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DetectorRecord {
@@ -158,6 +195,7 @@ pub struct RunOutputs {
     pub detectors: Vec<DetectorRecord>,
     pub events: Vec<EventRecord>,
     pub conflicts: Vec<ConflictRecord>,
+    pub effective_width: Vec<EffectiveWidthRecord>,
     /// Headline KPIs as `(name, value)`, in a fixed order.
     pub kpis: Vec<(&'static str, f64)>,
     /// Ribbon ids by index (for decoding `TrajectoryChunk::ribbon`).

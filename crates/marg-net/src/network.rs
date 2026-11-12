@@ -133,6 +133,7 @@ mod tests {
             ribbons: vec![r("a", Some("b")), r("b", None)],
             barriers: vec![],
             objects: vec![],
+            parking: vec![],
         })
         .unwrap();
         assert_eq!(ok.ribbon(0).next, Some(1));
@@ -141,12 +142,14 @@ mod tests {
             ribbons: vec![r("a", Some("b")), r("b", Some("a"))],
             barriers: vec![],
             objects: vec![],
+            parking: vec![],
         });
         assert!(matches!(cyc, Err(NetError::Cycle(_))));
         let unk = Network::build(&NetworkSpec {
             ribbons: vec![r("a", Some("z"))],
             barriers: vec![],
             objects: vec![],
+            parking: vec![],
         });
         assert!(matches!(unk, Err(NetError::UnknownNext { .. })));
         let mut bad = r("a", None);
@@ -156,6 +159,7 @@ mod tests {
                 ribbons: vec![bad],
                 barriers: vec![],
                 objects: vec![],
+                parking: vec![],
             }),
             Err(NetError::BadWidth(_))
         ));

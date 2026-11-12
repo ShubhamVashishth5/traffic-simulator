@@ -279,6 +279,10 @@ As `u` rises:
 > **P6.1:** how objects and a narrowing carriageway enter the lateral model, and how a vehicle
 > pulls out from behind a standing body (every class has a creep speed), are in
 > [ADR-0012](decisions/ADR-0012-road-objects-and-narrowing.md).
+>
+> **P6.2:** how parked vehicles are placed, when a parking manoeuvre begins and what it blocks,
+> cruising, and what the effective-width observer reports are in
+> [ADR-0013](decisions/ADR-0013-kerbside-parking.md).
 
 Every object has a position, a footprint and per-class effects through the four channels. None of
 them has a capacity multiplier.

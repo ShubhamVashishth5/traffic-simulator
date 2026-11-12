@@ -22,8 +22,10 @@ use crate::output::{
     TrajectorySink,
 };
 use crate::params::{CoreParams, Drawn};
+use crate::parking::Parking;
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
+use crate::width::WidthObservers;
 use marg_net::Network;
 use marg_params::spec::ObjectSpec;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
@@ -115,6 +117,11 @@ pub struct Simulation {
     chain_offset: Vec<Vec<f64>>,
     barriers: Vec<Barrier>,
     objects: Objects,
+    /// Effective-width observers (G§6.2).
+    widths: WidthObservers,
+    /// Kerbside parking: parked vehicles are objects; this runs the
+    /// manoeuvres and knows where vehicles cruise for a space.
+    parking: Parking,
     narrow: Narrowings,
     /// Agents the kerb stopped this step: index, and how far each was cut back.
     edge_stops: Vec<(u32, f64)>,
@@ -247,6 +254,10 @@ impl Simulation {
                 .add(o, &net, None)
                 .map_err(SimError::InvalidScenario)?;
         }
+        let parking = Parking::new(&scenario.network.parking, &net, &p, seed, &mut objects)
+            .map_err(SimError::InvalidScenario)?;
+        let widths = WidthObservers::new(&scenario.outputs.effective_width, &net, &p)
+            .map_err(SimError::InvalidScenario)?;
         let narrow = Narrowings::new(&net);
         let decision_steps = decision_steps(&p, scenario.dt_s);
         Ok(Self {
@@ -272,6 +283,8 @@ impl Simulation {
             chain_offset,
             barriers,
             objects,
+            parking,
+            widths,
             narrow,
             edge_stops: Vec::new(),
             decision_steps,
@@ -341,6 +354,17 @@ impl Simulation {
         if let Some(live) = &mut self.live {
             live.det
                 .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
+        }
+        if !self.widths.is_empty() && t0 >= self.scenario.warmup_s {
+            self.widths.observe(
+                &self.agents,
+                &self.orders,
+                &self.objects,
+                &self.net,
+                &self.prev,
+                &self.p,
+                self.dt,
+            );
         }
         self.step += 1;
         self.t = self.step as f64 * self.dt;
@@ -573,6 +597,11 @@ impl Simulation {
         &self.objects.all
     }
 
+    /// Kerbside parking stretches and their state.
+    pub fn parking(&self) -> &Parking {
+        &self.parking
+    }
+
     /// Put a road object on the road from the next step on (the live
     /// viewer's `add_object`). Vehicles under it at that moment drive on.
     pub fn add_object(&mut self, spec: &ObjectSpec) -> Result<(), SimError> {
@@ -672,6 +701,33 @@ impl Simulation {
             b.is_closed = b.closed.iter().any(|&(from, to)| t >= from && t < to);
         }
         let (events, net) = (&mut self.events, &self.net);
+        self.parking.step(
+            t,
+            &self.agents,
+            &self.orders,
+            net,
+            &self.prev,
+            &self.p,
+            &mut self.objects,
+            |m| {
+                events.push(EventRecord {
+                    t,
+                    kind: "parking_manoeuvre",
+                    agent_id: NO_AGENT,
+                    ribbon: net.ribbon(m.ribbon).id.clone(),
+                    s: m.s,
+                    y: m.y,
+                    attrs: format!(
+                        "{{\"zone\":{},\"object\":{},\"action\":\"{}\",\"duration_s\":{},\"waited_s\":{}}}",
+                        json_string(&m.zone),
+                        json_string(&m.object),
+                        if m.park { "park" } else { "unpark" },
+                        m.duration,
+                        m.waited
+                    ),
+                });
+            },
+        );
         self.objects.update(t, |o| {
             events.push(EventRecord {
                 t,
@@ -685,8 +741,9 @@ impl Simulation {
                 s: o.s,
                 y: o.y,
                 attrs: format!(
-                    "{{\"object\":{},\"length\":{},\"width\":{}}}",
+                    "{{\"object\":{},\"kind\":\"{}\",\"length\":{},\"width\":{}}}",
                     json_string(&o.id),
+                    o.kind.key(),
                     o.length,
                     o.width
                 ),
@@ -821,6 +878,7 @@ impl Simulation {
         let mut max_step: f64 = 0.0;
         let mut ttd = 0.0;
         self.edge_stops.clear();
+        let cruising = self.parking.any_cruising();
         for i in 0..a.len() {
             let (v, acc) = (a.v[i], a.acc[i]);
             let v1 = v + acc * dt;
@@ -869,13 +927,15 @@ impl Simulation {
                 let stretch = body_stretch(width, length, dy / along);
                 dy + swing <= lim_hi - y0
                     && swing - dy <= y0 - lim_lo
-                    && (along <= ds || stretch <= turn_room || stretch <= stretch_now)
+                    && (dy.abs() <= ds * p.max_heading_tan
+                        || stretch <= turn_room
+                        || stretch <= stretch_now)
             };
             let mut dy = dy;
             if dy != 0.0
-                && (lim_hi < f64::INFINITY
-                    || lim_lo > f64::NEG_INFINITY
-                    || turn_room < f64::INFINITY)
+                && (dy.abs() > ds * p.max_heading_tan
+                    || lim_hi < f64::INFINITY
+                    || lim_lo > f64::NEG_INFINITY)
             {
                 let mut tries = 0;
                 while !fits(dy) {
@@ -942,6 +1002,15 @@ impl Simulation {
             // The median band's speed bonus follows the lateral position.
             let in_band = y1 - edge_lo < p.median_band_width;
             a.v0[i] = a.v0_base[i] + if in_band { a.v0_bonus[i] } else { 0.0 };
+            // A vehicle looking for a parking space drives slowly along the
+            // stretch (a speed cap, G§6.2).
+            if cruising
+                && let Some(cap) =
+                    self.parking
+                        .cruising_cap(r, a.s[i], usize::from(a.class[i]), a.cruising[i])
+            {
+                a.v0[i] = a.v0[i].min(cap);
+            }
             if a.v[i] < p.stop_speed_below {
                 if a.stop_armed[i] {
                     a.stops[i] += 1;
@@ -1381,6 +1450,7 @@ impl Simulation {
             comfortable_decel: d.comfortable_decel,
             kappa: d.kappa,
             clearance_scale,
+            cruising: d.cruising,
             t_arrival: arr.t_arrival,
             t_entry: self.t,
         };
@@ -1570,6 +1640,7 @@ impl Simulation {
                 detectors,
                 events: std::mem::take(&mut self.events),
                 conflicts,
+                effective_width: self.widths.records(&self.net),
                 kpis,
                 ribbons,
             },

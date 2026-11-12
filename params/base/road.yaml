@@ -134,6 +134,17 @@ entries:
     guide: "§6.2"
     register_row: 9.6/parking_manoeuvres
     range: [0.0, 1.0]
+  parking.cruising_speed:
+    value: null
+    unit: "km/h"
+    grade: C
+    role: fit
+    stage: 5
+    source: "Guide §6.2 (drivers looking for a space slow down; no number given)"
+    guide: "§6.2"
+    register_row: 9.6/parking_manoeuvres
+    range: [1.0, 60.0]
+    notes: "Speed cap of a vehicle looking for a space, along a stretch of kerb with parking. Needed only where the cruising share is above zero."
   bus.dwell_time:
     value: null
     unit: "s"

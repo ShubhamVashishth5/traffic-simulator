@@ -1,6 +1,7 @@
 //! Scenario specification: network, demand, detectors, outputs and parameter
 //! overrides (plan/03-model-design.md, plan/04-data-outputs-analytics.md).
 
+use crate::dist::Dist;
 use crate::param::ParamValue;
 use crate::vehicle::{VehicleClass, VehicleType};
 use indexmap::IndexMap;
@@ -65,6 +66,60 @@ pub struct NetworkSpec {
     /// capacity or flow factor to set (ADR-0005).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub objects: Vec<ObjectSpec>,
+    /// Stretches of kerb where vehicles park (G§6.2). Each parked vehicle
+    /// is a road object; parking and unparking block space for a while.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parking: Vec<ParkingSpec>,
+}
+
+/// Kerbside parking along one side of a ribbon (G§6.2). Parked vehicles are
+/// drawn at the start of the run to fill `occupancy` of the kerb length;
+/// they are road objects, so they act only by taking width (ADR-0005).
+///
+/// The survey quantities (`offset_from_kerb`, `double_parking_probability`,
+/// `manoeuvres_per_100m_h`, `cruising_share`) may be given here for this
+/// stretch; where omitted, the register value is used
+/// (`road.parking.*`), and the run is refused if that is unset too.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParkingSpec {
+    pub id: String,
+    pub ribbon: String,
+    /// The stretch of kerb, by station (m).
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Which edge of the carriageway the vehicles park at.
+    #[serde(default)]
+    pub side: RoadSide,
+    /// Share of the kerb length taken by parked vehicles at the start, 0–1
+    /// (measure it from video or imagery).
+    pub occupancy: f64,
+    /// Vehicle types that park here, with weights.
+    pub composition: IndexMap<VehicleType, f64>,
+    /// Gap between the kerb and a parked vehicle (m).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset_from_kerb: Option<Dist>,
+    /// Probability that a parked vehicle has another standing beside it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub double_parking_probability: Option<f64>,
+    /// Parking and unparking manoeuvres per 100 m of kerb per hour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manoeuvres_per_100m_h: Option<f64>,
+    /// Share of passing vehicles (of the types that park here) that are
+    /// looking for a space and slow down along this stretch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cruising_share: Option<f64>,
+}
+
+/// An edge of the carriageway, seen in the direction of travel.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RoadSide {
+    /// `y_max`: the kerb in left-hand traffic.
+    #[default]
+    Left,
+    /// `y_min`: the median side in left-hand traffic.
+    Right,
 }
 
 /// A road object: a rectangle lying along a ribbon (a parked vehicle, a
@@ -106,12 +161,18 @@ pub enum ObjectKind {
     /// A solid body on the carriageway.
     #[default]
     Obstacle,
+    /// A vehicle parked at the kerb, or standing beside one (double parked).
+    ParkedVehicle,
+    /// A vehicle manoeuvring into or out of a parking space.
+    ParkingManoeuvre,
 }
 
 impl ObjectKind {
     pub fn key(self) -> &'static str {
         match self {
             ObjectKind::Obstacle => "obstacle",
+            ObjectKind::ParkedVehicle => "parked_vehicle",
+            ObjectKind::ParkingManoeuvre => "parking_manoeuvre",
         }
     }
 }
@@ -261,6 +322,22 @@ impl DetectorSpec {
     }
 }
 
+/// An effective-width observer over `[s_from, s_to]` of a ribbon, in bins
+/// of `bin_m` along the road. Per bin it reports the width road objects
+/// leave free, the shy distance the clearance model predicts for the
+/// vehicles that passed, and the width those vehicles actually used
+/// (`effective_width.parquet`). It reports; it changes nothing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectiveWidthSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Length of a bin along the road (m).
+    pub bin_m: f64,
+}
+
 /// Optional outputs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -268,6 +345,10 @@ pub struct OutputSpec {
     /// Trajectory sampling; omit to write no trajectories.
     #[serde(default)]
     pub trajectories: Option<TrajectorySpec>,
+    /// Effective-width observers: how much of the carriageway traffic
+    /// uses, against what road objects leave free (G§6.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_width: Vec<EffectiveWidthSpec>,
 }
 
 /// Trajectory sampling rate and window.

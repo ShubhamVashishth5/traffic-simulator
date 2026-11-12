@@ -190,6 +190,13 @@ Cars rarely creep in a packed queue because the swing of their corners needs roo
 sides. Without the two rules above the barrier scenario logged 8 guard events and the random
 scenarios 14 outside narrowings; with them, none.
 
+**Tried and dropped: keeping a creeping body's corners on the carriageway.** The kerb bounds
+a body's unturned width (since P5), so the corners of a long vehicle that turns beside the kerb
+cross its line: a bus creeping in a queue by up to a metre. Refusing such a turn locks up a
+taper: a vehicle stopped against the kerb can then never turn away from it (the taper test
+stopped discharging at t = 557 s). Left as it is; it belongs with part 1's open item on the
+kerb acting at a vehicle's centre station.
+
 `standing_obstacle_measurement` (ignored test) reproduces the first four rows;
 `stopped_vehicles_pull_out_from_behind_a_parked_car` is the regression test.
 

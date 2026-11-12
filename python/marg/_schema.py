@@ -158,6 +158,17 @@ class Dist12(BaseModel):
     points: list[Point]
 
 
+class EffectiveWidthSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    bin_m: float = Field(..., description='Length of a bin along the road (m).')
+    id: str
+    ribbon: str
+    s_from: float
+    s_to: float
+
+
 class Composition(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -198,6 +209,8 @@ class KpiSpec(BaseModel):
 
 class ObjectKind(StrEnum):
     obstacle = 'obstacle'
+    parked_vehicle = 'parked_vehicle'
+    parking_manoeuvre = 'parking_manoeuvre'
 
 
 class ObjectResponse(StrEnum):
@@ -224,6 +237,11 @@ class Response(BaseModel):
 PolylineItem = TypeAliasType(
     "PolylineItem", Annotated[list[float], Field(max_length=2, min_length=2)]
 )
+
+
+class RoadSide(StrEnum):
+    left = 'left'
+    right = 'right'
 
 
 class TrajectorySpec(BaseModel):
@@ -329,6 +347,10 @@ class OutputSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
+    effective_width: list[EffectiveWidthSpec] | None = Field(
+        None,
+        description='Effective-width observers: how much of the carriageway traffic\nuses, against what road objects leave free (G§6.2).',
+    )
     trajectories: TrajectorySpec | None = Field(
         None, description='Trajectory sampling; omit to write no trajectories.'
     )
@@ -357,21 +379,6 @@ class DemandSpec(BaseModel):
         extra='forbid',
     )
     entries: list[EntrySpec]
-
-
-class NetworkSpec(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    barriers: list[BarrierSpec] | None = Field(
-        None,
-        description='Stop lines that are closed during given periods (a level crossing, a\npolice barrier). Signals arrive in phase P7.',
-    )
-    objects: list[ObjectSpec] | None = Field(
-        None,
-        description='Road objects: things with a position and a footprint that vehicles\nreact to (G§6, plan/03-model-design.md §10). They act only through\nusable width, speed caps, gap supply and incentives; there is no\ncapacity or flow factor to set (ADR-0005).',
-    )
-    ribbons: list[RibbonSpec]
 
 
 class Scenario(BaseModel):
@@ -426,6 +433,59 @@ class MixtureComponent(BaseModel):
     weight: float
 
 
+class NetworkSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    barriers: list[BarrierSpec] | None = Field(
+        None,
+        description='Stop lines that are closed during given periods (a level crossing, a\npolice barrier). Signals arrive in phase P7.',
+    )
+    objects: list[ObjectSpec] | None = Field(
+        None,
+        description='Road objects: things with a position and a footprint that vehicles\nreact to (G§6, plan/03-model-design.md §10). They act only through\nusable width, speed caps, gap supply and incentives; there is no\ncapacity or flow factor to set (ADR-0005).',
+    )
+    parking: list[ParkingSpec] | None = Field(
+        None,
+        description='Stretches of kerb where vehicles park (G§6.2). Each parked vehicle\nis a road object; parking and unparking block space for a while.',
+    )
+    ribbons: list[RibbonSpec]
+
+
+class ParkingSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    composition: Composition = Field(
+        ..., description='Vehicle types that park here, with weights.'
+    )
+    cruising_share: float | None = Field(
+        None,
+        description='Share of passing vehicles (of the types that park here) that are\nlooking for a space and slow down along this stretch.',
+    )
+    double_parking_probability: float | None = Field(
+        None,
+        description='Probability that a parked vehicle has another standing beside it.',
+    )
+    id: str
+    manoeuvres_per_100m_h: float | None = Field(
+        None, description='Parking and unparking manoeuvres per 100 m of kerb per hour.'
+    )
+    occupancy: float = Field(
+        ...,
+        description='Share of the kerb length taken by parked vehicles at the start, 0–1\n(measure it from video or imagery).',
+    )
+    offset_from_kerb: Dist | None = Field(
+        None, description='Gap between the kerb and a parked vehicle (m).'
+    )
+    ribbon: str
+    s_from: float = Field(..., description='The stretch of kerb, by station (m).')
+    s_to: float
+    side: RoadSide | None = Field(
+        'left', description='Which edge of the carriageway the vehicles park at.'
+    )
+
+
 class Dist(
     RootModel[
         Dist1
@@ -472,3 +532,5 @@ class ParamValue(RootModel[float | Dist]):
 Scenario.model_rebuild()
 Dist13.model_rebuild()
 MixtureComponent.model_rebuild()
+NetworkSpec.model_rebuild()
+ParkingSpec.model_rebuild()

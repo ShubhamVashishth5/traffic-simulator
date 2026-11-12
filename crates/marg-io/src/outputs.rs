@@ -10,7 +10,8 @@ use arrow::array::{
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 use marg_core::{
-    AgentRecord, ConflictRecord, DetectorRecord, EventRecord, TrajectoryChunk, TrajectorySink,
+    AgentRecord, ConflictRecord, DetectorRecord, EffectiveWidthRecord, EventRecord,
+    TrajectoryChunk, TrajectorySink,
 };
 use parquet::arrow::ArrowWriter;
 use std::path::{Path, PathBuf};
@@ -337,6 +338,49 @@ impl TrajectorySink for ParquetTrajectorySink {
     }
 }
 
+/// `effective_width.parquet`: one row per effective-width observer and bin.
+pub fn effective_width_batch(
+    rows: &[EffectiveWidthRecord],
+) -> Result<RecordBatch, arrow::error::ArrowError> {
+    let mut fields = vec![
+        Field::new("observer_id", DataType::Utf8, false),
+        Field::new("ribbon", DataType::Utf8, false),
+    ];
+    type Get = fn(&EffectiveWidthRecord) -> f64;
+    let columns: [(&str, bool, Get); 16] = [
+        ("s_from", false, |r| r.s_from),
+        ("s_to", false, |r| r.s_to),
+        ("road_width", false, |r| r.road_width),
+        ("blocked_width", false, |r| r.blocked_width),
+        ("free_width", false, |r| r.free_width),
+        ("shy_desired", true, |r| r.shy_desired),
+        ("shy_minimum", true, |r| r.shy_minimum),
+        ("effective_width_model", true, |r| r.effective_width_model),
+        ("shy_observed", true, |r| r.shy_observed),
+        ("shy_observed_min", true, |r| r.shy_observed_min),
+        ("effective_width_observed", true, |r| {
+            r.effective_width_observed
+        }),
+        ("used_lo", true, |r| r.used_lo),
+        ("used_hi", true, |r| r.used_hi),
+        ("time_beside", false, |r| r.time_beside),
+        ("time_spent", false, |r| r.time_spent),
+        ("mean_speed", true, |r| r.mean_speed),
+    ];
+    let mut cols: Vec<ArrayRef> = vec![strs(rows, |r| &r.observer_id), strs(rows, |r| &r.ribbon)];
+    for (name, nullable, get) in columns {
+        fields.push(Field::new(name, DataType::Float64, nullable));
+        cols.push(if nullable {
+            Arc::new(Float64Array::from(
+                rows.iter().map(|r| opt(get(r))).collect::<Vec<_>>(),
+            ))
+        } else {
+            f64s(rows, get)
+        });
+    }
+    RecordBatch::try_new(Arc::new(Schema::new(fields)), cols)
+}
+
 /// Write every non-streamed output table of a run into `dir`.
 pub fn write_outputs(
     dir: &Path,
@@ -354,6 +398,12 @@ pub fn write_outputs(
         &dir.join("conflicts.parquet"),
         &conflicts_batch(&out.conflicts)?,
     )?;
+    if !out.effective_width.is_empty() {
+        write_batch(
+            &dir.join("effective_width.parquet"),
+            &effective_width_batch(&out.effective_width)?,
+        )?;
+    }
     write_batch(
         &dir.join("kpis.parquet"),
         &kpis_batch(&out.kpis, run_hash, seed)?,
@@ -368,7 +418,7 @@ type TableDoc = (&'static str, &'static str, &'static [Column]);
 
 /// The data dictionary in Markdown: every output table, column, type and meaning.
 pub fn data_dictionary() -> String {
-    let tables: [TableDoc; 9] = [
+    let tables: [TableDoc; 10] = [
         (
             "manifest.json",
             "Run identity and provenance (JSON, not Parquet).",
@@ -593,8 +643,8 @@ pub fn data_dictionary() -> String {
                     "t, kind, agent_id",
                     "f64, utf8, u64",
                     "s",
-                    "kinds so far: collision_guard, lateral_move, object_added, object_removed \
-                     (agent_id is 2⁶⁴ − 1 for the object events)",
+                    "kinds so far: collision_guard, lateral_move, object_added, object_removed, \
+                     parking_manoeuvre (agent_id is 2⁶⁴ − 1 for the object and parking events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
@@ -604,11 +654,79 @@ pub fn data_dictionary() -> String {
                     "collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a \
                      vehicle; other = object and object (its id) against a road object; other = \
                      edge and cut_back_s when the kerb of a narrowing road stopped the vehicle \
-                     short. object_added, object_removed: object (id), length, width, with the \
-                     footprint's centre in ribbon, s, y. lateral_move \
+                     short. object_added, object_removed: object (id), kind (obstacle, \
+                     parked_vehicle, parking_manoeuvre), length, width, with the footprint's \
+                     centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object \
+                     (the id of the footprint that blocks the strip), action (park or unpark), \
+                     duration_s, waited_s (how long it waited for the strip to be clear). \
+                     lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",
                 ),
+            ],
+        ),
+        (
+            "effective_width.parquet",
+            "One row per effective-width observer (`outputs.effective_width`) and bin along the \
+             road, over the measured period. Written only when a scenario has such an observer. \
+             `W_eff = W − Σ w_i − c_shy` (G§6.2) is not used by the model: the table sets what \
+             the clearance model predicts beside what the vehicles did.",
+            &[
+                ("observer_id, ribbon", "utf8", "", ""),
+                ("s_from, s_to", "f64", "m", "the bin"),
+                (
+                    "road_width",
+                    "f64",
+                    "m",
+                    "mean carriageway width over the bin",
+                ),
+                (
+                    "blocked_width, free_width",
+                    "f64",
+                    "m",
+                    "width taken by road objects (footprints, plus strips between a footprint \
+                     and the kerb or another footprint that are narrower than the narrowest \
+                     vehicle type), averaged along the bin and over time; the rest",
+                ),
+                (
+                    "shy_desired, shy_minimum",
+                    "f64?",
+                    "m",
+                    "desired and minimum lateral clearance (ADR-0010 §1) to the nearest object, \
+                     averaged over the time vehicles spent beside one",
+                ),
+                (
+                    "effective_width_model",
+                    "f64?",
+                    "m",
+                    "free_width − shy_desired",
+                ),
+                (
+                    "shy_observed, shy_observed_min",
+                    "f64?",
+                    "m",
+                    "the gap to the nearest object that vehicles beside one were within for 5% \
+                     of their time; the smallest gap seen",
+                ),
+                (
+                    "effective_width_observed",
+                    "f64?",
+                    "m",
+                    "free_width − shy_observed",
+                ),
+                (
+                    "used_lo, used_hi",
+                    "f64?",
+                    "m",
+                    "lateral band covered by vehicle bodies",
+                ),
+                (
+                    "time_beside, time_spent",
+                    "f64",
+                    "veh·s",
+                    "time vehicles spent beside an object, and in the bin",
+                ),
+                ("mean_speed", "f64?", "m/s", "space-mean speed in the bin"),
             ],
         ),
         (

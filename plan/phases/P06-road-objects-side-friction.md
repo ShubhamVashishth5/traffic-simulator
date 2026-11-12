@@ -38,6 +38,11 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
   - Cruising agents slow near the kerb.
 - **Done when:** the effective-width observer reports `W_eff` consistent with the footprints plus the
   clearance-derived shy distance.
+- **Outcome (2026-11-12):** done; the rules are in
+  [ADR-0013](../decisions/ADR-0013-kerbside-parking.md) (proposed, please review). `W_eff`
+  from the observer agrees with footprints plus the clearance model's shy distance within
+  0.04 m over a 500 m stretch (three seeds). The guide has no numbers for the survey
+  quantities, so the register leaves them unset and a scenario must give them.
 
 ### P6.3 Stop-anywhere and attractors
 - **Do:** persona-driven Poisson hail and stop events (autos, e-rickshaws, cabs, bike taxis), with
