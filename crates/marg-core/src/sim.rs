@@ -15,6 +15,7 @@ use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
 use crate::model::lateral::{ChoiceParams, body_half_width, edge_gap};
 use crate::model::longitudinal::Idm;
+use crate::objects::{Narrowings, Objects, RoadObject};
 use crate::observe::Detectors;
 use crate::output::{
     AgentRecord, ConflictRecord, DetectorRecord, EventRecord, RunOutputs, TrajectoryChunk,
@@ -24,6 +25,7 @@ use crate::params::{CoreParams, Drawn};
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use marg_net::Network;
+use marg_params::spec::ObjectSpec;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
 use rayon::prelude::*;
 
@@ -52,6 +54,8 @@ pub enum SimError {
     Params(#[from] marg_params::ResolveError),
     #[error("thread pool: {0}")]
     ThreadPool(String),
+    #[error("{0}")]
+    Object(String),
     #[error("cannot resample `{0}`: {1}")]
     Resample(String, &'static str),
 }
@@ -102,10 +106,16 @@ pub struct Simulation {
     move_buf: Vec<MoveOut>,
     /// Per agent: limits of this step's lateral position (from the move phase).
     y_limits: Vec<(f64, f64)>,
+    /// Per agent: how far the kerb of a narrowing road may move it this step.
+    kerb_limits: Vec<(f64, f64)>,
     /// A predecessor of each ribbon, and distances between ribbon starts.
     prev: Vec<Option<usize>>,
     chain_offset: Vec<Vec<f64>>,
     barriers: Vec<Barrier>,
+    objects: Objects,
+    narrow: Narrowings,
+    /// Agents the kerb stopped this step: index, and how far each was cut back.
+    edge_stops: Vec<(u32, f64)>,
     /// Steps between an agent's scheduled lateral decisions.
     decision_steps: u64,
     conflicts: Vec<ConflictRecord>,
@@ -229,6 +239,13 @@ impl Simulation {
                 is_closed: false,
             });
         }
+        let mut objects = Objects::new(n_ribbons);
+        for o in &scenario.network.objects {
+            objects
+                .add(o, &net, None)
+                .map_err(SimError::InvalidScenario)?;
+        }
+        let narrow = Narrowings::new(&net);
         let decision_steps = decision_steps(&p, scenario.dt_s);
         Ok(Self {
             dt: scenario.dt_s,
@@ -247,9 +264,13 @@ impl Simulation {
             parallel_min: MOVE_PARALLEL_MIN,
             move_buf: Vec::new(),
             y_limits: Vec::new(),
+            kerb_limits: Vec::new(),
             prev,
             chain_offset,
             barriers,
+            objects,
+            narrow,
+            edge_stops: Vec::new(),
             decision_steps,
             conflicts: Vec::new(),
             guard_restored: Vec::new(),
@@ -544,6 +565,24 @@ impl Simulation {
         Some(ctx.decide(r, k, i, &idm, f64::INFINITY))
     }
 
+    /// Every road object, on the road now or not.
+    pub fn objects(&self) -> &[RoadObject] {
+        &self.objects.all
+    }
+
+    /// Put a road object on the road from the next step on (the live
+    /// viewer's `add_object`). Vehicles under it at that moment drive on.
+    pub fn add_object(&mut self, spec: &ObjectSpec) -> Result<(), SimError> {
+        self.objects
+            .add(spec, &self.net, Some(self.t))
+            .map_err(SimError::Object)
+    }
+
+    /// Take a road object off the road from the next step on.
+    pub fn remove_object(&mut self, id: &str) -> Result<(), SimError> {
+        self.objects.remove(id, self.t).map_err(SimError::Object)
+    }
+
     /// Every conflict episode closed so far.
     pub fn conflicts(&self) -> &[ConflictRecord] {
         &self.conflicts
@@ -570,6 +609,8 @@ impl Simulation {
             prev: &self.prev,
             chain_offset: &self.chain_offset,
             barriers: &self.barriers,
+            objects: &self.objects,
+            narrow: &self.narrow,
             cut,
             steer_cut: p.steering_cutoff_distance(),
             l_max: self.agents.length.iter().copied().fold(0.0, f64::max),
@@ -627,6 +668,27 @@ impl Simulation {
         for b in &mut self.barriers {
             b.is_closed = b.closed.iter().any(|&(from, to)| t >= from && t < to);
         }
+        let (events, net) = (&mut self.events, &self.net);
+        self.objects.update(t, |o| {
+            events.push(EventRecord {
+                t,
+                kind: if o.active {
+                    "object_added"
+                } else {
+                    "object_removed"
+                },
+                agent_id: NO_AGENT,
+                ribbon: net.ribbon(o.ribbon).id.clone(),
+                s: o.s,
+                y: o.y,
+                attrs: format!(
+                    "{{\"object\":{},\"length\":{},\"width\":{}}}",
+                    json_string(&o.id),
+                    o.length,
+                    o.width
+                ),
+            });
+        });
         let mut buf = std::mem::take(&mut self.move_buf);
         {
             let ctx = self.move_ctx();
@@ -647,6 +709,9 @@ impl Simulation {
                 });
             }
         }
+        self.kerb_limits.clear();
+        self.kerb_limits
+            .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
         self.y_limits.clear();
         self.y_limits
             .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
@@ -656,6 +721,7 @@ impl Simulation {
             self.agents.acc[i] = out.acc;
             self.agents.vy[i] = out.vy;
             self.y_limits[i] = (out.y_lo, out.y_hi);
+            self.kerb_limits[i] = (out.kerb_lo, out.kerb_hi);
             if let Some(c) = out.choice {
                 self.lateral_decisions += 1;
                 self.agents.decision_leader[i] = out.leader;
@@ -748,21 +814,21 @@ impl Simulation {
         let measured = self.t >= self.scenario.warmup_s;
         let mut max_step: f64 = 0.0;
         let mut ttd = 0.0;
+        self.edge_stops.clear();
         for i in 0..a.len() {
             let (v, acc) = (a.v[i], a.acc[i]);
             let v1 = v + acc * dt;
-            let ds = if v1 >= 0.0 {
+            let mut ds = if v1 >= 0.0 {
                 0.5 * (v + v1) * dt
             } else {
                 -v * v / (2.0 * acc)
             };
-            a.s_prev[i] = a.s[i];
+            let (s0, distance0, free_flow_time0) = (a.s[i], a.distance[i], a.free_flow_time[i]);
+            a.s_prev[i] = s0;
             a.s[i] += ds;
             a.v[i] = v1.max(0.0);
             a.distance[i] += ds;
             a.free_flow_time[i] += ds / a.v0[i];
-            max_step = max_step.max(ds);
-            ttd += ds;
             // Across the ribbon: the heading limit (or the creep speed when
             // nearly stopped), the side neighbours' limits, the carriageway.
             let creep = if a.v[i] < p.stop_speed_below {
@@ -772,9 +838,9 @@ impl Simulation {
             };
             let reach = (ds * p.max_heading_tan).max(creep);
             let dy = (a.vy[i] * dt).clamp(-reach, reach);
-            let ribbon = self.net.ribbon(a.ribbon[i] as usize);
-            let (edge_lo, edge_hi) = ribbon.y_bounds(a.s[i]);
-            let (road_lo, road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
+            let r = a.ribbon[i] as usize;
+            let (mut edge_lo, mut edge_hi) = chain_bounds(&self.net, r, a.s[i]);
+            let (mut road_lo, mut road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
             let (y0, (lim_lo, lim_hi)) = (a.y[i], self.y_limits[i]);
             // A body widens as it turns (ADR-0010 §4): its corners swing out
             // on both sides, so a move away from one neighbour can still
@@ -802,16 +868,53 @@ impl Simulation {
                     };
                 }
             }
-            let y1 = (y0 + dy).clamp(road_lo, road_hi);
+            let steered = y0 + dy;
+            let mut y1 = steered.clamp(road_lo, road_hi);
+            // A narrowing carriageway moves the vehicle sideways. If that
+            // takes it beyond the room its neighbours leave, it stops short
+            // instead (as far along as the room allows), and the stop is
+            // logged like any other step the collision guard cuts back.
+            let (kerb_lo, kerb_hi) = self.kerb_limits[i];
+            if (y1 > steered && y1 > kerb_hi) || (y1 < steered && y1 < kerb_lo) {
+                let full = ds;
+                let mut fraction = 1.0;
+                for tries in 1..=LATERAL_HALVINGS {
+                    fraction = if tries < LATERAL_HALVINGS {
+                        0.5 * fraction
+                    } else {
+                        0.0
+                    };
+                    ds = fraction * full;
+                    (edge_lo, edge_hi) = chain_bounds(&self.net, r, s0 + ds);
+                    (road_lo, road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
+                    y1 = y0.clamp(road_lo, road_hi);
+                    if y1 >= kerb_lo && y1 <= kerb_hi {
+                        break;
+                    }
+                }
+                if fraction == 0.0 {
+                    y1 = y0;
+                }
+                a.s[i] = s0 + ds;
+                a.v[i] = a.v[i].min(ds / dt);
+                a.distance[i] = distance0 + ds;
+                a.free_flow_time[i] = free_flow_time0 + ds / a.v0[i];
+                self.edge_stops.push((i as u32, full - ds));
+            }
+            max_step = max_step.max(ds);
+            ttd += ds;
             let dy = y1 - y0;
             a.y_prev[i] = y0;
             a.y[i] = y1;
             a.vy[i] = dy / dt;
             a.lateral_distance[i] += dy.abs();
             a.heading_tan_prev[i] = a.heading_tan[i];
-            // Creeping sideways at a standstill is the limit heading.
+            // Creeping sideways at a standstill is the limit heading. A body
+            // the kerb moved over was not steered there: it stays straight
+            // (the carriageway bounds its unturned width).
+            let pushed = y1 < y0.min(steered) || y1 > y0.max(steered);
             let along = ds.max(dy.abs() / p.max_heading_tan);
-            a.heading_tan[i] = if dy == 0.0 {
+            a.heading_tan[i] = if dy == 0.0 || pushed {
                 0.0
             } else {
                 (dy / along).clamp(-p.max_heading_tan, p.max_heading_tan)
@@ -835,6 +938,20 @@ impl Simulation {
             self.measured_tts += a.len() as f64 * dt;
             self.measured_ttd += ttd;
         }
+        let t = self.t + dt;
+        for &(i, cut) in &self.edge_stops {
+            let i = i as usize;
+            self.events.push(EventRecord {
+                t,
+                kind: "collision_guard",
+                agent_id: a.id[i],
+                ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+                s: a.s[i],
+                y: a.y[i],
+                attrs: format!("{{\"other\":\"edge\",\"cut_back_s\":{cut}}}"),
+            });
+        }
+        self.collision_guards += self.edge_stops.len() as u64;
     }
 
     /// The body of agent `i`, `offset` m further along the chain.
@@ -861,6 +978,50 @@ impl Simulation {
         // heading limit reach at most this much further along the ribbon.
         let slack = self.max_step + w_max * self.p.max_heading_tan;
         let mut any = false;
+        // Road objects first: a vehicle that drove into one this step goes
+        // back to where it was (one that was already on it, because the
+        // object appeared there, drives on).
+        if self.objects.any_active() {
+            for i in 0..self.agents.len() {
+                let a = &self.agents;
+                let (class, reach) = (usize::from(a.class[i]), 0.5 * a.length[i] + slack);
+                let now = self.body(i, 0.0);
+                let before = Body::from_tan(
+                    a.s_prev[i],
+                    a.y_prev[i],
+                    a.length[i],
+                    a.width[i],
+                    a.heading_tan_prev[i],
+                );
+                let mut hit: Option<(usize, f64)> = None;
+                self.objects.near(
+                    &self.net,
+                    &self.prev,
+                    a.ribbon[i] as usize,
+                    a.s[i],
+                    reach,
+                    reach,
+                    |o, ds| {
+                        if !o.blocks[class] || hit.is_some() {
+                            return;
+                        }
+                        // Both of the vehicle's bodies are in the frame of its ribbon.
+                        let body = Body::from_tan(now.s + ds, o.y, o.length, o.width, 0.0);
+                        if overlap(&now, &body) && !overlap(&before, &body) {
+                            hit = Some((o.serial as usize, penetration(&now, &body)));
+                        }
+                    },
+                );
+                if let Some((serial, depth)) = hit {
+                    if !any {
+                        any = true;
+                        self.guard_restored.clear();
+                        self.guard_restored.resize(self.agents.len(), false);
+                    }
+                    self.guard_restore(i, Against::Object(serial), depth, t);
+                }
+            }
+        }
         loop {
             let mut changed = false;
             for r in 0..self.orders.len() {
@@ -899,7 +1060,7 @@ impl Simulation {
                             } else {
                                 continue;
                             };
-                            self.guard_restore(back, other, depth, t);
+                            self.guard_restore(back, Against::Agent(other), depth, t);
                             changed = true;
                         }
                         match self.net.ribbon(ribbon).next {
@@ -921,7 +1082,7 @@ impl Simulation {
 
     /// Put agent `i` back where it was before this step, because it
     /// overlapped `other` by `depth` m, and log it.
-    fn guard_restore(&mut self, i: usize, other: usize, depth: f64, t: f64) {
+    fn guard_restore(&mut self, i: usize, other: Against, depth: f64, t: f64) {
         let a = &mut self.agents;
         let (ds, dy) = (a.s[i] - a.s_prev[i], a.y[i] - a.y_prev[i]);
         a.s[i] = a.s_prev[i];
@@ -931,7 +1092,10 @@ impl Simulation {
         a.distance[i] -= ds;
         a.free_flow_time[i] -= ds / a.v0[i];
         a.lateral_distance[i] -= dy.abs();
-        a.v[i] = a.v[i].min(a.v[other]);
+        a.v[i] = match other {
+            Against::Agent(j) => a.v[i].min(a.v[j]),
+            Against::Object(_) => 0.0,
+        };
         a.vy[i] = 0.0;
         if self.t >= self.scenario.warmup_s {
             self.measured_ttd -= ds;
@@ -946,8 +1110,17 @@ impl Simulation {
             s: a.s[i],
             y: a.y[i],
             attrs: format!(
-                "{{\"other_id\":{},\"overlap_m\":{},\"cut_back_s\":{},\"cut_back_y\":{}}}",
-                a.id[other], depth, ds, dy
+                "{{{},\"overlap_m\":{},\"cut_back_s\":{},\"cut_back_y\":{}}}",
+                match other {
+                    Against::Agent(j) => format!("\"other_id\":{}", a.id[j]),
+                    Against::Object(serial) => format!(
+                        "\"other\":\"object\",\"object\":{}",
+                        json_string(&self.objects.all[serial].id)
+                    ),
+                },
+                depth,
+                ds,
+                dy
             ),
         });
         self.collision_guards += 1;
@@ -1258,6 +1431,36 @@ impl Simulation {
                 }
             }
         }
+        // Road objects at or ahead of the entry point.
+        let mut blocked = false;
+        self.objects.near(
+            &self.net,
+            &self.prev,
+            r,
+            s_e,
+            0.5 * length,
+            p.lookahead,
+            |o, ds| {
+                let gap_s = ds.abs() - 0.5 * (length + o.length);
+                if !o.blocks[ci] || (gap_s > 0.0 && ds < 0.0) {
+                    return;
+                }
+                let gy = edge_gap(y, 0.5 * width, o.y, 0.5 * o.width);
+                let c = clearance_scale * p.object_clearance(ci, o.clearance_class, 0.5 * v).1;
+                if gy - c > 0.0 {
+                    return;
+                }
+                if gap_s <= 0.0 {
+                    blocked = true;
+                    return;
+                }
+                let (mt, ms) = p.object_multipliers(ci, o.clearance_class);
+                v = v.min(idm.insertion_speed(gap_s, 0.0, mt, ms));
+            },
+        );
+        if blocked {
+            return None;
+        }
         // Followers behind the entry point.
         let mut cov = Coverage::new(y - 0.5 * width, y + 0.5 * width);
         let mut horizon = p.lookahead;
@@ -1433,6 +1636,49 @@ impl Simulation {
             ("lateral_moves", lateral_moves as f64),
             ("lateral_decisions", self.lateral_decisions as f64),
         ]
+    }
+}
+
+/// What the collision guard put a vehicle back for.
+#[derive(Debug, Clone, Copy)]
+enum Against {
+    /// Another vehicle (store index).
+    Agent(usize),
+    /// A road object (serial number).
+    Object(usize),
+}
+
+/// `text` as a JSON string literal.
+fn json_string(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// Bounds of the carriageway at station `s` of ribbon `r`, following the
+/// chain when `s` is beyond the ribbon's end (a vehicle changes ribbon at
+/// the end of the step that takes it across).
+#[inline]
+fn chain_bounds(net: &Network, r: usize, s: f64) -> (f64, f64) {
+    let (mut r, mut s) = (r, s);
+    loop {
+        let ribbon = net.ribbon(r);
+        match ribbon.next {
+            Some(n) if s >= ribbon.length() => {
+                s -= ribbon.length();
+                r = n;
+            }
+            _ => return ribbon.y_bounds(s),
+        }
     }
 }
 

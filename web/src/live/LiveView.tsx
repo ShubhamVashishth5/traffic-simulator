@@ -85,6 +85,8 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
   const [renderFps, setRenderFps] = useState(0);
   const [stepN, setStepN] = useState(10);
   const [bpTime, setBpTime] = useState("");
+  const [obj, setObj] = useState({ s: 500, y: 0, length: 4.5, width: 1.8 });
+  const objectCount = useRef(0);
   const selected = st.inspector?.found === false ? null : st.inspector ? BigInt(st.inspector.id) : null;
   const hello = st.hello;
   const status = st.status;
@@ -169,6 +171,15 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
           </button>
           {(status?.breakpoints.length ?? 0) > 0 && <button onClick={() => send({ cmd: "clear_breakpoints" })}>Clear ({status?.breakpoints.length})</button>}
         </span>
+        <span className="group" title="Put a road object on the selected ribbon (station s, lateral y, length, width, in metres)">
+          {(["s", "y", "length", "width"] as const).map((k) => (
+            <input key={k} type="number" step="any" value={obj[k]} onChange={(e) => setObj({ ...obj, [k]: Number(e.target.value) })} style={{ width: 58 }} aria-label={`object ${k}`} title={k} />
+          ))}
+          <button onClick={() => send({ cmd: "add_object", object: { id: `live-${++objectCount.current}`, ribbon: tsRibbon, ...obj } })}>Add object</button>
+          {st.objects.some((o) => o.present.some(([, b]) => b == null)) && (
+            <button onClick={() => { const last = [...st.objects].reverse().find((o) => o.present.some(([, b]) => b == null)); if (last) send({ cmd: "remove_object", id: last.id }); }}>Remove last</button>
+          )}
+        </span>
         <button onClick={() => send({ cmd: "save" })} title="Write the session folder (scenario, seed, command log) and replay it headless">
           Save session
         </button>
@@ -192,6 +203,7 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
             <MapView
               ribbons={hello.ribbons}
               detectors={hello.detectors}
+              objects={st.objects.filter((o) => o.present.some(([a, b]) => (a ?? -Infinity) <= (status?.t ?? 0) && (status?.t ?? 0) < (b ?? Infinity)))}
               bounds={hello.bounds}
               classes={hello.classes}
               scale={scale}

@@ -84,9 +84,9 @@ One row per discrete event.
 
 | Column | Type | Unit | Meaning |
 | --- | --- | --- | --- |
-| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move |
+| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed (agent_id is 2⁶⁴ − 1 for the object events) |
 | ribbon, s, y | utf8, f64, f64 | m | where |
-| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y. lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
+| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), length, width, with the footprint's centre in ribbon, s, y. lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
 
 ## conflicts.parquet
 
@@ -115,14 +115,14 @@ Headline KPIs (one row) and sampled trajectories.
 
 ## commands.parquet (live sessions)
 
-One row per command of a live viewer session (plan P4.1). With `scenario.yaml`, `params/` and the seed it is the whole session: `marg replay` re-runs it headless and checks the output hash. Only accepted `set_param` and `resample` rows change the run.
+One row per command of a live viewer session (plan P4.1). With `scenario.yaml`, `params/` and the seed it is the whole session: `marg replay` re-runs it headless and checks the output hash. Only accepted `set_param`, `resample`, `add_object` and `remove_object` rows change the run.
 
 | Column | Type | Unit | Meaning |
 | --- | --- | --- | --- |
 | seq | u64 |  | position in the log |
 | step, t | u64, f64 | s | steps completed and simulated time when it took effect (acts before step `step + 1`) |
 | wall_s | f64 | s | wall-clock time since the session started (informational) |
-| cmd | utf8 |  | set_param, resample, play, pause, step, speed, select_agent, breakpoint, … |
+| cmd | utf8 |  | set_param, resample, add_object, remove_object, play, pause, step, speed, select_agent, breakpoint, … |
 | args | utf8 (JSON) |  | arguments; values in register units |
 | accepted, message | bool, utf8 |  | outcome or refusal reason |
 

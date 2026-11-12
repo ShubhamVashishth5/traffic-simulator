@@ -8,6 +8,7 @@
 pub mod agents;
 pub mod demand;
 pub mod model;
+pub mod objects;
 pub mod observe;
 pub mod output;
 pub mod params;

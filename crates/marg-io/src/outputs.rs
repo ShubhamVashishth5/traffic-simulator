@@ -593,14 +593,19 @@ pub fn data_dictionary() -> String {
                     "t, kind, agent_id",
                     "f64, utf8, u64",
                     "s",
-                    "kinds so far: collision_guard, lateral_move",
+                    "kinds so far: collision_guard, lateral_move, object_added, object_removed \
+                     (agent_id is 2⁶⁴ − 1 for the object events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
                     "attrs",
                     "utf8 (JSON)",
                     "",
-                    "collision_guard: other_id, overlap_m, cut_back_s, cut_back_y. lateral_move \
+                    "collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a \
+                     vehicle; other = object and object (its id) against a road object; other = \
+                     edge and cut_back_s when the kerb of a narrowing road stopped the vehicle \
+                     short. object_added, object_removed: object (id), length, width, with the \
+                     footprint's centre in ribbon, s, y. lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",
                 ),
@@ -687,7 +692,7 @@ pub fn data_dictionary() -> String {
             "commands.parquet (live sessions)",
             "One row per command of a live viewer session (plan P4.1). With `scenario.yaml`, \
              `params/` and the seed it is the whole session: `marg replay` re-runs it headless \
-             and checks the output hash. Only accepted `set_param` and `resample` rows change the run.",
+             and checks the output hash. Only accepted `set_param`, `resample`, `add_object` and `remove_object` rows change the run.",
             &[
                 ("seq", "u64", "", "position in the log"),
                 (
@@ -706,7 +711,8 @@ pub fn data_dictionary() -> String {
                     "cmd",
                     "utf8",
                     "",
-                    "set_param, resample, play, pause, step, speed, select_agent, breakpoint, …",
+                    "set_param, resample, add_object, remove_object, play, pause, step, speed, select_agent, \
+                     breakpoint, …",
                 ),
                 (
                     "args",

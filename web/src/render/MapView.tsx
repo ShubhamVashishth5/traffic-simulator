@@ -29,6 +29,8 @@ export interface MapLayerSource {
 export interface MapProps {
   ribbons: RibbonView[];
   detectors: DetectorView[];
+  /** Footprints of the road objects on the road now. */
+  objects?: { id: string; shape: number[][] }[];
   bounds: number[];
   classes: string[];
   scale: ColourScale;
@@ -51,6 +53,7 @@ const BAND_RGBA = hexToRgba("#2c2c2a");
 const EDGE_RGBA = hexToRgba("#898781", 200);
 const DETECTOR_RGBA = hexToRgba("#c3c2b7", 220);
 const RING_RGBA = hexToRgba("#f0efec");
+const OBJECT_RGBA = hexToRgba("#898781");
 const TRAIL_LEN = 12;
 
 /** Fraction of the view height a long, thin network is zoomed to at first. */
@@ -192,6 +195,15 @@ export function MapView(p: MapProps) {
         stroked: true,
         getLineColor: DETECTOR_RGBA,
         lineWidthMinPixels: 1,
+      }),
+      new PolygonLayer({
+        id: "objects",
+        data: q.objects ?? [],
+        getPolygon: (o: { shape: number[][] }) => o.shape,
+        getFillColor: OBJECT_RGBA,
+        getLineColor: RING_RGBA,
+        lineWidthMinPixels: 1,
+        stroked: true,
       }),
     ];
     for (const src of q.sources) {

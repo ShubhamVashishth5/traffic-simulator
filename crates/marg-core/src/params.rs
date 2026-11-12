@@ -83,6 +83,8 @@ pub struct CoreParams {
     /// `c_des(v̄) = intercept + slope · v̄` (m, s), symmetric.
     pub clearance_intercept: [[f64; N_CLASSES]; N_CLASSES],
     pub clearance_slope: [[f64; N_CLASSES]; N_CLASSES],
+    /// The pooled clearance line (for bodies without a class of their own).
+    pub clearance_pooled: (f64, f64),
     /// `Δ`: the minimum clearance is the desired one minus this (m) …
     pub clearance_min_offset: f64,
     /// … and never below this (m).
@@ -275,6 +277,10 @@ impl CoreParams {
             types,
             classes,
             draw_sources,
+            clearance_pooled: (
+                spec.scalar_si("interaction.lateral.clearance.intercept")?,
+                spec.scalar_si("interaction.lateral.clearance.slope")?,
+            ),
             clearance_intercept: clearance_matrix(spec, "intercept")?,
             clearance_slope: clearance_matrix(spec, "slope")?,
             clearance_min_offset: spec.scalar_si("interaction.lateral.clearance.min_offset")?,
@@ -348,6 +354,34 @@ impl CoreParams {
             self.clearance_min_floor,
             v_mean,
         )
+    }
+
+    /// [`Self::pair_clearance`] to a road object at mean pair speed
+    /// `v_mean`: the line of the pair with the object's clearance class, or
+    /// the pooled line if it has none (ADR-0010 §1).
+    #[inline]
+    pub fn object_clearance(&self, ci: usize, class: Option<usize>, v_mean: f64) -> (f64, f64) {
+        match class {
+            Some(cj) => self.pair_clearance(ci, cj, v_mean),
+            None => crate::model::lateral::clearances(
+                self.clearance_pooled.0,
+                self.clearance_pooled.1,
+                self.clearance_min_offset,
+                self.clearance_min_floor,
+                v_mean,
+            ),
+        }
+    }
+
+    /// Multipliers on the time gap and standstill gap of a vehicle of class
+    /// `ci` stopping behind a road object: those of the pair with the
+    /// object's clearance class, or 1.
+    #[inline]
+    pub fn object_multipliers(&self, ci: usize, class: Option<usize>) -> (f64, f64) {
+        match class {
+            Some(cj) => (self.mult_time_gap[ci][cj], self.mult_standstill_gap[ci][cj]),
+            None => (1.0, 1.0),
+        }
     }
 
     /// The clearance scale `exp(−γ_c κ)` of an agent with aggressiveness `kappa`.

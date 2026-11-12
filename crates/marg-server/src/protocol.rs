@@ -14,12 +14,13 @@
 //! The TypeScript types (`web/src/protocol.gen.ts`) are generated from these
 //! types by `scripts/gen-schema.sh`.
 
+use marg_params::spec::ObjectSpec;
 use marg_params::{ParamValue, Scenario};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Bump on any change to the messages or frame columns.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Columns of a binary agent frame, in order.
 pub const FRAME_COLUMNS: [&str; 8] = [
@@ -118,11 +119,12 @@ pub enum ClientMessage {
         junction: String,
         state: String,
     },
-    /// Road objects arrive in P6; refused until then.
+    /// Put a road object on the road from the next step on (ribbon
+    /// coordinates, as in a scenario's `network.objects`).
     AddObject {
-        object: serde_json::Value,
+        object: ObjectSpec,
     },
-    /// Road objects arrive in P6; refused until then.
+    /// Take a road object off the road from the next step on.
     RemoveObject {
         id: String,
     },
@@ -454,6 +456,26 @@ pub enum ServerMessage {
     Error {
         message: String,
     },
+    /// Every road object, sent on connecting and whenever one is added or
+    /// removed.
+    Objects {
+        objects: Vec<ObjectView>,
+    },
+}
+
+/// A road object and when it is on the road.
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+pub struct ObjectView {
+    pub id: String,
+    pub ribbon: String,
+    pub s: f64,
+    pub y: f64,
+    pub length: f64,
+    pub width: f64,
+    /// Corners of the footprint, relative to `Hello.origin`.
+    pub shape: Vec<[f64; 2]>,
+    /// Periods `[from, to)` on the road; `null` = no bound on that side.
+    pub present: Vec<[Option<f64>; 2]>,
 }
 
 /// Both directions, for the JSON Schema that generates the TypeScript types.

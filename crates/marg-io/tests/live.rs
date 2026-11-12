@@ -163,3 +163,59 @@ fn history_records_before_and_after() {
     assert_eq!(h[0].seq, 1);
     assert_eq!(h[2].seq, 6);
 }
+
+/// P6.1: objects added and removed live are part of the command log, change
+/// the run, and replay to the same output hash.
+#[test]
+fn objects_placed_live_are_replayed() {
+    let sc = Scenario::from_yaml(SCENARIO).unwrap();
+    let plain = {
+        let mut run = LiveRun::new(source(), sc.clone(), 5, 1).unwrap();
+        for _ in 0..900 {
+            run.step();
+        }
+        run.sim().summary().output_hash
+    };
+    let mut run = LiveRun::new(source(), sc, 5, 1).unwrap();
+    for _ in 0..300 {
+        run.step();
+    }
+    let object =
+        json!({"id": "cart", "ribbon": "main", "s": 350.0, "y": 0.0, "length": 4.0, "width": 2.0});
+    let (_, r) = run.command("add_object", &json!({"object": object}), 1.0);
+    assert!(r.unwrap().contains("cart"));
+    let (_, r) = run.command("add_object", &json!({"object": object}), 1.0);
+    assert!(r.unwrap_err().contains("duplicate"));
+    let (_, r) = run.command(
+        "add_object",
+        &json!({"object": {"id": "x", "capacity": 0.5}}),
+        1.0,
+    );
+    assert!(r.unwrap_err().contains("bad object"));
+    for _ in 0..400 {
+        run.step();
+    }
+    run.command("remove_object", &json!({"id": "cart"}), 2.0)
+        .1
+        .unwrap();
+    assert!(
+        run.command("remove_object", &json!({"id": "cart"}), 2.0)
+            .1
+            .is_err()
+    );
+    for _ in 0..200 {
+        run.step();
+    }
+    assert_ne!(
+        run.sim().summary().output_hash,
+        plain,
+        "the object changed the run"
+    );
+    let dir = tmp("objects");
+    let m = run.save(&dir, "s2").unwrap();
+    assert_eq!(m.live.as_ref().unwrap().state_commands, 2);
+    let r = replay(&dir, 4, true).unwrap();
+    assert!(r.matches, "{r:?}");
+    assert_eq!(r.commands_applied, 2);
+    let _ = std::fs::remove_dir_all(&dir);
+}

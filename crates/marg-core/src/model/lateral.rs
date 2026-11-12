@@ -5,6 +5,8 @@
 //! (their mean line), which agents prefer to keep, and the **minimum** (the
 //! lower threshold of their residual), which braking and squeezing use.
 
+use crate::objects::EdgeAhead;
+
 /// Most leaders, followers or side neighbours one decision considers; the
 /// nearest are kept.
 pub const MAX_NEIGHBOURS: usize = 32;
@@ -212,6 +214,46 @@ pub struct Subject {
     pub cap: f64,
     /// Its current lateral target.
     pub target: f64,
+    /// The carriageway ahead, where it narrows within the lookahead.
+    pub wall: Option<Wall>,
+}
+
+/// Slack on the lines compared with the carriageway's edges (m): a body
+/// that touches the kerb is not across it.
+const EDGE_SLACK: f64 = 1e-6; // allow-literal: rounding tolerance, not behaviour
+
+/// The carriageway ahead of the deciding agent, with what it needs to work
+/// out the acceleration its edge allows on a given line: that of following a
+/// standing obstacle at the station where the line leaves the carriageway.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Wall {
+    pub edges: EdgeAhead,
+    /// The agent's desired gap `s*` to a standing obstacle at its speed.
+    pub desired_gap: f64,
+    pub max_accel: f64,
+    /// Lowest acceleration (`−b_emergency`).
+    pub floor: f64,
+    /// Lookahead distance (m).
+    pub reach: f64,
+}
+
+impl Wall {
+    /// The acceleration the edge allows a body spanning `[lo, hi]` laterally
+    /// whose free acceleration is `free`.
+    #[inline]
+    pub fn accel(&self, free: f64, lo: f64, hi: f64) -> f64 {
+        match self.edges.contact(lo + EDGE_SLACK, hi - EDGE_SLACK) {
+            Some(d) if d <= self.reach => {
+                if d > 0.0 {
+                    let q = self.desired_gap / d;
+                    (free - self.max_accel * q * q).max(self.floor)
+                } else {
+                    self.floor
+                }
+            }
+            _ => f64::INFINITY,
+        }
+    }
 }
 
 /// Population-level constants of the choice.
@@ -330,6 +372,9 @@ impl Scene<'_> {
             };
             b.free[m] = free;
             b.own[m] = free.min(me.cap);
+            if let Some(w) = &me.wall {
+                b.own[m] = b.own[m].min(w.accel(free, y - me.half_width, y + me.half_width));
+            }
             b.shortfall[m] = shortfall(p.edge_clearance, 0.0, y - me.half_width - me.edge_lo)
                 + shortfall(p.edge_clearance, 0.0, me.edge_hi - y - me.half_width);
             b.followers[m] = 0.0;
@@ -900,6 +945,7 @@ mod tests {
                         band_y: band,
                         cap,
                         target: y + target,
+                        wall: None,
                     };
                     let p = ChoiceParams {
                         step: 0.05 + step,
@@ -1043,6 +1089,7 @@ mod tests {
             band_y: f64::NEG_INFINITY,
             cap: f64::INFINITY,
             target: 0.0,
+            wall: None,
         }
     }
 

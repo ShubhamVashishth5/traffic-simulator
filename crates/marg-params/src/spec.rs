@@ -2,7 +2,7 @@
 //! overrides (plan/03-model-design.md, plan/04-data-outputs-analytics.md).
 
 use crate::param::ParamValue;
-use crate::vehicle::VehicleType;
+use crate::vehicle::{VehicleClass, VehicleType};
 use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,72 @@ pub struct NetworkSpec {
     /// police barrier). Signals arrive in phase P7.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub barriers: Vec<BarrierSpec>,
+    /// Road objects: things with a position and a footprint that vehicles
+    /// react to (G§6, plan/03-model-design.md §10). They act only through
+    /// usable width, speed caps, gap supply and incentives; there is no
+    /// capacity or flow factor to set (ADR-0005).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub objects: Vec<ObjectSpec>,
+}
+
+/// A road object: a rectangle lying along a ribbon (a parked vehicle, a
+/// vendor's cart, debris). Vehicles see it as a standing body: they keep
+/// their lateral clearance to it, brake for it and steer around it like
+/// they do for a stopped vehicle.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ObjectSpec {
+    pub id: String,
+    #[serde(default)]
+    pub kind: ObjectKind,
+    pub ribbon: String,
+    /// Station of the footprint's centre on the ribbon (m).
+    pub s: f64,
+    /// Lateral position of the footprint's centre (m).
+    pub y: f64,
+    /// Extent of the footprint along the ribbon (m).
+    pub length: f64,
+    /// Extent of the footprint across the ribbon (m).
+    pub width: f64,
+    /// The vehicle class whose lateral-clearance line and following
+    /// multipliers apply to this object (a parked car is passed like a
+    /// car). Omit for the pooled clearance line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clearance_as: Option<VehicleClass>,
+    /// How each vehicle class responds; classes not listed are blocked.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub response: IndexMap<VehicleClass, ObjectResponse>,
+    /// Periods during which the object is on the road; empty means always.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub present: Vec<ClosedInterval>,
+}
+
+/// What a road object is.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectKind {
+    /// A solid body on the carriageway.
+    #[default]
+    Obstacle,
+}
+
+impl ObjectKind {
+    pub fn key(self) -> &'static str {
+        match self {
+            ObjectKind::Obstacle => "obstacle",
+        }
+    }
+}
+
+/// How one vehicle class responds to a road object.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectResponse {
+    /// The footprint is not usable: the class goes around it or stops.
+    #[default]
+    Block,
+    /// The class takes no notice of the object.
+    Ignore,
 }
 
 /// A stop line across the whole carriageway. While it is closed, vehicles
@@ -75,7 +141,8 @@ pub struct BarrierSpec {
     pub closed: Vec<ClosedInterval>,
 }
 
-/// The barrier is closed for `from_s <= t < to_s` (simulated seconds).
+/// A period `from_s <= t < to_s` (simulated seconds): a barrier is closed,
+/// or an object is on the road.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ClosedInterval {

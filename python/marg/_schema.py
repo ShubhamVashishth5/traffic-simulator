@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
@@ -195,6 +196,31 @@ class KpiSpec(BaseModel):
     )
 
 
+class ObjectKind(StrEnum):
+    obstacle = 'obstacle'
+
+
+class ObjectResponse(StrEnum):
+    block = 'block'
+    ignore = 'ignore'
+
+
+class Response(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    auto_rickshaw: ObjectResponse | None = None
+    bicycle: ObjectResponse | None = None
+    bus: ObjectResponse | None = None
+    car: ObjectResponse | None = None
+    cycle_rickshaw: ObjectResponse | None = None
+    e_rickshaw: ObjectResponse | None = None
+    lcv: ObjectResponse | None = None
+    tractor: ObjectResponse | None = None
+    truck: ObjectResponse | None = None
+    two_wheeler: ObjectResponse | None = None
+
+
 PolylineItem = TypeAliasType(
     "PolylineItem", Annotated[list[float], Field(max_length=2, min_length=2)]
 )
@@ -215,6 +241,19 @@ class TrajectorySpec(BaseModel):
         description='Only record agents with `s` in `[s_from, s_to]` (any ribbon).',
     )
     s_to: float | None = None
+
+
+class VehicleClass(StrEnum):
+    bicycle = 'bicycle'
+    cycle_rickshaw = 'cycle_rickshaw'
+    two_wheeler = 'two_wheeler'
+    e_rickshaw = 'e_rickshaw'
+    auto_rickshaw = 'auto_rickshaw'
+    car = 'car'
+    lcv = 'lcv'
+    bus = 'bus'
+    truck = 'truck'
+    tractor = 'tractor'
 
 
 class WidthPoint(BaseModel):
@@ -253,6 +292,37 @@ class EntrySpec(BaseModel):
     id: str
     ribbon: str
     s: float | None = Field(0.0, description='Station of the entry on the ribbon.')
+
+
+class ObjectSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    clearance_as: VehicleClass | None = Field(
+        None,
+        description='The vehicle class whose lateral-clearance line and following\nmultipliers apply to this object (a parked car is passed like a\ncar). Omit for the pooled clearance line.',
+    )
+    id: str
+    kind: ObjectKind | None = 'obstacle'
+    length: float = Field(
+        ..., description='Extent of the footprint along the ribbon (m).'
+    )
+    present: list[ClosedInterval] | None = Field(
+        None,
+        description='Periods during which the object is on the road; empty means always.',
+    )
+    response: Response | None = Field(
+        None,
+        description='How each vehicle class responds; classes not listed are blocked.',
+    )
+    ribbon: str
+    s: float = Field(
+        ..., description="Station of the footprint's centre on the ribbon (m)."
+    )
+    width: float = Field(
+        ..., description='Extent of the footprint across the ribbon (m).'
+    )
+    y: float = Field(..., description="Lateral position of the footprint's centre (m).")
 
 
 class OutputSpec(BaseModel):
@@ -296,6 +366,10 @@ class NetworkSpec(BaseModel):
     barriers: list[BarrierSpec] | None = Field(
         None,
         description='Stop lines that are closed during given periods (a level crossing, a\npolice barrier). Signals arrive in phase P7.',
+    )
+    objects: list[ObjectSpec] | None = Field(
+        None,
+        description='Road objects: things with a position and a footprint that vehicles\nreact to (G§6, plan/03-model-design.md §10). They act only through\nusable width, speed caps, gap supply and incentives; there is no\ncapacity or flow factor to set (ADR-0005).',
     )
     ribbons: list[RibbonSpec]
 
