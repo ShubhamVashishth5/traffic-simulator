@@ -37,6 +37,88 @@ pub fn leader_weight(excess: f64, braking_scale: f64) -> f64 {
     }
 }
 
+/// How a vehicle sees a standing body ahead when it may steer round it
+/// (ADR-0012 part 2, option B: the swing-out gap).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SwingOut {
+    /// The gap to brake for: the bumper gap less the distance the vehicle
+    /// still needs, at the heading limit, to move clear of the body.
+    pub gap: f64,
+    /// Lateral gap beyond the minimum clearance when its front reaches the
+    /// body (negative: still in its way). The leader weight is taken from it.
+    /// When it is zero or more the vehicle will pass beside the body, and
+    /// the caller keeps no standstill gap to it: that gap is for waiting
+    /// behind something, not for passing it. A vehicle in the body's way
+    /// that means to drive on must also never come so close that it could
+    /// not steer clear moving forward: the caller brakes for the body at
+    /// the gap left after the run-up it needs from where it is now (this
+    /// function with the vehicle holding its line), with no standstill gap.
+    pub excess: f64,
+}
+
+/// The swing-out gap of a vehicle centred at `y` with half width `half` and
+/// lateral speed `vy`, tracking lateral target `target` with time constant
+/// `time_constant`, `gap` m behind a standing body centred at `body_y` with
+/// half width `body_half`, at speed `v` with maximum acceleration `max_accel`.
+///
+/// Where the vehicle will be across the road when its front reaches the
+/// body: its critically damped tracking of the target ([`track`], without
+/// the steering response) over the shortest time it could take to get there
+/// (at full acceleration), no further than the heading limit allows over
+/// that distance, within this
+/// step's side limits `limits` and the carriageway `road` (bounds of its
+/// centre). If that is clear of the body by the minimum clearance `c_min`,
+/// the body is braked for by that lateral gap. If not, the vehicle keeps
+/// room to swing out: it brakes for the body as if it were nearer by the
+/// distance it would need to move clear on the nearer side that has room,
+/// `Δy / tan θ_max`. If neither side has room it brakes for the body itself.
+#[inline]
+#[allow(clippy::too_many_arguments)]
+pub fn swing_out(
+    y: f64,
+    half: f64,
+    vy: f64,
+    target: f64,
+    limits: (f64, f64),
+    road: (f64, f64),
+    body_y: f64,
+    body_half: f64,
+    c_min: f64,
+    gap: f64,
+    v: f64,
+    max_accel: f64,
+    heading_tan: f64,
+    time_constant: f64,
+) -> SwingOut {
+    let run = gap.max(0.0);
+    let time = ((v * v + 2.0 * max_accel * run).sqrt() - v) / max_accel;
+    // e(t) = (e0 + (vy0 + e0/τ)·t)·exp(−t/τ), with e = y − target.
+    let (toward, x) = (target - y, time / time_constant);
+    let decay = libm::exp(-x);
+    let tracked = toward * (1.0 - (1.0 + x) * decay) + vy * time * decay;
+    let shift = tracked.clamp(-run * heading_tan, run * heading_tan);
+    let lo = limits.0.max(road.0).min(y);
+    let hi = limits.1.min(road.1).max(y);
+    let arrive = (y + shift).clamp(lo, hi);
+    let excess = edge_gap(arrive, half, body_y, body_half) - c_min;
+    let left = body_y + body_half + c_min + half;
+    let right = body_y - body_half - c_min - half;
+    let mut need = f64::INFINITY;
+    if left <= road.1 {
+        need = need.min((left - arrive).max(0.0));
+    }
+    if right >= road.0 {
+        need = need.min((arrive - right).max(0.0));
+    }
+    if need.is_infinite() {
+        need = 0.0;
+    }
+    SwingOut {
+        gap: gap - need / heading_tan,
+        excess,
+    }
+}
+
 /// Edge-to-edge lateral gap between two bodies centred at `ya`, `yb` with
 /// widths `wa`, `wb` (negative when they overlap laterally).
 #[inline]
@@ -854,6 +936,47 @@ mod tests {
 
     /// Batched, pruned scoring chooses exactly what scoring each candidate on
     /// its own does, on random scenes.
+    /// The swing-out gap: blocked, the vehicle keeps room to pull out;
+    /// free to steer, a body it will be clear of on arrival does not count.
+    #[test]
+    fn swing_out_keeps_room_and_lets_a_free_vehicle_pass() {
+        let tan = 0.2_f64.tan();
+        let (road, open) = ((-2.7, 2.7), (f64::NEG_INFINITY, f64::INFINITY));
+        // A car (half width 0.8, at rest laterally) behind a body at y = 0.5,
+        // half width 0.9; minimum clearance 0.05; 1 m/s²; τ = 1 s.
+        let at = |y: f64, target: f64, limits, road, body_y: f64, gap: f64, v: f64| {
+            swing_out(
+                y, 0.8, 0.0, target, limits, road, body_y, 0.9, 0.05, gap, v, 1.0, tan, 1.0,
+            )
+        };
+        // Blocked at y = 0: the nearer clear side is the right, at
+        // 0.5 − 0.9 − 0.05 − 0.8 = −1.25.
+        let blocked = at(0.0, 0.0, (0.0, 0.0), road, 0.5, 20.0, 5.0);
+        assert!(
+            (blocked.gap - (20.0 - 1.25 / tan)).abs() < 1e-9,
+            "{blocked:?}"
+        );
+        assert!(blocked.excess < 0.0);
+        // Free to steer to y = −1.6, from rest 10 m back: 4.5 s at 1 m/s²,
+        // 94% of the way to the target: clear on arrival.
+        let free = at(0.0, -1.6, open, road, 0.5, 10.0, 0.0);
+        assert_eq!(free.gap, 10.0);
+        assert!(free.excess > 0.2 && free.excess < 0.35, "{free:?}");
+        // Free to steer but too close: 1 m of run-up allows 0.2 m of shift.
+        let close = at(0.0, -1.6, open, road, 0.5, 1.0, 0.0);
+        assert!(
+            (close.gap - (1.0 - (1.25 - tan) / tan)).abs() < 1e-9,
+            "{close:?}"
+        );
+        // No room on either side: the body itself.
+        let wall = at(0.0, 0.0, (0.0, 0.0), (-1.0, 1.0), 0.0, 8.0, 3.0);
+        assert_eq!(wall.gap, 8.0);
+        // Already clear and holding its line: as before (gap and current excess).
+        let past = at(-1.5, -1.5, open, road, 0.5, 8.0, 3.0);
+        assert_eq!(past.gap, 8.0);
+        assert!((past.excess - 0.25).abs() < 1e-9);
+    }
+
     #[test]
     fn batched_choice_equals_the_reference() {
         use proptest::prelude::*;

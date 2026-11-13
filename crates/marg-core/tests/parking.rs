@@ -130,7 +130,9 @@ fn traffic_keeps_clear_of_parked_vehicles() {
             for o in &parked {
                 if (o.s - b.s).abs() < o.half_length + b.half_length {
                     assert!(!overlap(&b, o), "t = {}", sim.time());
-                    closest = closest.min(o.y - o.half_width - a.y[i] - a.half_width[i]);
+                    // The body itself; a turned body's corners are checked by
+                    // the exact overlap test above.
+                    closest = closest.min(o.y - o.half_width - a.y[i] - 0.5 * a.width[i]);
                 }
             }
         }

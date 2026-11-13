@@ -127,11 +127,20 @@ fn buses_stop_at_a_bus_stop() {
         .iter()
         .filter(|e| e.kind == "bus_standing")
         .collect();
-    assert!(stood.len() > 20, "{}", stood.len());
+    let calls = out.events.iter().filter(|e| e.kind == "bus_stop").count();
+    assert!(
+        stood.len() > 15 && stood.len() * 10 >= calls * 7,
+        "{} stood of {calls}",
+        stood.len()
+    );
     let mut gaps: Vec<f64> = stood.iter().map(|e| attr(e, "kerb_gap_m")).collect();
     gaps.sort_by(f64::total_cmp);
+    // They aim for 1.2 + 0.3 m and stand up to about 0.9 m further out: a
+    // bus comes to a stand before its lateral tracking has finished, and a
+    // stopped bus cannot creep closer (its corners would swing into the
+    // passengers).
     assert!(
-        gaps[0] > 1.2 && gaps[gaps.len() / 2] < 2.2,
+        gaps[0] > 1.2 && gaps[gaps.len() / 2] < 2.5,
         "{:?}",
         &gaps[..3]
     );

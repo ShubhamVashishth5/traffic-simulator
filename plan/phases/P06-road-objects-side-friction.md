@@ -61,8 +61,8 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
   plausible size (the target band file).
 - **Outcome (2026-11-12):** done ([ADR-0015](../decisions/ADR-0015-bus-stops-surface-pedestrians.md)).
   The drop depends on inputs the guide does not give (where the bus stands, how often it comes):
-  at the kerb 1% of capacity and 16% of speed, out in the road beyond waiting passengers 40%
-  and 74%. The published 7.9% and 22% lie between (`reports/phases/P6.md`).
+  at the kerb 1.5% of capacity and 13% of speed, out in the road beyond waiting passengers 32%
+  and 53% (with swing-out; 40% and 74% before it). The published 7.9% and 22% lie between (`reports/phases/P6.md`).
 
 ### P6.5 Potholes and roughness
 - **Do:**
@@ -111,18 +111,19 @@ incentives. Published capacity losses must *emerge* from these mechanisms; they 
   replications and capacity estimated per arm.
 - **Done when:** the validation scorecard includes the width-loss vs capacity-loss pattern. A
   near-1:1 relationship is the target; report the observed slope with its CI.
-- **Outcome (2026-11-12):** run and reported; **the target is missed.** Slope 1.63 ± 0.11 against
-  effective-width loss (target 1.0 ± 0.2). A plain narrower road gives 0.97 ± 0.02, so width
-  itself behaves. The excess is made where the parked row begins: vehicles stopped behind the
-  first parked vehicle pull out at the assumed creep speeds. With faster creep the same kerb is
-  close to one for one. Diagnosed, not tuned (`reports/phases/P6.md`, section 1).
+- **Outcome (2026-11-13):** run and reported; **the target is missed.** Slope 1.34 ± 0.14 against
+  effective-width loss with swing-out (1.63 ± 0.11 on 2026-11-12, before it; target 1.0 ± 0.2). A plain narrower road gives 0.97 ± 0.02, so width
+  itself behaves. The excess is made where the parked row begins, where the kerb strip merges
+  into the stream. Swing-out (ADR-0012 option B) cut it; letting stopped vehicles slide sideways
+  fast (a diagnostic) removes most of the rest, so what remains is how readily vehicles merge and
+  are let in (stage 3, P8). Not tuned (`reports/phases/P6.md`, section 1).
 
 ## Milestone check
 **Outcome (2026-11-12):** the pedestrian threshold is reproduced untuned. The bus-stop drop is
 bracketed, not reproduced: it turns on inputs the guide lacks. The Varanasi curve is **not**
-reproduced: capacity falls 1.6 times as fast as effective width. The diagnosis follows the
-guide's rule (the fault is in stage 3): how a stopped vehicle pulls out from behind a standing
-body, which ADR-0012 part 2 settled with an assumed creep speed and flagged for revisiting.
+reproduced: capacity falls 1.3 times as fast as effective width (1.6 before swing-out). The
+diagnosis follows the guide's rule (the fault is in stage 3): how readily vehicles merge at the
+head of a parked row.
 
 The Varanasi curve, the pedestrian threshold and the bus-stop capacity drop are reproduced
 **without** being tuned in directly. Where a target is missed, the gap is diagnosed: per the guide,

@@ -12,8 +12,9 @@ use crate::agents::{
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Approach, Body, time_to_contact};
 use crate::model::lateral::{
-    Choice, ChoiceParams, FollowerTerm, LeaderTerm, Neighbours, SideTerm, Subject, Wall,
-    body_half_width, body_stretch, choose_target, edge_gap, leader_weight, steering_speed, track,
+    Choice, ChoiceParams, FollowerTerm, LeaderTerm, Neighbours, SideTerm, Subject, SwingOut, Wall,
+    body_half_width, body_stretch, choose_target, edge_gap, leader_weight, steering_speed,
+    swing_out, track,
 };
 use crate::model::longitudinal::Idm;
 use crate::objects::{EDGE_LEADER, EdgeAhead, Narrowings, Objects};
@@ -270,6 +271,44 @@ fn approach(idm: &Idm, v: f64, speed: f64, gap: f64) -> f64 {
     }
 }
 
+/// The swing-out gap of a vehicle that holds its line at `y` behind a
+/// standing body: the gap it waits at (ADR-0012 part 2, option B).
+#[inline]
+#[allow(clippy::too_many_arguments)]
+fn blocked_gap(
+    y: f64,
+    half: f64,
+    road: (f64, f64),
+    body_y: f64,
+    body_half: f64,
+    c_min: f64,
+    gap: f64,
+    p: &CoreParams,
+) -> f64 {
+    let held = (y, y);
+    swing_out(
+        y,
+        half,
+        0.0,
+        y,
+        held,
+        road,
+        body_y,
+        body_half,
+        c_min,
+        gap,
+        0.0,
+        1.0,
+        p.max_heading_tan,
+        p.lateral_time_constant,
+    )
+    .gap
+}
+
+/// Vehicles standing still ahead whose swing-out gap is worked out once the
+/// side limits are known; beyond this many they are taken at once.
+const STANDING_LEADERS: usize = 4;
+
 impl MoveCtx<'_> {
     #[inline]
     fn idm(&self, i: usize) -> Idm {
@@ -354,6 +393,10 @@ impl MoveCtx<'_> {
             .then(|| EdgeAhead::gather(self.net, r, s, p.lookahead));
         sides.narrowing = edges.is_some();
         let mut cov = Coverage::new(y - hw, y + hw);
+        // Vehicles ahead that stand still (to pick up or set down): taken
+        // once every side limit is known (the swing-out gap needs them).
+        let mut standing = [(0u32, 0.0f64, 0.0f64); STANDING_LEADERS];
+        let mut n_standing = 0;
         let mut horizon = p.lookahead;
         // A vehicle that creeps sideways at a standstill turns on the spot
         // (ADR-0012 part 2). Turned to the heading limit its body reaches
@@ -477,30 +520,35 @@ impl MoveCtx<'_> {
                 if excess > self.cut {
                     continue;
                 }
-                let leader = (free
-                    - idm.interaction(
-                        v,
+                if a.stop_state[j] == STOP_STANDING && n_standing < STANDING_LEADERS {
+                    standing[n_standing] = (j as u32, gap_s, ds);
+                    n_standing += 1;
+                } else {
+                    let leader = (free
+                        - idm.interaction(
+                            v,
+                            gap_s,
+                            dv,
+                            p.mult_time_gap[ci][cj],
+                            p.mult_standstill_gap[ci][cj],
+                        ))
+                    .max(-p.emergency_decel);
+                    let weight = leader_weight(excess, p.braking_scale);
+                    seen(Interaction {
+                        j: j as u32,
+                        ds,
                         gap_s,
-                        dv,
-                        p.mult_time_gap[ci][cj],
-                        p.mult_standstill_gap[ci][cj],
-                    ))
-                .max(-p.emergency_decel);
-                let weight = leader_weight(excess, p.braking_scale);
-                seen(Interaction {
-                    j: j as u32,
-                    ds,
-                    gap_s,
-                    lateral_gap: gy,
-                    clearance: c_min,
-                    weight,
-                    leader_accel: leader,
-                });
-                let weighted = free + weight * (leader - free);
-                if weighted < lead.0 {
-                    lead = (weighted, a.id[j]);
+                        lateral_gap: gy,
+                        clearance: c_min,
+                        weight,
+                        leader_accel: leader,
+                    });
+                    let weighted = free + weight * (leader - free);
+                    if weighted < lead.0 {
+                        lead = (weighted, a.id[j]);
+                    }
+                    acc = acc.min(weighted);
                 }
-                acc = acc.min(weighted);
                 if excess <= 0.0 {
                     seen_to = seen_to.min(gap_s);
                 }
@@ -599,6 +647,105 @@ impl MoveCtx<'_> {
                 None => break,
             }
         }
+        // The line the vehicle is steering for: the kerb while it pulls
+        // over to stop, otherwise its last lateral decision.
+        // A vehicle about to stop (to pick up, set down, or at a bus stop)
+        // draws up behind what stands there; one that drives on keeps room
+        // to swing out.
+        let driving_on = a.stop_state[i] == STOP_NONE;
+        let tracking = if a.stop_state[i] == STOP_PULLING_OVER {
+            self.net.ribbon(r).y_bounds(s).1 - 0.5 * a.width[i] - a.stop_offset[i]
+        } else {
+            a.y_target[i]
+        };
+        // Vehicles standing still ahead: their gap is measured along the
+        // path the vehicle can steer (ADR-0012 part 2, option B).
+        for &(j, gap_s, ds) in &standing[..n_standing] {
+            let j = j as usize;
+            let cj = usize::from(a.class[j]);
+            let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+            let (edge_lo, edge_hi) = self.net.ribbon(a.ribbon[j] as usize).y_bounds(a.s[j]);
+            let sw = if !driving_on {
+                SwingOut {
+                    gap: gap_s,
+                    excess: edge_gap(y, hw, a.y[j], a.half_width[j]) - c_min,
+                }
+            } else {
+                swing_out(
+                    y,
+                    half_body,
+                    vy,
+                    tracking,
+                    (sides.y_lo, sides.y_hi),
+                    centre_bounds(edge_lo, edge_hi, half_body),
+                    a.y[j],
+                    a.half_width[j],
+                    c_min,
+                    gap_s,
+                    v,
+                    idm.max_accel,
+                    p.max_heading_tan,
+                    p.lateral_time_constant,
+                )
+            };
+            if sw.excess > self.cut {
+                continue;
+            }
+            let leader = (free
+                - idm.interaction(
+                    v,
+                    sw.gap.max(f64::MIN_POSITIVE),
+                    v - a.v[j],
+                    p.mult_time_gap[ci][cj],
+                    if driving_on && sw.excess >= 0.0 {
+                        0.0
+                    } else {
+                        p.mult_standstill_gap[ci][cj]
+                    },
+                ))
+            .max(-p.emergency_decel);
+            let weight = leader_weight(sw.excess, p.braking_scale);
+            seen(Interaction {
+                j: j as u32,
+                ds,
+                gap_s,
+                lateral_gap: edge_gap(y, hw, a.y[j], a.half_width[j]),
+                clearance: c_min,
+                weight,
+                leader_accel: leader,
+            });
+            let weighted = free + weight * (leader - free);
+            if weighted < lead.0 {
+                lead = (weighted, a.id[j]);
+            }
+            acc = acc.min(weighted);
+            // Never so close that it could not steer clear moving forward.
+            if driving_on && edge_gap(y, half_body, a.y[j], a.half_width[j]) < c_min {
+                let room = blocked_gap(
+                    y,
+                    half_body,
+                    centre_bounds(edge_lo, edge_hi, half_body),
+                    a.y[j],
+                    a.half_width[j],
+                    c_min,
+                    gap_s,
+                    p,
+                );
+                let hard = (free
+                    - idm.interaction(
+                        v,
+                        room.max(f64::MIN_POSITIVE),
+                        v - a.v[j],
+                        p.mult_time_gap[ci][cj],
+                        0.0,
+                    ))
+                .max(-p.emergency_decel);
+                if hard < lead.0 {
+                    lead = (hard, a.id[j]);
+                }
+                acc = acc.min(hard);
+            }
+        }
         // Road objects: standing bodies. One ahead is a leader, one level
         // with the vehicle a side neighbour (plan/03-model-design.md §10).
         if self.objects.any_active() {
@@ -681,11 +828,63 @@ impl MoveCtx<'_> {
                 let alongside = o.kind == ObjectKind::WaitingPassengers
                     && a.stop_state[i] == STOP_PULLING_OVER
                     && gy >= 0.0;
-                if excess > self.cut || alongside {
+                if alongside {
+                    return;
+                }
+                // Measured along the path the vehicle can steer (ADR-0012
+                // part 2, option B); a pedestrian moves on and is waited for.
+                let (gap, excess, passing) = if o.kind == ObjectKind::Pedestrians || !driving_on {
+                    (gap_s, excess, false)
+                } else {
+                    let (edge_lo, edge_hi) = self.net.ribbon(o.ribbon).y_bounds(o.s);
+                    let sw = swing_out(
+                        y,
+                        half_body,
+                        vy,
+                        tracking,
+                        (sides.y_lo, sides.y_hi),
+                        centre_bounds(edge_lo, edge_hi, half_body),
+                        o.y,
+                        half_o,
+                        c_min,
+                        gap_s,
+                        v,
+                        idm.max_accel,
+                        p.max_heading_tan,
+                        p.lateral_time_constant,
+                    );
+                    (sw.gap, sw.excess, sw.excess >= 0.0)
+                };
+                if excess > self.cut {
                     return;
                 }
                 let (mt, ms) = p.object_multipliers(ci, o.clearance_class);
-                let leader = (free - idm.interaction(v, gap_s, v, mt, ms)).max(-p.emergency_decel);
+                if driving_on
+                    && o.kind != ObjectKind::Pedestrians
+                    && edge_gap(y, half_body, o.y, half_o) < c_min
+                {
+                    // Never so close that it could not steer clear moving forward.
+                    let (edge_lo, edge_hi) = self.net.ribbon(o.ribbon).y_bounds(o.s);
+                    let room = blocked_gap(
+                        y,
+                        half_body,
+                        centre_bounds(edge_lo, edge_hi, half_body),
+                        o.y,
+                        half_o,
+                        c_min,
+                        gap_s,
+                        p,
+                    );
+                    let hard = (free - idm.interaction(v, room.max(f64::MIN_POSITIVE), v, mt, 0.0))
+                        .max(-p.emergency_decel);
+                    if hard < lead.0 {
+                        lead = (hard, o.leader_id());
+                    }
+                    acc = acc.min(hard);
+                }
+                let ms = if passing { 0.0 } else { ms };
+                let leader = (free - idm.interaction(v, gap.max(f64::MIN_POSITIVE), v, mt, ms))
+                    .max(-p.emergency_decel);
                 let weighted = free + leader_weight(excess, p.braking_scale) * (leader - free);
                 if weighted < lead.0 {
                     lead = (weighted, o.leader_id());
@@ -756,10 +955,7 @@ impl MoveCtx<'_> {
         let due = (self.step.wrapping_add(a.id[i])).is_multiple_of(self.decision_steps)
             || lead.1 != a.decision_leader[i];
         let (target, choice) = if stop == STOP_PULLING_OVER {
-            (
-                self.net.ribbon(r).y_bounds(s).1 - 0.5 * a.width[i] - a.stop_offset[i],
-                None,
-            )
+            (tracking, None)
         } else if stop == STOP_IN_PLACE {
             (a.y_target[i], None)
         } else if due {
@@ -1034,7 +1230,24 @@ impl MoveCtx<'_> {
                     continue;
                 }
                 let (mt, ms) = (p.mult_time_gap[ci][cj], p.mult_standstill_gap[ci][cj]);
-                let cost = idm.interaction(v, gap_s, v - a.v[j], mt, ms);
+                // Staying behind a vehicle that stands still means waiting
+                // with room to swing out, as the move phase does.
+                let gap_s = if a.stop_state[j] == STOP_STANDING && a.stop_state[i] == STOP_NONE {
+                    let (edge_lo, edge_hi) = self.net.ribbon(a.ribbon[j] as usize).y_bounds(a.s[j]);
+                    blocked_gap(
+                        y,
+                        0.5 * a.width[i],
+                        centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]),
+                        a.y[j],
+                        hwj,
+                        c_min,
+                        gap_s,
+                        p,
+                    )
+                } else {
+                    gap_s
+                };
+                let cost = idm.interaction(v, gap_s.max(f64::MIN_POSITIVE), v - a.v[j], mt, ms);
                 let near = gap_s < idm.standstill_gap * ms + v * idm.time_gap * mt;
                 // A leader that costs less than the switching threshold even
                 // at full weight cannot decide a move.
@@ -1191,7 +1404,22 @@ impl MoveCtx<'_> {
                     return;
                 }
                 let (mt, ms) = p.object_multipliers(ci, o.clearance_class);
-                let cost = idm.interaction(v, gap_s, v, mt, ms);
+                let gap_s = if o.kind != ObjectKind::Pedestrians && a.stop_state[i] == STOP_NONE {
+                    let (edge_lo, edge_hi) = self.net.ribbon(o.ribbon).y_bounds(o.s);
+                    blocked_gap(
+                        y,
+                        0.5 * a.width[i],
+                        centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]),
+                        o.y,
+                        half_o,
+                        c_min,
+                        gap_s,
+                        p,
+                    )
+                } else {
+                    gap_s
+                };
+                let cost = idm.interaction(v, gap_s.max(f64::MIN_POSITIVE), v, mt, ms);
                 let near = gap_s < idm.standstill_gap * ms + v * idm.time_gap * mt;
                 if !near && cost < p.switch_threshold {
                     return;

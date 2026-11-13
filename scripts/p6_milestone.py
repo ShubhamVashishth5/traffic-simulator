@@ -302,17 +302,22 @@ def main() -> None:
     kc, _ = stat("width|cars at the kerb", "throughput")
     vb, _ = stat("width|cars at the kerb", "speed_before")
     vf, _ = stat("width|cars at the kerb", "speed_feature")
-    md += ["**The target is missed, and here is why.** A plain narrower road loses capacity one for one",
-           "with its width, so the lateral model itself gives the Varanasi relation. Parking loses about",
-           f"{s_eff['slope']:.1f} times its effective-width loss. The loss is made at the start of the parked row, not",
-           f"along it: with cars at the kerb the stream runs at {vf:.0f} km/h beside them and queues at {vb:.0f} km/h",
-           "before them. Vehicles that arrive in the kerb strip stop behind the first parked vehicle and pull",
-           "out sideways at the creep speed (0.15–0.5 m/s, assumed, ADR-0012 part 2).",
-           f"A diagnostic run with every class creeping at 1.5 m/s: capacity loss {100 * (1 - dc / base):.1f}% (against",
-           f"{100 * (1 - kc / base):.1f}%) for an effective-width loss of {de:.1f}%, close to one for one.",
-           "So the gap is in stage 3 (how a stopped vehicle pulls out), as the guide says it must be, not in",
-           "width or desired speeds. Nothing was changed: the creep speeds are stage-3 parameters, and ADR-0012",
-           "names the better model (a swing-out gap, option B) to return to when they matter. They do.", ""]
+    verdict = "within" if abs(s_eff["slope"] - 1.0) <= 0.2 else "outside"
+    md += [f"**The target is {'met' if verdict == 'within' else 'missed'}.** A plain narrower road loses capacity one for one with",
+           f"its width, so the lateral model itself gives the Varanasi relation. Parking loses {s_eff['slope']:.2f} times its",
+           f"effective-width loss, {verdict} the target band (0.8–1.2). The loss is made at the start of the parked",
+           f"row: with cars at the kerb the stream runs at {vf:.0f} km/h beside them and queues at {vb:.0f} km/h before",
+           "them. Vehicles arriving in the kerb strip must merge into the stream beside it there.",
+           "",
+           "Since 2026-11-13 vehicles keep room to swing out from behind a standing body and pull out",
+           "moving forward (ADR-0012 part 2, option B). Before that the slope was 1.63 ± 0.11 (creep alone).",
+           "Letting every class also slide sideways at 1.5 m/s when stopped (a diagnostic, not a model) brings",
+           f"the same kerb to a capacity loss of {100 * (1 - dc / base):.1f}% (against {100 * (1 - kc / base):.1f}%) for an",
+           f"effective-width loss of {de:.1f}%. Sliding lets a stopped vehicle take a gap of its own length in the",
+           "stream beside it; steering out needs a longer one. So what remains is how readily vehicles merge",
+           "and are let in at the head of the row (the safety and politeness terms of the lateral choice,",
+           "stage 3, and forced merging, P8), not width or desired speeds. That is a hypothesis from this",
+           "diagnostic, not yet tested. Nothing was tuned.", ""]
     width_result["diagnostic_fast_creep"] = {"capacity_loss_pct": 100 * (1 - dc / base), "effective_width_loss_pct": de}
 
     # ---- 2. bus stop
@@ -335,7 +340,7 @@ def main() -> None:
            "down by up to 22%. The bus frequency, dwell and stopping position of that section are not in",
            "the guide, so the arms bracket them: a bus that stands at the kerb costs less than the",
            "published figure, one that stands out in the road, beyond passengers, far more. The second is",
-           "the same effect as in section 1: a standing body that vehicles in the kerb strip must pull",
+           "the same effect as in section 1: a standing body that vehicles in the kerb strip must merge",
            "out from behind.", ""]
     bus_result = {arm: {"capacity": t_, "speed": v, "capacity_loss_pct": 100 * (1 - t_ / bus[ref][0]), "speed_loss_pct": 100 * (1 - v / bus[ref][1])} for arm, (t_, v) in bus.items()}
 
