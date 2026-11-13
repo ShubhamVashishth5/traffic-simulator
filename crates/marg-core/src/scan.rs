@@ -9,6 +9,7 @@
 use crate::agents::{
     AgentStore, NO_AGENT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
 };
+use crate::arbitration::STREAM;
 use crate::junction_scan::{JunctionOut, Route};
 use crate::junctions::{Junctions, onward};
 use crate::model::coverage::Coverage;
@@ -958,6 +959,61 @@ impl MoveCtx<'_> {
                     sides.limit(left, y, gy);
                 },
             );
+            // Vehicles it gives way to where their paths meet (ADR-0016
+            // part 4): it stops short, or follows one that merges ahead.
+            for yd in self.junctions.arbiter.yields_of(i) {
+                if yd.goer == STREAM {
+                    // Waiting for a gap in a priority stream: decided once
+                    // it is within its desired gap of where it waits.
+                    junction.waiting = true;
+                    if yd.gap <= idm.desired_gap(v, v, 1.0, 1.0)
+                        && let Some(offer) = self.box_gap(i, r, &idm, yd.gap)
+                    {
+                        junction.gap = offer.0;
+                        junction.gap_ref = offer.1;
+                        junction.gap_class = offer.2;
+                        junction.needed = offer.3;
+                        junction.accepted = offer.4;
+                        if offer.4 {
+                            junction.waiting = false;
+                            continue;
+                        }
+                    }
+                    let hold = (free - idm.interaction(v, yd.gap, v, 1.0, 1.0))
+                        .max(-p.emergency_decel);
+                    if hold < lead.0 {
+                        lead = (hold, NO_AGENT);
+                    }
+                    acc = acc.min(hold);
+                    // It holds its line while it waits, rather than creep
+                    // sideways into the stream.
+                    land = Some(y);
+                    continue;
+                }
+                let g = yd.goer as usize;
+                let (mt, ms) = if yd.v_lead > 0.0 {
+                    let cg = usize::from(a.class[g]);
+                    (p.mult_time_gap[ci][cg], p.mult_standstill_gap[ci][cg])
+                } else {
+                    (1.0, 1.0)
+                };
+                let hold = if yd.gap > 0.0 {
+                    (free - idm.interaction(v, yd.gap, v - yd.v_lead, mt, ms))
+                        .max(-p.emergency_decel)
+                } else {
+                    -p.emergency_decel
+                };
+                if hold < lead.0 {
+                    lead = (hold, a.id[g]);
+                }
+                acc = acc.min(hold);
+                // Giving way, it holds its line: a slow vehicle steering
+                // sideways turns its body, and the ends of a long one swing
+                // into vehicles on other ribbons.
+                if hold < free {
+                    land = Some(y);
+                }
+            }
         }
         acc = acc.min(cap);
         // A vehicle that is stopping to pick up or set down (ADR-0014)
@@ -1003,16 +1059,25 @@ impl MoveCtx<'_> {
         } else {
             (a.y_target[i], None)
         };
+        // Standing inside a junction it does not shuffle sideways: each
+        // movement there is a ribbon of its own, and a body turned at a
+        // standstill swings its ends into vehicles on other ribbons, which
+        // the turning room kept on one ribbon (ADR-0012) does not see.
+        let still_in_box = v < p.stop_speed_below && self.net.ribbon(r).internal;
         MoveOut {
             acc: acc.clamp(-p.emergency_decel, idm.max_accel),
-            vy: track(
-                vy,
-                y,
-                target,
-                sides.repulsion,
-                p.lateral_time_constant,
-                self.dt,
-            ),
+            vy: if still_in_box {
+                0.0
+            } else {
+                track(
+                    vy,
+                    y,
+                    target,
+                    sides.repulsion,
+                    p.lateral_time_constant,
+                    self.dt,
+                )
+            },
             y_lo: sides.y_lo,
             y_hi: sides.y_hi,
             kerb_lo: sides.kerb_lo,

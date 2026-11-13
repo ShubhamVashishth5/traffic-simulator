@@ -7,6 +7,7 @@
 //! line; a curve caps speed; a priority rule makes a vehicle wait for a gap.
 
 use crate::agents::AgentStore;
+use crate::arbitration::Arbiter;
 use crate::output::SignalCycleRecord;
 use crate::params::CoreParams;
 use crate::rng::{StreamKind, StreamRng};
@@ -63,6 +64,67 @@ fn branch(net: &Network, seed: u64, id: u64, ribbon: usize, turn: &mut (u32, u8)
         *turn = (j as u32, draw_turn(seed, id, net, j, arm));
     }
     rib.branch[usize::from(turn.1)]
+}
+
+/// The body of agent `i` at `(s, y)` on its ribbon, turned by `tan` on it,
+/// as vehicles on other ribbons see it (ADR-0016 part 4): the chord from
+/// the point of its path half a length behind its centre to the point
+/// half a length ahead, at its lateral offset. On a straight ribbon that is
+/// the body itself; on a curve the body lies inside the arc, as a
+/// vehicle's rear follows inside its front, instead of its ends swinging
+/// out. Returns the centre and the unit heading `(x, y, hx, hy)`.
+#[allow(clippy::too_many_arguments)]
+pub fn chord_pose(
+    net: &Network,
+    seed: u64,
+    prev: &[Option<usize>],
+    a: &AgentStore,
+    i: usize,
+    s: f64,
+    y: f64,
+    tan: f64,
+) -> (f64, f64, f64, f64) {
+    let r = a.ribbon[i] as usize;
+    let rib = net.ribbon(r);
+    let half = 0.5 * a.length[i];
+    let len = rib.length();
+    let (back, ahead) = (s - half, s + half);
+    let rear = if back >= 0.0 {
+        rib.to_world(back, y)
+    } else {
+        let came = a.came_from[i];
+        match (came != crate::agents::NO_RIBBON)
+            .then_some(came as usize)
+            .or(prev[r])
+        {
+            Some(q) => net.ribbon(q).to_world(net.ribbon(q).length() + back, y),
+            None => rib.to_world(back, y),
+        }
+    };
+    let front = if ahead <= len {
+        rib.to_world(ahead, y)
+    } else {
+        let mut turn = (a.turn_junction[i], a.turn_out[i]);
+        match onward(net, seed, a.id[i], r, &mut turn) {
+            Some(n) => net.ribbon(n).to_world(ahead - len, y),
+            None => rib.to_world(ahead, y),
+        }
+    };
+    let (dx, dy) = (front.0 - rear.0, front.1 - rear.1);
+    let norm = dx.hypot(dy);
+    let d = if norm > 0.0 {
+        [dx / norm, dy / norm]
+    } else {
+        rib.direction(s)
+    };
+    let cos = 1.0 / (1.0 + tan * tan).sqrt();
+    let sin = tan * cos;
+    (
+        0.5 * (rear.0 + front.0),
+        0.5 * (rear.1 + front.1),
+        d[0] * cos - d[1] * sin,
+        d[1] * cos + d[0] * sin,
+    )
 }
 
 /// A vehicle near a junction, in world coordinates.
@@ -141,6 +203,8 @@ pub struct Junctions {
     hard: Vec<Vec<bool>>,
     signals: Vec<Signal>,
     pub cycles: Vec<SignalCycleRecord>,
+    /// Who goes first between vehicles whose paths meet (ADR-0016 part 4).
+    pub arbiter: Arbiter,
 }
 
 impl Junctions {
@@ -330,6 +394,7 @@ impl Junctions {
             hard,
             signals,
             cycles: Vec::new(),
+            arbiter: Arbiter::new(net),
         })
     }
 
@@ -368,10 +433,11 @@ impl Junctions {
         net.junctions[junction].movement_of[arm][out].is_some_and(|m| self.hard[junction][m])
     }
 
-    /// Bring the signals to time `t` and list the vehicles near each
-    /// junction. `on_change` is called for every signal that changed; at the
-    /// start of amber, vehicles too close to stop are let through
-    /// (`gate_open`).
+    /// Bring the signals to time `t`, list the vehicles near each junction
+    /// and decide who goes first where their paths meet. `on_change` is
+    /// called for every signal that changed; at the start of amber, vehicles
+    /// too close to stop are let through (`gate_open`).
+    #[allow(clippy::too_many_arguments)]
     pub fn step(
         &mut self,
         t: f64,
@@ -379,6 +445,8 @@ impl Junctions {
         orders: &[Vec<u32>],
         net: &Network,
         p: &CoreParams,
+        seed: u64,
+        prev: &[Option<usize>],
         mut on_change: impl FnMut(SignalChange),
     ) {
         if !self.enabled {
@@ -465,7 +533,8 @@ impl Junctions {
                     }
                     1 => {
                         // Amber: a vehicle that cannot stop before the
-                        // line at its comfortable deceleration goes on.
+                        // line even at the safe braking limit goes on; it
+                        // reaches the line within v / 2b_safe, before red.
                         for &i in &orders[rin] {
                             let i = i as usize;
                             let gap = len - a.s[i] - 0.5 * a.length[i];
@@ -474,8 +543,7 @@ impl Junctions {
                                     .unwrap_or(usize::MAX),
                             );
                             if green_for_it
-                                && (gap <= 0.0
-                                    || a.v[i] * a.v[i] > 2.0 * a.comfortable_decel[i] * gap)
+                                && (gap <= 0.0 || a.v[i] * a.v[i] > 2.0 * p.safe_decel * gap)
                                 && a.v[i] >= p.stop_speed_below
                             {
                                 a.gate_open[i] = true;
@@ -494,7 +562,6 @@ impl Junctions {
             if self.zones[r].is_empty() {
                 continue;
             }
-            let rib = net.ribbon(r);
             for &i in order {
                 let (s, y) = (a.s[i as usize], a.y[i as usize]);
                 let mut pose = None;
@@ -503,14 +570,7 @@ impl Junctions {
                         continue;
                     }
                     let (x, yw, hx, hy) = *pose.get_or_insert_with(|| {
-                        let (x, yw, _) = rib.to_world(s, y);
-                        let d = rib.direction(s);
-                        // The body's own heading: the ribbon's, turned by
-                        // the vehicle's heading on it.
-                        let tan = a.heading_tan[i as usize];
-                        let cos = 1.0 / (1.0 + tan * tan).sqrt();
-                        let sin = tan * cos;
-                        (x, yw, d[0] * cos - d[1] * sin, d[1] * cos + d[0] * sin)
+                        chord_pose(net, seed, prev, a, i as usize, s, y, a.heading_tan[i as usize])
                     });
                     self.members[g as usize].push(Member {
                         i,
@@ -523,6 +583,7 @@ impl Junctions {
                 }
             }
         }
+        self.arbiter.run(a, &self.members, net, p, seed, &self.light);
     }
 
     /// A vehicle crossed the stop line of `arm` at `junction` at time `t`.

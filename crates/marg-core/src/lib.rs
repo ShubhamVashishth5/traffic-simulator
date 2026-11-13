@@ -6,6 +6,7 @@
 //! (ADR-0003).
 
 pub mod agents;
+pub mod arbitration;
 pub mod demand;
 pub mod junction_scan;
 pub mod junctions;

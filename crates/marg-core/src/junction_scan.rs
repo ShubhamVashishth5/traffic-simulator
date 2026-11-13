@@ -8,7 +8,7 @@
 //! order.
 
 use crate::agents::{NO_AGENT, NO_RIBBON, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_WAIT};
-use crate::junctions::{LIGHT_AMBER, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, onward};
+use crate::junctions::{LIGHT_AMBER, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, chord_pose, onward};
 use crate::model::lateral::{edge_gap, leader_weight, steering_speed};
 use crate::model::longitudinal::Idm;
 use crate::rng::{StreamKind, StreamRng};
@@ -48,6 +48,8 @@ pub struct JunctionOut {
     pub split_p: f64,
     pub urgency: f64,
     pub needed_move: f64,
+    /// It waits inside the junction for a gap in a priority stream.
+    pub waiting: bool,
 }
 
 impl JunctionOut {
@@ -63,6 +65,7 @@ impl JunctionOut {
         split_p: f64::NAN,
         urgency: 0.0,
         needed_move: 0.0,
+        waiting: false,
     };
 }
 
@@ -91,7 +94,7 @@ pub struct LineView {
 
 /// Time to cover `d` m from speed `v` at constant acceleration `a`.
 #[inline]
-fn arrive(v: f64, a: f64, d: f64) -> f64 {
+pub(crate) fn arrive(v: f64, a: f64, d: f64) -> f64 {
     if d <= 0.0 {
         0.0
     } else {
@@ -261,8 +264,12 @@ impl MoveCtx<'_> {
         if gap <= 0.0 {
             return view;
         }
-        // Keep clear: not onto an area a conflicting movement is still in.
-        if self.occupied(i, j, first) {
+        // Keep clear: not onto an area a conflicting movement is still in,
+        // if it can still stop before the line at the safe braking limit.
+        // One that cannot goes on, and who goes first inside is decided by
+        // the junction's arbitration (ADR-0016 part 4).
+        let can_stop = v * v <= 2.0 * p.safe_decel * gap;
+        if can_stop && self.occupied(i, j, first) {
             view.cap = view
                 .cap
                 .min((free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel));
@@ -310,9 +317,14 @@ impl MoveCtx<'_> {
         view
     }
 
-    /// Whether agent `i` gives way at the line into `first` at all.
+    /// Whether agent `i` gives way at the line into `first` at all. Under a
+    /// signal it does not: a permitted movement waits for its gap inside
+    /// the junction ([`Self::box_gap`]).
     fn yields(&self, i: usize, j: usize, first: usize, light: u8) -> bool {
         let (net, p) = (self.net, self.p);
+        if light != LIGHT_NONE {
+            return false;
+        }
         let jn = &net.junctions[j];
         let rank = net.ribbon(first).rank;
         let any = jn.conflicts_of(first).any(|(c, _, _, kind)| {
@@ -340,14 +352,18 @@ impl MoveCtx<'_> {
     /// Whether a vehicle of a crossing movement is in the area it shares
     /// with `first` (ADR-0016). A movement the signal has stopped counts
     /// from its stop line on: its last vehicles are let out of the junction.
+    /// Under a signal only such movements count: between movements that
+    /// have green together, who goes first is decided inside the junction.
     fn occupied(&self, i: usize, j: usize, first: usize) -> bool {
         let a = self.a;
+        let signal = self.junctions.light[first] != LIGHT_NONE;
         self.net.junctions[j]
             .conflicts_of(first)
             .any(|(c, _, c_s, kind)| {
                 let light = self.junctions.light[c];
                 let leaving = light == LIGHT_RED || light == LIGHT_AMBER;
                 kind == ConflictKind::Crossing
+                    && !(signal && light == LIGHT_GREEN)
                     && self.orders[c].iter().any(|&k| {
                         let k = k as usize;
                         k != i
@@ -453,6 +469,38 @@ impl MoveCtx<'_> {
         (worst.1, worst.2, worst.3, worst.4, worst.0 >= 0.0)
     }
 
+    /// The gap agent `i` is offered where it waits, `hold` m ahead of its
+    /// front, for a gap in the priority streams of its movement under a
+    /// signal (ADR-0016): as at a stop line, from its own arrival there.
+    pub(crate) fn box_gap(
+        &self,
+        i: usize,
+        r: usize,
+        idm: &Idm,
+        hold: f64,
+    ) -> Option<(f64, u64, u8, f64, bool)> {
+        let (a, p, net) = (self.a, self.p, self.net);
+        let rib = net.ribbon(r);
+        let (j, first) = if rib.internal {
+            (rib.junction?, r)
+        } else {
+            let j = rib.junction?;
+            (j, rib.branch.get(usize::from(a.turn_out[i])).copied().flatten()?)
+        };
+        let jn = &net.junctions[j];
+        let movement = jn
+            .movements
+            .iter()
+            .find(|m| m.first == first)
+            .map(|m| m.turn);
+        let factor = match movement {
+            Some(Turn::UTurn) => p.junction.u_turn_gap_factor.unwrap_or(1.0),
+            _ => 1.0,
+        };
+        let t_me = arrive(a.v[i], idm.max_accel, hold.max(0.0));
+        Some(self.gap_offer(i, j, first, self.junctions.light[first], factor, t_me))
+    }
+
     /// Up to three ribbons that lead onto `q`.
     fn junctions_preds(&self, q: usize) -> [usize; 3] {
         let mut out = [usize::MAX; 3];
@@ -519,6 +567,20 @@ impl MoveCtx<'_> {
         let chain = &chain[..n];
         let rib = net.ribbon(r);
         let (x0, y0, _) = rib.to_world(s, y);
+        // Others see its body as the chord of its path (`chord_pose`): on a
+        // curve that lies inside the arc, by this much across its path.
+        let (xc, yc, _, _) = chord_pose(
+            net,
+            self.seed,
+            self.prev,
+            a,
+            i,
+            s,
+            y,
+            a.heading_tan[i],
+        );
+        let dir0 = rib.direction(s);
+        let y = y - dir0[1] * (xc - x0) + dir0[0] * (yc - y0);
         let ci = usize::from(a.class[i]);
         let hw = a.half_width[i];
         let scale = a.clearance_scale[i];
@@ -560,6 +622,51 @@ impl MoveCtx<'_> {
                 let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + along.abs())).1;
                 let excess = gy - c_min;
                 let left = yk > y || (yk == y && a.id[k] > a.id[i]);
+                // Who goes first between the two is decided by the
+                // junction's arbitration (ADR-0016 part 4), not here.
+                let arbitrated = self.junctions.arbiter.same_scope(i, k);
+                // A body turned across the path beyond the heading limit
+                // cannot be a vehicle going the same way: its own outline
+                // is what is in the way, not the box around it.
+                let across = sin.abs() > p.max_heading_tan * cos.abs();
+                let follow = |gap: f64, weight: f64, acc: &mut f64, lead: &mut (f64, u64)| {
+                    let leader = (free
+                        - idm.interaction(
+                            v,
+                            gap.max(f64::MIN_POSITIVE),
+                            v - along,
+                            p.mult_time_gap[ci][cj],
+                            p.mult_standstill_gap[ci][cj],
+                        ))
+                    .max(-p.emergency_decel);
+                    let weighted = free + weight * (leader - free);
+                    if weighted < lead.0 {
+                        *lead = (weighted, a.id[k]);
+                    }
+                    *acc = acc.min(weighted);
+                };
+                // Rule 1 of decision D: never drive into a body lying across
+                // the path ahead, whoever goes first. The clearance is kept
+                // to it unless it gives way to this vehicle: then only its
+                // body is to be missed, or one waiting politely beside the
+                // stream would stop the stream it waits for.
+                let keep = if arbitrated && self.junctions.arbiter.gives_way_to(a.id[k], a.id[i]) {
+                    0.0
+                } else {
+                    c_min
+                };
+                if across
+                    && let Some(gap) = body_ahead(
+                        (ds, yk),
+                        (cos, sin),
+                        (0.5 * lk, 0.5 * wk),
+                        (y - hw - keep, y + hw + keep),
+                        0.5 * l,
+                    )
+                {
+                    follow(gap, 1.0, acc, lead);
+                    continue;
+                }
                 if gap_s <= 0.0 {
                     if ds + 0.5 * l + half_l <= 0.0 {
                         // Behind: it sees this vehicle.
@@ -569,24 +676,20 @@ impl MoveCtx<'_> {
                     // going the same way.
                     let push = steering_speed(excess, strength, p.steering_scale) * cos.max(0.0);
                     side(left, gy, excess, push);
-                    // Their paths close on each other (they left one
-                    // ribbon for two, or two ribbons meet): the one that
-                    // is ahead goes first, the other drops back.
+                    if arbitrated {
+                        continue;
+                    }
+                    // Their paths close on each other (two ribbons meet
+                    // outside any junction): the one that is ahead goes
+                    // first, the other drops back.
                     let closing = (yk > y && sin < 0.0) || (yk < y && sin > 0.0);
                     if excess <= 0.0 && (closing || gy < 0.0) {
                         let it_ahead = ds > 0.0;
                         let me_ahead = -(dx * m.hx + dy * m.hy) > 0.0;
-                        // A vehicle that keeps straight on goes before one
-                        // that turns across it; otherwise the one ahead.
-                        let (mine, its) = (net.ribbon(r).min_radius, net.ribbon(rk).min_radius);
-                        let it_first = if its != mine {
-                            its > mine
-                        } else {
-                            match (it_ahead, me_ahead) {
-                                (true, false) => true,
-                                (false, true) => false,
-                                _ => a.id[k] < a.id[i],
-                            }
+                        let it_first = match (it_ahead, me_ahead) {
+                            (true, false) => true,
+                            (false, true) => false,
+                            _ => a.id[k] < a.id[i],
                         };
                         if it_first {
                             *acc = acc.min(-idm.comfortable_decel);
@@ -601,34 +704,18 @@ impl MoveCtx<'_> {
                 if gap_s <= no_cut_in {
                     side(left, gy, excess, 0.0);
                 }
-                let follow = |weight: f64, acc: &mut f64, lead: &mut (f64, u64)| {
-                    let leader = (free
-                        - idm.interaction(
-                            v,
-                            gap_s,
-                            v - along,
-                            p.mult_time_gap[ci][cj],
-                            p.mult_standstill_gap[ci][cj],
-                        ))
-                    .max(-p.emergency_decel);
-                    let weighted = free + weight * (leader - free);
-                    if weighted < lead.0 {
-                        *lead = (weighted, a.id[k]);
-                    }
-                    *acc = acc.min(weighted);
-                };
                 if excess <= 0.0 {
-                    // In the way now. If each is in the other's way ahead,
-                    // the one with the lower id goes.
-                    let (rx, ry) = (-dx, -dy);
-                    let ahead_of_it = rx * m.hx + ry * m.hy;
-                    let beside_it = (m.hx * ry - m.hy * rx).abs()
-                        - 0.5 * wk
-                        - 0.5 * (l * sin.abs() + a.width[i] * cos.abs());
-                    if ahead_of_it > 0.0 && beside_it <= c_min && a.id[i] < a.id[k] {
-                        continue;
+                    // In the way now (rule 1): followed. A body turned
+                    // across the path was measured by its outline above.
+                    if !across {
+                        follow(gap_s, 1.0, acc, lead);
                     }
-                    follow(1.0, acc, lead);
+                    continue;
+                }
+                if arbitrated {
+                    if cos > 0.0 && excess <= self.cut && !across {
+                        follow(gap_s, leader_weight(excess, p.braking_scale), acc, lead);
+                    }
                     continue;
                 }
                 // Not in the way now. Is it coming across?
@@ -647,15 +734,92 @@ impl MoveCtx<'_> {
                         continue;
                     }
                     if t_k < t_me || (t_k == t_me && a.id[k] < a.id[i]) {
-                        follow(1.0, acc, lead);
+                        follow(gap_s, 1.0, acc, lead);
                     }
                     continue;
                 }
                 // Going the same way beside the path: the usual weight.
                 if cos > 0.0 && excess <= self.cut {
-                    follow(leader_weight(excess, p.braking_scale), acc, lead);
+                    follow(gap_s, leader_weight(excess, p.braking_scale), acc, lead);
                 }
             }
         }
+    }
+}
+
+/// The gap from a vehicle's front (`front` m ahead of its centre) to the
+/// nearest part of another body that lies within the band `band` across
+/// its path and ahead of that front, if any part does. The other body is a
+/// rectangle with half-length and half-width `half`, centred at `centre`
+/// and turned by `(cos, sin)`, all in the vehicle's own frame.
+pub(crate) fn body_ahead(
+    centre: (f64, f64),
+    (cos, sin): (f64, f64),
+    half: (f64, f64),
+    band: (f64, f64),
+    front: f64,
+) -> Option<f64> {
+    let (mut p, mut q) = ([[0.0; 2]; 8], [[0.0; 2]; 8]);
+    for (n, (u, w)) in [(1.0, 1.0), (1.0, -1.0), (-1.0, -1.0), (-1.0, 1.0)]
+        .into_iter()
+        .enumerate()
+    {
+        p[n] = [
+            centre.0 + u * half.0 * cos - w * half.1 * sin,
+            centre.1 + u * half.0 * sin + w * half.1 * cos,
+        ];
+    }
+    let n = clip(&p, 4, &mut q, |c| c[1] - band.0);
+    let n = clip(&q, n, &mut p, |c| band.1 - c[1]);
+    let n = clip(&p, n, &mut q, |c| c[0] - front);
+    (n > 0).then(|| q[..n].iter().map(|c| c[0]).fold(f64::INFINITY, f64::min) - front)
+}
+
+/// Sutherland–Hodgman: the part of convex polygon `src[..n]` where
+/// `inside(point) >= 0`, written to `dst`; returns its number of vertices.
+fn clip(
+    src: &[[f64; 2]; 8],
+    n: usize,
+    dst: &mut [[f64; 2]; 8],
+    inside: impl Fn(&[f64; 2]) -> f64,
+) -> usize {
+    let mut m = 0;
+    for k in 0..n {
+        let (a, b) = (src[k], src[(k + 1) % n]);
+        let (fa, fb) = (inside(&a), inside(&b));
+        if fa >= 0.0 {
+            dst[m] = a;
+            m += 1;
+        }
+        if (fa >= 0.0) != (fb >= 0.0) {
+            let t = fa / (fa - fb);
+            dst[m] = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+            m += 1;
+        }
+    }
+    m
+}
+
+#[cfg(test)]
+mod tests {
+    use super::body_ahead;
+
+    #[test]
+    fn a_body_turned_across_the_path_is_seen_by_its_outline() {
+        // A vehicle whose band is 1 m to each side and whose front is 2 m
+        // ahead of its centre; a 4 x 2 m body turned 45 degrees.
+        let r = std::f64::consts::FRAC_1_SQRT_2;
+        let (half, band, front) = ((2.0, 1.0), (-1.0, 1.0), 2.0);
+        // Centred 6 m ahead and 2 m left: its rear-left edge enters the
+        // band at s = 7 - 4r.
+        let g = body_ahead((6.0, 2.0), (r, r), half, band, front).expect("in the path");
+        assert!((g - (5.0 - 4.0 * r)).abs() < 1e-9, "{g}");
+        // 3 m ahead it reaches into the band beside the front: no gap.
+        let g = body_ahead((3.0, 2.0), (r, r), half, band, front).expect("in the path");
+        assert!(g.abs() < 1e-9, "{g}");
+        // Turned the other way and further left, it is outside the band.
+        assert!(body_ahead((3.0, 3.5), (r, -r), half, band, front).is_none());
+        // Behind the front: not ahead.
+        assert!(body_ahead((-3.0, 0.0), (r, r), (1.0, 1.0), band, front).is_none());
     }
 }
