@@ -84,9 +84,27 @@ One row per discrete event.
 
 | Column | Type | Unit | Meaning |
 | --- | --- | --- | --- |
-| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed (agent_id is 2⁶⁴ − 1 for the object events) |
+| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed, parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, bus_standing, pothole_crossed, pedestrian_crossing (agent_id is 2⁶⁴ − 1 for the object, parking and pedestrian events) |
 | ribbon, s, y | utf8, f64, f64 | m | where |
-| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), length, width, with the footprint's centre in ribbon, s, y. lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
+| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), kind (obstacle, parked_vehicle, parking_manoeuvre, waiting_passengers, pedestrians, pothole, hump, water), length, width, with the footprint's centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object (the id of the footprint that blocks the strip), action (park or unpark), duration_s, waited_s (how long it waited for the strip to be clear). stop_anywhere (a vehicle decides to stop, ADR-0014): rate_per_km, multiplier (the attractor's), pull_over, pull_over_probability, dwell_s, stop_in_m. stop_anywhere_standing (it has come to a stand): pull_over, kerb_gap_m, until (s). bus_stop (a bus makes for a stop, ADR-0015): stop, stand_at_s, kerb_offset_m, dwell_s; bus_standing: as stop_anywhere_standing. pothole_crossed (the front wheels reach a pothole in the vehicle's path): pothole, choice (swerve, slow, straddle, hit, or unseen under water), speed (m/s), diameter_m, depth_m. pedestrian_crossing (when it ends): zone, group, from (left or right), accepted_gap_s, waited_at_edge_s, waited_on_road_s, duration_s. lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
+
+## effective_width.parquet
+
+One row per effective-width observer (`outputs.effective_width`) and bin along the road, over the measured period. Written only when a scenario has such an observer. `W_eff = W − Σ w_i − c_shy` (G§6.2) is not used by the model: the table sets what the clearance model predicts beside what the vehicles did.
+
+| Column | Type | Unit | Meaning |
+| --- | --- | --- | --- |
+| observer_id, ribbon | utf8 |  |  |
+| s_from, s_to | f64 | m | the bin |
+| road_width | f64 | m | mean carriageway width over the bin |
+| blocked_width, free_width | f64 | m | width taken by road objects (footprints, plus strips between a footprint and the kerb or another footprint that are narrower than the narrowest vehicle type), averaged along the bin and over time; the rest |
+| shy_desired, shy_minimum | f64? | m | desired and minimum lateral clearance (ADR-0010 §1) to the nearest object, averaged over the time vehicles spent beside one |
+| effective_width_model | f64? | m | free_width − shy_desired |
+| shy_observed, shy_observed_min | f64? | m | the gap to the nearest object that vehicles beside one were within for 5% of their time; the smallest gap seen |
+| effective_width_observed | f64? | m | free_width − shy_observed |
+| used_lo, used_hi | f64? | m | lateral band covered by vehicle bodies |
+| time_beside, time_spent | f64 | veh·s | time vehicles spent beside an object, and in the bin |
+| mean_speed | f64? | m/s | space-mean speed in the bin |
 
 ## conflicts.parquet
 

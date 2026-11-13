@@ -9,11 +9,14 @@
 //! Only the move phase runs in parallel, and it writes per-agent results in
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
-use crate::agents::{AgentStore, NO_AGENT, NewAgent, REMOVED};
+use crate::agents::{
+    AgentStore, NO_AGENT, NewAgent, REMOVED, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER,
+    STOP_STANDING,
+};
 use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
-use crate::model::lateral::{ChoiceParams, body_half_width, edge_gap};
+use crate::model::lateral::{ChoiceParams, body_half_width, body_stretch, edge_gap};
 use crate::model::longitudinal::Idm;
 use crate::objects::{Narrowings, Objects, RoadObject};
 use crate::observe::Detectors;
@@ -22,8 +25,13 @@ use crate::output::{
     TrajectorySink,
 };
 use crate::params::{CoreParams, Drawn};
+use crate::parking::Parking;
+use crate::pedestrians::Pedestrians;
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
+use crate::stopping::Stopping;
+use crate::surface::Surface;
+use crate::width::WidthObservers;
 use marg_net::Network;
 use marg_params::spec::ObjectSpec;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
@@ -38,6 +46,9 @@ const MOVE_MIN_LEN: usize = 256;
 /// Below this many agents the move phase runs on the calling thread: the
 /// thread-pool round trip costs more than it saves. Results are identical.
 const MOVE_PARALLEL_MIN: usize = 4 * MOVE_MIN_LEN;
+
+/// Metres per kilometre, for reporting rates per kilometre.
+const METRES_PER_KM: f64 = 1000.0;
 
 /// How often a lateral step that does not fit beside a neighbour is halved
 /// before it is dropped.
@@ -108,11 +119,24 @@ pub struct Simulation {
     y_limits: Vec<(f64, f64)>,
     /// Per agent: how far the kerb of a narrowing road may move it this step.
     kerb_limits: Vec<(f64, f64)>,
+    /// Per agent: how far a turn may lengthen its footprint at each end.
+    turn_room: Vec<f64>,
     /// A predecessor of each ribbon, and distances between ribbon starts.
     prev: Vec<Option<usize>>,
     chain_offset: Vec<Vec<f64>>,
     barriers: Vec<Barrier>,
     objects: Objects,
+    /// Stop-anywhere events (ADR-0014).
+    stopping: Stopping,
+    /// Potholes, humps, water, gradients, roughness.
+    surface: Surface,
+    /// Pedestrians crossing midblock.
+    pedestrians: Pedestrians,
+    /// Effective-width observers (G§6.2).
+    widths: WidthObservers,
+    /// Kerbside parking: parked vehicles are objects; this runs the
+    /// manoeuvres and knows where vehicles cruise for a space.
+    parking: Parking,
     narrow: Narrowings,
     /// Agents the kerb stopped this step: index, and how far each was cut back.
     edge_stops: Vec<(u32, f64)>,
@@ -245,6 +269,16 @@ impl Simulation {
                 .add(o, &net, None)
                 .map_err(SimError::InvalidScenario)?;
         }
+        let parking = Parking::new(&scenario.network.parking, &net, &p, seed, &mut objects)
+            .map_err(SimError::InvalidScenario)?;
+        let stopping = Stopping::new(&scenario.network, &net, &p, seed, &mut objects)
+            .map_err(SimError::InvalidScenario)?;
+        let surface = Surface::new(&scenario.network, &net, &p, seed, &mut objects)
+            .map_err(SimError::InvalidScenario)?;
+        let pedestrians = Pedestrians::new(&scenario.network.pedestrian_crossings, &net, &p, seed)
+            .map_err(SimError::InvalidScenario)?;
+        let widths = WidthObservers::new(&scenario.outputs.effective_width, &net, &p)
+            .map_err(SimError::InvalidScenario)?;
         let narrow = Narrowings::new(&net);
         let decision_steps = decision_steps(&p, scenario.dt_s);
         Ok(Self {
@@ -265,10 +299,16 @@ impl Simulation {
             move_buf: Vec::new(),
             y_limits: Vec::new(),
             kerb_limits: Vec::new(),
+            turn_room: Vec::new(),
             prev,
             chain_offset,
             barriers,
             objects,
+            parking,
+            stopping,
+            surface,
+            pedestrians,
+            widths,
             narrow,
             edge_stops: Vec::new(),
             decision_steps,
@@ -338,6 +378,17 @@ impl Simulation {
         if let Some(live) = &mut self.live {
             live.det
                 .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
+        }
+        if !self.widths.is_empty() && t0 >= self.scenario.warmup_s {
+            self.widths.observe(
+                &self.agents,
+                &self.orders,
+                &self.objects,
+                &self.net,
+                &self.prev,
+                &self.p,
+                self.dt,
+            );
         }
         self.step += 1;
         self.t = self.step as f64 * self.dt;
@@ -570,6 +621,16 @@ impl Simulation {
         &self.objects.all
     }
 
+    /// Pedestrians crossing midblock.
+    pub fn pedestrians(&self) -> &Pedestrians {
+        &self.pedestrians
+    }
+
+    /// Kerbside parking stretches and their state.
+    pub fn parking(&self) -> &Parking {
+        &self.parking
+    }
+
     /// Put a road object on the road from the next step on (the live
     /// viewer's `add_object`). Vehicles under it at that moment drive on.
     pub fn add_object(&mut self, spec: &ObjectSpec) -> Result<(), SimError> {
@@ -611,6 +672,7 @@ impl Simulation {
             barriers: &self.barriers,
             objects: &self.objects,
             narrow: &self.narrow,
+            surface: &self.surface,
             cut,
             steer_cut: p.steering_cutoff_distance(),
             l_max: self.agents.length.iter().copied().fold(0.0, f64::max),
@@ -669,6 +731,64 @@ impl Simulation {
             b.is_closed = b.closed.iter().any(|&(from, to)| t >= from && t < to);
         }
         let (events, net) = (&mut self.events, &self.net);
+        if !self.pedestrians.is_empty() {
+            self.pedestrians.step(
+                t,
+                self.dt,
+                &self.agents,
+                &self.orders,
+                net,
+                &self.p,
+                &mut self.objects,
+                |c| {
+                    events.push(EventRecord {
+                        t,
+                        kind: "pedestrian_crossing",
+                        agent_id: NO_AGENT,
+                        ribbon: net.ribbon(c.ribbon).id.clone(),
+                        s: c.s,
+                        y: c.y,
+                        attrs: format!(
+                            "{{\"zone\":{},\"group\":{},\"from\":\"{}\",\"accepted_gap_s\":{},\"waited_at_edge_s\":{},\"waited_on_road_s\":{},\"duration_s\":{}}}",
+                            json_string(&c.zone),
+                            c.group,
+                            if c.from_left { "left" } else { "right" },
+                            c.accepted_gap,
+                            c.waited_at_edge,
+                            c.waited_on_road,
+                            c.duration
+                        ),
+                    });
+                },
+            );
+        }
+        self.parking.step(
+            t,
+            &self.agents,
+            &self.orders,
+            net,
+            &self.prev,
+            &self.p,
+            &mut self.objects,
+            |m| {
+                events.push(EventRecord {
+                    t,
+                    kind: "parking_manoeuvre",
+                    agent_id: NO_AGENT,
+                    ribbon: net.ribbon(m.ribbon).id.clone(),
+                    s: m.s,
+                    y: m.y,
+                    attrs: format!(
+                        "{{\"zone\":{},\"object\":{},\"action\":\"{}\",\"duration_s\":{},\"waited_s\":{}}}",
+                        json_string(&m.zone),
+                        json_string(&m.object),
+                        if m.park { "park" } else { "unpark" },
+                        m.duration,
+                        m.waited
+                    ),
+                });
+            },
+        );
         self.objects.update(t, |o| {
             events.push(EventRecord {
                 t,
@@ -682,8 +802,9 @@ impl Simulation {
                 s: o.s,
                 y: o.y,
                 attrs: format!(
-                    "{{\"object\":{},\"length\":{},\"width\":{}}}",
+                    "{{\"object\":{},\"kind\":\"{}\",\"length\":{},\"width\":{}}}",
                     json_string(&o.id),
+                    o.kind.key(),
                     o.length,
                     o.width
                 ),
@@ -712,6 +833,8 @@ impl Simulation {
         self.kerb_limits.clear();
         self.kerb_limits
             .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
+        self.turn_room.clear();
+        self.turn_room.resize(self.agents.len(), f64::INFINITY);
         self.y_limits.clear();
         self.y_limits
             .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
@@ -722,6 +845,7 @@ impl Simulation {
             self.agents.vy[i] = out.vy;
             self.y_limits[i] = (out.y_lo, out.y_hi);
             self.kerb_limits[i] = (out.kerb_lo, out.kerb_hi);
+            self.turn_room[i] = out.turn_room;
             if let Some(c) = out.choice {
                 self.lateral_decisions += 1;
                 self.agents.decision_leader[i] = out.leader;
@@ -815,6 +939,10 @@ impl Simulation {
         let mut max_step: f64 = 0.0;
         let mut ttd = 0.0;
         self.edge_stops.clear();
+        let cruising = self.parking.any_cruising();
+        let stopping = self.stopping.enabled();
+        let speed_zones = self.surface.any_zones();
+        let potholes = self.surface.any_potholes() && self.objects.any_active();
         for i in 0..a.len() {
             let (v, acc) = (a.v[i], a.acc[i]);
             let v1 = v + acc * dt;
@@ -848,16 +976,31 @@ impl Simulation {
             // the move gives it, stays within the room on each side; not
             // moving always does (straightening never widens a body).
             let (width, length, half_now) = (a.width[i], a.length[i], a.half_width[i]);
+            let turn_room = self.turn_room[i];
+            let stretch_now = body_stretch(width, length, a.heading_tan[i]);
             let fits = |dy: f64| -> bool {
                 if dy == 0.0 {
                     return true;
                 }
                 let along = ds.max(dy.abs() / p.max_heading_tan);
                 let swing = body_half_width(width, length, dy / along) - half_now;
-                dy + swing <= lim_hi - y0 && swing - dy <= y0 - lim_lo
+                // A body that creeps sideways faster than its forward
+                // movement allows turns on the spot, and turned it is also
+                // longer along the road: it must not reach a body just in
+                // front of or behind it (ADR-0012 part 2).
+                let stretch = body_stretch(width, length, dy / along);
+                dy + swing <= lim_hi - y0
+                    && swing - dy <= y0 - lim_lo
+                    && (dy.abs() <= ds * p.max_heading_tan
+                        || stretch <= turn_room
+                        || stretch <= stretch_now)
             };
             let mut dy = dy;
-            if dy != 0.0 && (lim_hi < f64::INFINITY || lim_lo > f64::NEG_INFINITY) {
+            if dy != 0.0
+                && (dy.abs() > ds * p.max_heading_tan
+                    || lim_hi < f64::INFINITY
+                    || lim_lo > f64::NEG_INFINITY)
+            {
                 let mut tries = 0;
                 while !fits(dy) {
                     tries += 1;
@@ -923,6 +1066,185 @@ impl Simulation {
             // The median band's speed bonus follows the lateral position.
             let in_band = y1 - edge_lo < p.median_band_width;
             a.v0[i] = a.v0_base[i] + if in_band { a.v0_bonus[i] } else { 0.0 };
+            // A gradient or a rough surface lowers the desired speed.
+            if speed_zones {
+                a.v0[i] = self.surface.desired_speed(
+                    r,
+                    a.s[i],
+                    usize::from(a.class[i]),
+                    a.v0[i],
+                    p.stop_rearm_above,
+                );
+            }
+            // A vehicle looking for a parking space drives slowly along the
+            // stretch (a speed cap, G§6.2).
+            if cruising
+                && let Some(cap) =
+                    self.parking
+                        .cruising_cap(r, a.s[i], usize::from(a.class[i]), a.cruising[i])
+            {
+                a.v0[i] = a.v0[i].min(cap);
+            }
+            if stopping
+                && (a.stop_exposure[i] < f64::INFINITY
+                    || self.stopping.serves_bus_stops(usize::from(a.class[i])))
+            {
+                let class = usize::from(a.class[i]);
+                let idm = Idm {
+                    v0: a.v0[i],
+                    time_gap: a.time_gap[i],
+                    standstill_gap: a.standstill_gap[i],
+                    max_accel: a.max_accel[i],
+                    comfortable_decel: a.comfortable_decel[i],
+                    exponent: p.accel_exponent,
+                };
+                // A bus makes for a stop it serves from as far off as
+                // drivers look ahead; it brakes for it when it has to.
+                let call = if a.stop_state[i] == STOP_NONE && self.stopping.serves_bus_stops(class)
+                {
+                    self.stopping
+                        .bus_call(a.id[i], r, a.s[i], p.lookahead, a.stop_last[i])
+                } else {
+                    None
+                };
+                if let Some(call) = &call {
+                    a.stop_state[i] = STOP_PULLING_OVER;
+                    a.stop_point[i] = a.distance[i] + (call.s - a.s[i]) + a.standstill_gap[i];
+                    a.stop_until[i] = call.dwell;
+                    a.stop_offset[i] = call.offset;
+                    a.stop_last[i] = call.stop;
+                    self.events.push(EventRecord {
+                        t: self.t + dt,
+                        kind: "bus_stop",
+                        agent_id: a.id[i],
+                        ribbon: self.net.ribbon(r).id.clone(),
+                        s: a.s[i],
+                        y: y1,
+                        attrs: format!(
+                            "{{\"stop\":{},\"stand_at_s\":{},\"kerb_offset_m\":{},\"dwell_s\":{}}}",
+                            json_string(call.id),
+                            call.s,
+                            call.offset,
+                            call.dwell
+                        ),
+                    });
+                }
+                match a.stop_state[i] {
+                    _ if call.is_some() => {}
+                    STOP_NONE => {
+                        let multiplier = self.stopping.multiplier(r, a.s[i]);
+                        a.stop_exposure[i] -= ds * multiplier;
+                        if a.stop_exposure[i] <= 0.0 {
+                            let d = self.stopping.decide(a.id[i], class, a.stop_count[i]);
+                            // Where its following model would begin to
+                            // respond to something standing in its way.
+                            let ahead = idm.desired_gap(a.v[i], a.v[i], 1.0, 1.0);
+                            a.stop_state[i] = if d.pull_over {
+                                STOP_PULLING_OVER
+                            } else {
+                                STOP_IN_PLACE
+                            };
+                            a.stop_point[i] = a.distance[i] + ahead;
+                            a.stop_offset[i] = 0.0;
+                            a.stop_until[i] = d.dwell;
+                            a.y_target[i] = y1;
+                            self.events.push(EventRecord {
+                                t: self.t + dt,
+                                kind: "stop_anywhere",
+                                agent_id: a.id[i],
+                                ribbon: self.net.ribbon(r).id.clone(),
+                                s: a.s[i],
+                                y: y1,
+                                attrs: format!(
+                                    "{{\"rate_per_km\":{},\"multiplier\":{multiplier},\"pull_over\":{},\"pull_over_probability\":{},\"dwell_s\":{},\"stop_in_m\":{ahead}}}",
+                                    self.stopping.rate(class) * METRES_PER_KM,
+                                    d.pull_over,
+                                    d.pull_over_probability,
+                                    d.dwell
+                                ),
+                            });
+                        }
+                    }
+                    STOP_STANDING => {
+                        if self.t + dt >= a.stop_until[i] {
+                            a.stop_state[i] = STOP_NONE;
+                            a.stop_count[i] += 1;
+                            a.stop_exposure[i] =
+                                self.stopping.exposure(a.id[i], class, a.stop_count[i]);
+                            a.decision_leader[i] = crate::agents::UNDECIDED;
+                        }
+                    }
+                    _ => {
+                        // A bus stands at its stop, or right behind a bus
+                        // that is standing there; held up further back, it
+                        // is only in a queue. Anything else stands where it
+                        // has come to a stop.
+                        let there = !self.stopping.serves_bus_stops(class)
+                            || a.stop_point[i] - a.distance[i]
+                                <= a.length[i] + 2.0 * a.standstill_gap[i];
+                        if a.v[i] < p.stop_speed_below && there {
+                            let pulled_over = a.stop_state[i] == STOP_PULLING_OVER;
+                            a.stop_state[i] = STOP_STANDING;
+                            a.stop_until[i] += self.t + dt;
+                            a.y_target[i] = y1;
+                            self.events.push(EventRecord {
+                                t: self.t + dt,
+                                kind: if self.stopping.serves_bus_stops(class) {
+                                    "bus_standing"
+                                } else {
+                                    "stop_anywhere_standing"
+                                },
+                                agent_id: a.id[i],
+                                ribbon: self.net.ribbon(r).id.clone(),
+                                s: a.s[i],
+                                y: y1,
+                                attrs: format!(
+                                    "{{\"pull_over\":{pulled_over},\"kerb_gap_m\":{},\"until\":{}}}",
+                                    edge_hi - y1 - 0.5 * a.width[i],
+                                    a.stop_until[i]
+                                ),
+                            });
+                        }
+                    }
+                }
+            }
+            if potholes {
+                let (half, class) = (0.5 * a.length[i], usize::from(a.class[i]));
+                let (events, surface, net) = (&mut self.events, &self.surface, &self.net);
+                let (id, kappa, v, s, width) = (a.id[i], a.kappa[i], a.v[i], a.s[i], a.width[i]);
+                self.objects
+                    .near(net, &self.prev, r, s, half, half, |o, along| {
+                        // The front wheels reach the hole in this step.
+                        let reach = along - 0.5 * o.length - half;
+                        if o.kind != marg_params::spec::ObjectKind::Pothole
+                            || reach > 0.0
+                            || reach <= -ds
+                            || edge_gap(y1, 0.5 * width, o.y, 0.5 * o.width) >= 0.0
+                        {
+                            return;
+                        }
+                        let choice = if o.hidden {
+                            "unseen"
+                        } else {
+                            ["swerve", "slow", "straddle", "hit"]
+                                [surface.pothole_choice(id, class, kappa, o.serial)]
+                        };
+                        events.push(EventRecord {
+                            t: self.t + dt,
+                            kind: "pothole_crossed",
+                            agent_id: id,
+                            ribbon: net.ribbon(r).id.clone(),
+                            s,
+                            y: y1,
+                            attrs: format!(
+                                "{{\"pothole\":{},\"choice\":\"{choice}\",\"speed\":{v},\"diameter_m\":{},\"depth_m\":{}}}",
+                                json_string(&o.id),
+                                o.width,
+                                o.depth
+                            ),
+                        });
+                    });
+            }
             if a.v[i] < p.stop_speed_below {
                 if a.stop_armed[i] {
                     a.stops[i] += 1;
@@ -1362,10 +1684,16 @@ impl Simulation {
             comfortable_decel: d.comfortable_decel,
             kappa: d.kappa,
             clearance_scale,
+            cruising: d.cruising,
+            hump_speed: d.hump_speed,
             t_arrival: arr.t_arrival,
             t_entry: self.t,
         };
         let i = self.agents.push(new);
+        if self.stopping.enabled() {
+            self.agents.stop_exposure[i as usize] =
+                self.stopping.exposure(arr.id, class.index(), 0);
+        }
         self.agents.stop_armed[i as usize] = v_ins > self.p.stop_rearm_above;
         let (s, id) = (&self.agents.s, &self.agents.id);
         let order = &mut self.orders[r];
@@ -1551,6 +1879,7 @@ impl Simulation {
                 detectors,
                 events: std::mem::take(&mut self.events),
                 conflicts,
+                effective_width: self.widths.records(&self.net),
                 kpis,
                 ribbons,
             },

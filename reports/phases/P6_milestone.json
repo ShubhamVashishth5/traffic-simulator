@@ -1,0 +1,2378 @@
+{
+ "width": {
+  "blocked": {
+   "slope": 2.04207529054895,
+   "ci95": 0.2204418468071077,
+   "slope_free": 1.5876285163189046,
+   "intercept": 10.267476157308215,
+   "n": 15
+  },
+  "effective": {
+   "slope": 1.3397269093710777,
+   "ci95": 0.1444908562770569,
+   "slope_free": 1.5403219247482831,
+   "intercept": -6.501689437866847,
+   "n": 15
+  },
+  "plain": {
+   "slope": 0.9734592892487629,
+   "ci95": 0.022886148529870507,
+   "slope_free": 1.0128954865796969,
+   "intercept": -1.3145399110311342,
+   "n": 9
+  },
+  "points_effective": [
+   [
+    20.130840890238268,
+    12.685560053981105
+   ],
+   [
+    20.315785297937694,
+    17.813765182186238
+   ],
+   [
+    19.863823621100927,
+    13.405308142150252
+   ],
+   [
+    27.471617076063424,
+    33.73819163292847
+   ],
+   [
+    27.483216451617288,
+    30.679262258209626
+   ],
+   [
+    27.65749563496823,
+    34.682860998650476
+   ],
+   [
+    23.50004493885256,
+    39.4961763382816
+   ],
+   [
+    24.3076666734352,
+    36.39226270805218
+   ],
+   [
+    21.124572815487397,
+    40.17094017094017
+   ],
+   [
+    35.3628192888343,
+    61.80836707152497
+   ],
+   [
+    35.08324919695275,
+    51.686909581646425
+   ],
+   [
+    36.12264962601503,
+    57.93972109761584
+   ],
+   [
+    44.24986630080172,
+    57.130004498425556
+   ],
+   [
+    43.06932184550168,
+    52.991452991452995
+   ],
+   [
+    43.36273074680036,
+    53.62123256860099
+   ]
+  ],
+  "diagnostic_fast_creep": {
+   "capacity_loss_pct": 26.285799970010494,
+   "effective_width_loss_pct": 27.21794577331468
+  }
+ },
+ "bus": {
+  "no stop, 30 buses/h": {
+   "capacity": 4993.0,
+   "speed": 46.94344169792833,
+   "capacity_loss_pct": 0.0,
+   "speed_loss_pct": 0.0
+  },
+  "at the kerb, 30 buses/h": {
+   "capacity": 4918.0,
+   "speed": 40.6375146718353,
+   "capacity_loss_pct": 1.5021029441217748,
+   "speed_loss_pct": 13.433030894220355
+  },
+  "out in the road, 30 buses/h": {
+   "capacity": 3369.0,
+   "speed": 22.09344754329383,
+   "capacity_loss_pct": 32.525535750050075,
+   "speed_loss_pct": 52.936029519393244
+  },
+  "out in the road, 70 buses/h": {
+   "capacity": 3240.0,
+   "speed": 8.020836147571043,
+   "capacity_loss_pct": 35.10915281393952,
+   "speed_loss_pct": 82.91383022322155
+  }
+ },
+ "pedestrians": {
+  "0": 0.0,
+  "100": -0.22492127755284752,
+  "200": 0.41985305143199536,
+  "400": 14.020092967461384,
+  "800": 31.743889638626477,
+  "1600": 45.74898785425101
+ },
+ "pedestrian_noise_pct": 0.820885631619193,
+ "potholes": {
+  "0": 0.0,
+  "40": 26.14120518814298,
+  "120": 50.81680685527662
+ },
+ "hump": {
+  "two_wheeler": 18.359608625334104,
+  "bus": 17.897993608473598,
+  "lcv": 17.9053800930551,
+  "auto_rickshaw": 18.18467717081093,
+  "car": 18.301754663615565
+ },
+ "ramp": {
+  "0": {
+   "e_rickshaw": 25.311119681923785,
+   "car": 55.1813235533071,
+   "stream": 41.74195938317453
+  },
+  "4": {
+   "e_rickshaw": 24.415902972919454,
+   "car": 43.087850925354495,
+   "stream": 34.67938054991925
+  },
+  "8": {
+   "e_rickshaw": 12.966232025773566,
+   "car": 27.495819261250237,
+   "stream": 20.780919515305655
+  }
+ },
+ "guard_events": 51.0,
+ "runs": [
+  {
+   "name": "width|none",
+   "seed": 1,
+   "throughput": 6732.0,
+   "waiting": 884.0,
+   "guard": 0.0,
+   "delay": 37.49741496076954,
+   "speed_before": 35.46888651107291,
+   "speed_feature": 35.02203615253428,
+   "speed_at": {
+    "car": 35.611629154358845,
+    "two_wheeler": 38.74636558045893,
+    "auto_rickshaw": 33.16650943412103,
+    "lcv": 37.25391770434744,
+    "bus": 30.746535668242394
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 10.5,
+   "events": {}
+  },
+  {
+   "name": "width|none",
+   "seed": 2,
+   "throughput": 6633.0,
+   "waiting": 959.0,
+   "guard": 0.0,
+   "delay": 39.48196040982836,
+   "speed_before": 34.413491771781175,
+   "speed_feature": 34.28721712249394,
+   "speed_at": {
+    "two_wheeler": 38.831106318901305,
+    "lcv": 32.89932356659791,
+    "bus": 30.584409276118382,
+    "auto_rickshaw": 33.32111445114083,
+    "car": 35.55064172948811
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 10.5,
+   "events": {}
+  },
+  {
+   "name": "width|none",
+   "seed": 3,
+   "throughput": 6642.0,
+   "waiting": 938.0,
+   "guard": 0.0,
+   "delay": 43.670852026865376,
+   "speed_before": 33.72033110578534,
+   "speed_feature": 32.617277019313086,
+   "speed_at": {
+    "car": 33.141940580616826,
+    "bus": 29.683398787488485,
+    "lcv": 33.80743911098265,
+    "auto_rickshaw": 31.624159014741362,
+    "two_wheeler": 37.35107770303784
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 10.5,
+   "events": {}
+  },
+  {
+   "name": "width|motorcycles",
+   "seed": 1,
+   "throughput": 5823.0,
+   "waiting": 1179.0,
+   "guard": 0.0,
+   "delay": 113.77231578240891,
+   "speed_before": 10.72639703048593,
+   "speed_feature": 34.56149327608511,
+   "speed_at": {
+    "bus": 33.87726687062497,
+    "car": 36.35737315808319,
+    "auto_rickshaw": 34.30175747403687,
+    "lcv": 36.88424280122362,
+    "two_wheeler": 38.54222577738473
+   },
+   "blocked_width": 0.754345271148195,
+   "effective_width": 8.386261706524982,
+   "shy": 1.3593930223268245,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 192
+   }
+  },
+  {
+   "name": "width|motorcycles",
+   "seed": 2,
+   "throughput": 5481.0,
+   "waiting": 1296.0,
+   "guard": 0.0,
+   "delay": 123.65038735386916,
+   "speed_before": 10.091877511117637,
+   "speed_feature": 34.026198263646904,
+   "speed_at": {
+    "bus": 34.00518020376596,
+    "lcv": 35.25109607591434,
+    "car": 35.90588576902237,
+    "auto_rickshaw": 33.847405564821436,
+    "two_wheeler": 37.86021649385107
+   },
+   "blocked_width": 0.7519830157676405,
+   "effective_width": 8.366842543716542,
+   "shy": 1.381174440515818,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 192
+   }
+  },
+  {
+   "name": "width|motorcycles",
+   "seed": 3,
+   "throughput": 5775.0,
+   "waiting": 1189.0,
+   "guard": 0.0,
+   "delay": 112.10986893078301,
+   "speed_before": 11.038920516983909,
+   "speed_feature": 32.46452339040003,
+   "speed_at": {
+    "auto_rickshaw": 32.389855624203356,
+    "two_wheeler": 36.96288716965762,
+    "lcv": 33.55023004095151,
+    "bus": 31.081643790621705,
+    "car": 34.6651789178257
+   },
+   "blocked_width": 0.7519049275057693,
+   "effective_width": 8.414298519784403,
+   "shy": 1.3337965527098286,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 192
+   }
+  },
+  {
+   "name": "width|cars at the kerb",
+   "seed": 1,
+   "throughput": 4419.0,
+   "waiting": 1679.0,
+   "guard": 0.0,
+   "delay": 170.84459722051554,
+   "speed_before": 7.115399724990399,
+   "speed_feature": 36.68167300831977,
+   "speed_at": {
+    "bus": 36.31491725886315,
+    "auto_rickshaw": 36.38605341112399,
+    "lcv": 40.8947819385724,
+    "car": 39.899918070131044,
+    "two_wheeler": 39.87880481370127
+   },
+   "blocked_width": 1.6000070567900708,
+   "effective_width": 7.6154802070133405,
+   "shy": 1.2845127361965887,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 90
+   }
+  },
+  {
+   "name": "width|cars at the kerb",
+   "seed": 2,
+   "throughput": 4623.0,
+   "waiting": 1622.0,
+   "guard": 0.0,
+   "delay": 156.68016131590724,
+   "speed_before": 7.6803525837927,
+   "speed_feature": 35.62346310960771,
+   "speed_at": {
+    "lcv": 35.067874089064084,
+    "bus": 36.42786905750932,
+    "two_wheeler": 40.073392765726176,
+    "auto_rickshaw": 35.46135039596115,
+    "car": 38.79340037690167
+   },
+   "blocked_width": 1.6407319243694412,
+   "effective_width": 7.614262272580184,
+   "shy": 1.2450058030503757,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 88
+   }
+  },
+  {
+   "name": "width|cars at the kerb",
+   "seed": 3,
+   "throughput": 4356.0,
+   "waiting": 1729.0,
+   "guard": 0.0,
+   "delay": 182.67101544209294,
+   "speed_before": 7.018587612806202,
+   "speed_feature": 35.321455984155776,
+   "speed_at": {
+    "car": 37.47181930379846,
+    "two_wheeler": 39.56410817650028,
+    "lcv": 34.672400544036954,
+    "auto_rickshaw": 35.25487081804064,
+    "bus": 36.11417996215531
+   },
+   "blocked_width": 1.63384926025844,
+   "effective_width": 7.595962958328336,
+   "shy": 1.2701877814132243,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 88
+   }
+  },
+  {
+   "name": "width|cars 0.8 m out",
+   "seed": 1,
+   "throughput": 4035.0,
+   "waiting": 1841.0,
+   "guard": 0.0,
+   "delay": 198.5134928462784,
+   "speed_before": 6.399203181131971,
+   "speed_feature": 35.49073891609006,
+   "speed_at": {
+    "car": 39.774302644370614,
+    "lcv": 39.70218089863189,
+    "bus": 37.114710811498256,
+    "auto_rickshaw": 35.91435493996128,
+    "two_wheeler": 40.307685841468896
+   },
+   "blocked_width": 1.4214642934423263,
+   "effective_width": 8.03249528142048,
+   "shy": 1.0460404251371935,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 90
+   }
+  },
+  {
+   "name": "width|cars 0.8 m out",
+   "seed": 2,
+   "throughput": 4242.0,
+   "waiting": 1778.0,
+   "guard": 0.0,
+   "delay": 187.7226683248859,
+   "speed_before": 6.7812188914101,
+   "speed_feature": 34.63069216246142,
+   "speed_at": {
+    "car": 38.226181833275355,
+    "bus": 37.05989852294198,
+    "auto_rickshaw": 36.062559657482105,
+    "two_wheeler": 39.391012794546356,
+    "lcv": 33.56690661826424
+   },
+   "blocked_width": 1.4611065781310937,
+   "effective_width": 7.947694999289304,
+   "shy": 1.0911984225796016,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 88
+   }
+  },
+  {
+   "name": "width|cars 0.8 m out",
+   "seed": 3,
+   "throughput": 3990.0,
+   "waiting": 1853.0,
+   "guard": 0.0,
+   "delay": 201.3049941909052,
+   "speed_before": 6.204206221775823,
+   "speed_feature": 33.12132609913743,
+   "speed_at": {
+    "lcv": 36.868411424107435,
+    "two_wheeler": 38.564180785993145,
+    "bus": 36.588595991413975,
+    "auto_rickshaw": 33.69547532187762,
+    "car": 37.18835243810766
+   },
+   "blocked_width": 1.455520737095117,
+   "effective_width": 8.281919854373823,
+   "shy": 0.7625594085310592,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 88
+   }
+  },
+  {
+   "name": "width|cars, half double parked",
+   "seed": 1,
+   "throughput": 2547.0,
+   "waiting": 2359.0,
+   "guard": 0.0,
+   "delay": 345.43249470467134,
+   "speed_before": 3.185331080635394,
+   "speed_feature": 39.09491862113393,
+   "speed_at": {
+    "bus": 33.11797739734254,
+    "two_wheeler": 43.28851577014917,
+    "lcv": 40.67328463875261,
+    "auto_rickshaw": 37.836035316635915,
+    "car": 44.04936675011604
+   },
+   "blocked_width": 2.3323177975527716,
+   "effective_width": 6.7869039746723985,
+   "shy": 1.3807782277748293,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 123
+   }
+  },
+  {
+   "name": "width|cars, half double parked",
+   "seed": 2,
+   "throughput": 3222.0,
+   "waiting": 2192.0,
+   "guard": 0.0,
+   "delay": 284.5457174443698,
+   "speed_before": 4.445917123878308,
+   "speed_feature": 35.916936063387865,
+   "speed_at": {
+    "lcv": 37.79041360658569,
+    "two_wheeler": 41.35534440292803,
+    "auto_rickshaw": 36.9096904917526,
+    "bus": 37.58194642538185,
+    "car": 39.33196370835426
+   },
+   "blocked_width": 2.522778053848989,
+   "effective_width": 6.816258834319961,
+   "shy": 1.16096311183105,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 129
+   }
+  },
+  {
+   "name": "width|cars, half double parked",
+   "seed": 3,
+   "throughput": 2805.0,
+   "waiting": 2280.0,
+   "guard": 0.0,
+   "delay": 327.38666744357175,
+   "speed_before": 3.8142164736978312,
+   "speed_feature": 34.43143646896983,
+   "speed_at": {
+    "car": 37.601591588788246,
+    "auto_rickshaw": 33.84294736598859,
+    "lcv": 39.20490483188178,
+    "two_wheeler": 39.371520221583026,
+    "bus": 33.62698456874714
+   },
+   "blocked_width": 2.5990479050184896,
+   "effective_width": 6.707121789268421,
+   "shy": 1.1938303057130895,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 133
+   }
+  },
+  {
+   "name": "width|cars, all double parked",
+   "seed": 1,
+   "throughput": 2859.0,
+   "waiting": 2284.0,
+   "guard": 0.0,
+   "delay": 335.41903408612353,
+   "speed_before": 3.7942765956144835,
+   "speed_feature": 37.253000521406875,
+   "speed_at": {
+    "lcv": 43.89447190489156,
+    "bus": 40.49005186271784,
+    "auto_rickshaw": 37.97901642882538,
+    "car": 41.68270952615414,
+    "two_wheeler": 41.81990507461014
+   },
+   "blocked_width": 3.4360597225449765,
+   "effective_width": 5.85376403841582,
+   "shy": 1.2101762390392037,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 180
+   }
+  },
+  {
+   "name": "width|cars, all double parked",
+   "seed": 2,
+   "throughput": 3135.0,
+   "waiting": 2200.0,
+   "guard": 0.0,
+   "delay": 292.50757430604466,
+   "speed_before": 4.363563408977342,
+   "speed_feature": 36.07077219923182,
+   "speed_at": {
+    "car": 40.382536980097896,
+    "auto_rickshaw": 36.53858989503998,
+    "lcv": 39.8198919764701,
+    "two_wheeler": 40.24165555385125,
+    "bus": 35.39884241825366
+   },
+   "blocked_width": 3.366662548219433,
+   "effective_width": 5.9777212062223235,
+   "shy": 1.1556162455582446,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 176
+   }
+  },
+  {
+   "name": "width|cars, all double parked",
+   "seed": 3,
+   "throughput": 3093.0,
+   "waiting": 2207.0,
+   "guard": 0.0,
+   "delay": 294.6308176725484,
+   "speed_before": 4.258391188138802,
+   "speed_feature": 34.77824183782248,
+   "speed_at": {
+    "auto_rickshaw": 35.088935098164654,
+    "bus": 36.420826823871984,
+    "lcv": 36.62689533941382,
+    "car": 37.89591964554476,
+    "two_wheeler": 39.19161234254613
+   },
+   "blocked_width": 3.387430280681927,
+   "effective_width": 5.946913271585962,
+   "shy": 1.1656564477321105,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 176
+   }
+  },
+  {
+   "name": "diagnostic|fast creep",
+   "seed": 1,
+   "throughput": 4797.0,
+   "waiting": 1532.0,
+   "guard": 0.0,
+   "delay": 159.61578339777583,
+   "speed_before": 7.936404563459798,
+   "speed_feature": 35.61094884386496,
+   "speed_at": {
+    "lcv": 38.008824869556065,
+    "two_wheeler": 39.76441960523732,
+    "auto_rickshaw": 34.62625285720447,
+    "car": 37.57046499912761,
+    "bus": 35.42922012614064
+   },
+   "blocked_width": 1.6000070567900708,
+   "effective_width": 7.6396572174341415,
+   "shy": 1.260335725775788,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 90
+   }
+  },
+  {
+   "name": "diagnostic|fast creep",
+   "seed": 2,
+   "throughput": 4983.0,
+   "waiting": 1526.0,
+   "guard": 0.0,
+   "delay": 148.63038681148308,
+   "speed_before": 8.337044184570113,
+   "speed_feature": 34.768264197908515,
+   "speed_at": {
+    "lcv": 33.081157449797225,
+    "auto_rickshaw": 34.467230436326616,
+    "bus": 35.71770253622341,
+    "car": 37.1775086304778,
+    "two_wheeler": 39.10396305021724
+   },
+   "blocked_width": 1.6407319243694412,
+   "effective_width": 7.638503484538146,
+   "shy": 1.220764591092414,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 88
+   }
+  },
+  {
+   "name": "diagnostic|fast creep",
+   "seed": 3,
+   "throughput": 4968.0,
+   "waiting": 1516.0,
+   "guard": 0.0,
+   "delay": 158.56134172971088,
+   "speed_before": 8.211112782108838,
+   "speed_feature": 33.23162727198814,
+   "speed_at": {
+    "auto_rickshaw": 32.99571908446809,
+    "bus": 31.468206437545525,
+    "lcv": 34.59927997066568,
+    "two_wheeler": 37.455044711735496,
+    "car": 34.880517912648294
+   },
+   "blocked_width": 1.63384926025844,
+   "effective_width": 7.648186379433589,
+   "shy": 1.2179643603079706,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 88
+   }
+  },
+  {
+   "name": "plain|9.0",
+   "seed": 1,
+   "throughput": 5781.0,
+   "waiting": 1286.0,
+   "guard": 0.0,
+   "delay": 36.67369836775517,
+   "speed_before": 35.72687328396172,
+   "speed_feature": 34.91075434958327,
+   "speed_at": {
+    "two_wheeler": 39.0835256395389,
+    "bus": 30.0982000970583,
+    "car": 35.19263749071045,
+    "auto_rickshaw": 33.29240231752862,
+    "lcv": 36.79088415715346
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 9.0,
+   "events": {}
+  },
+  {
+   "name": "plain|9.0",
+   "seed": 2,
+   "throughput": 5787.0,
+   "waiting": 1320.0,
+   "guard": 0.0,
+   "delay": 40.02387295407944,
+   "speed_before": 35.43022008114123,
+   "speed_feature": 34.458315685062395,
+   "speed_at": {
+    "car": 34.88879291654701,
+    "auto_rickshaw": 33.49160673141952,
+    "lcv": 34.90470773898189,
+    "bus": 33.93430481852823,
+    "two_wheeler": 38.504122297132994
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 9.0,
+   "events": {}
+  },
+  {
+   "name": "plain|9.0",
+   "seed": 3,
+   "throughput": 5802.0,
+   "waiting": 1273.0,
+   "guard": 0.0,
+   "delay": 46.76273235467506,
+   "speed_before": 34.228508677049525,
+   "speed_feature": 31.791997564694444,
+   "speed_at": {
+    "car": 32.20839555399582,
+    "lcv": 31.454012482715765,
+    "two_wheeler": 36.000845059141255,
+    "bus": 29.949222846667414,
+    "auto_rickshaw": 29.889631641714384
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 9.0,
+   "events": {}
+  },
+  {
+   "name": "plain|7.5",
+   "seed": 1,
+   "throughput": 4821.0,
+   "waiting": 1655.0,
+   "guard": 0.0,
+   "delay": 35.43089871597123,
+   "speed_before": 37.537541932359204,
+   "speed_feature": 36.19758950300013,
+   "speed_at": {
+    "lcv": 37.21702811153855,
+    "car": 36.86682754210758,
+    "auto_rickshaw": 34.70508002636913,
+    "bus": 31.51467429637287,
+    "two_wheeler": 39.950558658072175
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.5,
+   "events": {}
+  },
+  {
+   "name": "plain|7.5",
+   "seed": 2,
+   "throughput": 4842.0,
+   "waiting": 1706.0,
+   "guard": 0.0,
+   "delay": 39.888008078208195,
+   "speed_before": 35.75963112156441,
+   "speed_feature": 34.181746730063516,
+   "speed_at": {
+    "two_wheeler": 38.64867835215831,
+    "car": 35.56781611421842,
+    "lcv": 32.29822083330514,
+    "bus": 33.26484119981068,
+    "auto_rickshaw": 33.55508236932995
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.5,
+   "events": {}
+  },
+  {
+   "name": "plain|7.5",
+   "seed": 3,
+   "throughput": 4827.0,
+   "waiting": 1692.0,
+   "guard": 0.0,
+   "delay": 44.143038768748184,
+   "speed_before": 34.88114348470711,
+   "speed_feature": 32.91865735334064,
+   "speed_at": {
+    "lcv": 32.57249711766983,
+    "auto_rickshaw": 31.921262655755594,
+    "car": 34.486845369315,
+    "two_wheeler": 38.079350543945736,
+    "bus": 31.727974324413285
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.5,
+   "events": {}
+  },
+  {
+   "name": "plain|6.0",
+   "seed": 1,
+   "throughput": 3990.0,
+   "waiting": 2063.0,
+   "guard": 0.0,
+   "delay": 42.03787455373644,
+   "speed_before": 37.321307702517935,
+   "speed_feature": 34.23663290029129,
+   "speed_at": {
+    "two_wheeler": 38.69594662080428,
+    "lcv": 35.76607726865438,
+    "bus": 32.29174020208794,
+    "auto_rickshaw": 33.19118648995937,
+    "car": 34.718752906091765
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 6.0,
+   "events": {}
+  },
+  {
+   "name": "plain|6.0",
+   "seed": 2,
+   "throughput": 3741.0,
+   "waiting": 2135.0,
+   "guard": 0.0,
+   "delay": 40.360070021259006,
+   "speed_before": 37.11171606305502,
+   "speed_feature": 35.06244763036161,
+   "speed_at": {
+    "two_wheeler": 39.54841026256357,
+    "car": 36.06200547079013,
+    "lcv": 32.61382886242872,
+    "bus": 34.16569892703014,
+    "auto_rickshaw": 34.12229442396986
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 6.0,
+   "events": {}
+  },
+  {
+   "name": "plain|6.0",
+   "seed": 3,
+   "throughput": 3849.0,
+   "waiting": 2110.0,
+   "guard": 0.0,
+   "delay": 49.30984728794387,
+   "speed_before": 34.60270705495428,
+   "speed_feature": 32.17342881528063,
+   "speed_at": {
+    "bus": 29.983475727585603,
+    "lcv": 29.309461183003613,
+    "auto_rickshaw": 31.411207474270853,
+    "two_wheeler": 36.674653674002116,
+    "car": 33.03290251486965
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 6.0,
+   "events": {}
+  },
+  {
+   "name": "bus|capacity|no stop, 30 buses/h",
+   "seed": 1,
+   "throughput": 5088.0,
+   "waiting": 360.0,
+   "guard": 0.0,
+   "delay": 41.24093507490142,
+   "speed_before": 36.185826322385154,
+   "speed_feature": 34.41020284939323,
+   "speed_at": {
+    "lcv": 37.805022951870285,
+    "bus": 30.891242295890606,
+    "auto_rickshaw": 33.447913678784765,
+    "car": 35.614756001563215,
+    "two_wheeler": 38.360723238466456
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "bus|capacity|no stop, 30 buses/h",
+   "seed": 2,
+   "throughput": 4827.0,
+   "waiting": 527.0,
+   "guard": 0.0,
+   "delay": 41.70843548738292,
+   "speed_before": 36.624653616245574,
+   "speed_feature": 34.02157231586282,
+   "speed_at": {
+    "auto_rickshaw": 32.926180261287705,
+    "lcv": 31.680361873891457,
+    "two_wheeler": 38.42648776281784,
+    "bus": 32.28740921688399,
+    "car": 34.8453529026766
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "bus|capacity|no stop, 30 buses/h",
+   "seed": 3,
+   "throughput": 5064.0,
+   "waiting": 459.0,
+   "guard": 0.0,
+   "delay": 37.703146563024696,
+   "speed_before": 36.232748064232155,
+   "speed_feature": 35.26923363888602,
+   "speed_at": {
+    "car": 35.80867759188825,
+    "bus": 28.486862481431217,
+    "two_wheeler": 38.65658789232203,
+    "lcv": 34.027613718496234,
+    "auto_rickshaw": 33.517622400720654
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "bus|capacity|at the kerb, 30 buses/h",
+   "seed": 1,
+   "throughput": 5067.0,
+   "waiting": 368.0,
+   "guard": 0.0,
+   "delay": 43.12441464519708,
+   "speed_before": 36.33840826186743,
+   "speed_feature": 32.40741550918357,
+   "speed_at": {
+    "auto_rickshaw": 32.07488479711793,
+    "car": 33.42305429733209,
+    "two_wheeler": 36.4017964679381,
+    "lcv": 34.1770937637299,
+    "bus": 10.589307822005322
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "bus_stop": 5,
+    "bus_standing": 5
+   }
+  },
+  {
+   "name": "bus|capacity|at the kerb, 30 buses/h",
+   "seed": 2,
+   "throughput": 4620.0,
+   "waiting": 523.0,
+   "guard": 0.0,
+   "delay": 64.10846604844593,
+   "speed_before": 33.75876576809864,
+   "speed_feature": 23.77457234017758,
+   "speed_at": {
+    "auto_rickshaw": 27.907859272243098,
+    "bus": 10.595036540118103,
+    "lcv": 28.3755703401515,
+    "two_wheeler": 32.39524781655968,
+    "car": 30.270994411133813
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 11,
+    "bus_stop": 11
+   }
+  },
+  {
+   "name": "bus|capacity|at the kerb, 30 buses/h",
+   "seed": 3,
+   "throughput": 5067.0,
+   "waiting": 437.0,
+   "guard": 0.0,
+   "delay": 43.13614908464151,
+   "speed_before": 36.182188831744305,
+   "speed_feature": 31.486773045542805,
+   "speed_at": {
+    "two_wheeler": 36.61582568594116,
+    "car": 33.793955785903755,
+    "bus": 10.683746207447257,
+    "auto_rickshaw": 32.302194024189696,
+    "lcv": 32.25769212076134
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "bus_stop": 4,
+    "bus_standing": 4
+   }
+  },
+  {
+   "name": "bus|capacity|out in the road, 30 buses/h",
+   "seed": 1,
+   "throughput": 3714.0,
+   "waiting": 675.0,
+   "guard": 0.0,
+   "delay": 204.7605235360342,
+   "speed_before": 8.590775725389435,
+   "speed_feature": 13.218463726783698,
+   "speed_at": {
+    "lcv": 26.32226865764939,
+    "two_wheeler": 28.739269954650506,
+    "auto_rickshaw": 25.996909254124382,
+    "bus": 11.822975784437494,
+    "car": 26.11750270734732
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.1323047099365064,
+   "shy": 0.822695290063492,
+   "road_width": 7.0,
+   "events": {
+    "bus_stop": 5,
+    "object_added": 1,
+    "bus_standing": 4
+   }
+  },
+  {
+   "name": "bus|capacity|out in the road, 30 buses/h",
+   "seed": 2,
+   "throughput": 2721.0,
+   "waiting": 1016.0,
+   "guard": 0.0,
+   "delay": 227.26345909323263,
+   "speed_before": 5.597803914996418,
+   "speed_feature": 9.416998442188822,
+   "speed_at": {
+    "two_wheeler": 28.652948363868017,
+    "bus": 12.486751292909844,
+    "auto_rickshaw": 25.257455846726607,
+    "car": 25.29313500969074,
+    "lcv": 24.04978140269959
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.142983978638243,
+   "shy": 0.8120160213617549,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1,
+    "bus_standing": 4,
+    "bus_stop": 6
+   }
+  },
+  {
+   "name": "bus|capacity|out in the road, 30 buses/h",
+   "seed": 3,
+   "throughput": 3672.0,
+   "waiting": 804.0,
+   "guard": 0.0,
+   "delay": 205.2209472779105,
+   "speed_before": 8.011975324786755,
+   "speed_feature": 13.078656158653873,
+   "speed_at": {
+    "lcv": 27.308977691629135,
+    "two_wheeler": 30.20322360420945,
+    "car": 26.672097192124273,
+    "auto_rickshaw": 26.526040864483655,
+    "bus": 8.99815510051485
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.110963143254289,
+   "shy": 0.8440368567457093,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 1,
+    "bus_stop": 1,
+    "object_added": 1
+   }
+  },
+  {
+   "name": "bus|capacity|out in the road, 70 buses/h",
+   "seed": 1,
+   "throughput": 3123.0,
+   "waiting": 912.0,
+   "guard": 0.0,
+   "delay": 302.8603958356978,
+   "speed_before": 6.472887333878301,
+   "speed_feature": 11.30712121406508,
+   "speed_at": {
+    "lcv": 26.53797422810694,
+    "bus": 10.604702704885085,
+    "car": 25.224565624470134,
+    "auto_rickshaw": 24.895242597532793,
+    "two_wheeler": 28.97457754045422
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.165274740678284,
+   "shy": 0.7897252593217139,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 6,
+    "bus_stop": 7,
+    "object_added": 1
+   }
+  },
+  {
+   "name": "bus|capacity|out in the road, 70 buses/h",
+   "seed": 2,
+   "throughput": 3129.0,
+   "waiting": 971.0,
+   "guard": 0.0,
+   "delay": 284.11962739427844,
+   "speed_before": 6.647910293361428,
+   "speed_feature": 11.169018381837608,
+   "speed_at": {
+    "car": 25.049046297064468,
+    "two_wheeler": 28.37829125612405,
+    "bus": 11.54954119102961,
+    "lcv": 24.924794620695142,
+    "auto_rickshaw": 24.94737784477336
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.21357939632527,
+   "shy": 0.7414206036747283,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 7,
+    "bus_stop": 9,
+    "object_added": 1
+   }
+  },
+  {
+   "name": "bus|capacity|out in the road, 70 buses/h",
+   "seed": 3,
+   "throughput": 3468.0,
+   "waiting": 884.0,
+   "guard": 0.0,
+   "delay": 232.05736424744597,
+   "speed_before": 7.313309960583859,
+   "speed_feature": 12.350030988320329,
+   "speed_at": {
+    "two_wheeler": 28.52228169954641,
+    "car": 25.948689687545304,
+    "lcv": 26.001159346106874,
+    "bus": 4.97510923996299,
+    "auto_rickshaw": 25.08307995046793
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.125778424762222,
+   "shy": 0.8292215752377761,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 5,
+    "bus_stop": 6,
+    "object_added": 1
+   }
+  },
+  {
+   "name": "bus|moderate|no stop, 30 buses/h",
+   "seed": 1,
+   "throughput": 1716.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 8.155514817441125,
+   "speed_before": 47.388863548555115,
+   "speed_feature": 47.85303063932944,
+   "speed_at": {
+    "auto_rickshaw": 44.2290709023623,
+    "lcv": 49.74879336495701,
+    "two_wheeler": 48.918981012577206,
+    "bus": 42.223518482186805,
+    "car": 53.467779530747535
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "bus|moderate|no stop, 30 buses/h",
+   "seed": 2,
+   "throughput": 1911.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 10.91884688925438,
+   "speed_before": 45.810211774489225,
+   "speed_feature": 45.15724134264569,
+   "speed_at": {
+    "lcv": 46.381230601429934,
+    "two_wheeler": 47.09067428474377,
+    "bus": 39.309809373997595,
+    "car": 50.47394792545748,
+    "auto_rickshaw": 39.89854707044422
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "bus|moderate|no stop, 30 buses/h",
+   "seed": 3,
+   "throughput": 1728.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 8.162539456438862,
+   "speed_before": 46.86812401680194,
+   "speed_feature": 47.820053111809855,
+   "speed_at": {
+    "bus": 44.28734733188867,
+    "two_wheeler": 48.92853720749419,
+    "lcv": 49.26639733236541,
+    "auto_rickshaw": 41.667629001623006,
+    "car": 54.43174532770969
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "bus|moderate|at the kerb, 30 buses/h",
+   "seed": 1,
+   "throughput": 1680.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 11.338041901739404,
+   "speed_before": 47.38830259999149,
+   "speed_feature": 42.14707417659146,
+   "speed_at": {
+    "bus": 10.915284207474542,
+    "lcv": 38.96117673097092,
+    "two_wheeler": 44.27863634756156,
+    "car": 44.892985800471614,
+    "auto_rickshaw": 40.76224659080157
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 11,
+    "bus_stop": 11
+   }
+  },
+  {
+   "name": "bus|moderate|at the kerb, 30 buses/h",
+   "seed": 2,
+   "throughput": 1911.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 18.552752340136777,
+   "speed_before": 45.80132823035465,
+   "speed_feature": 37.67942723767953,
+   "speed_at": {
+    "car": 41.81222637014355,
+    "auto_rickshaw": 34.40939471668454,
+    "two_wheeler": 41.97676614046353,
+    "bus": 11.168091078898911,
+    "lcv": 40.10421552134608
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 18,
+    "bus_stop": 19
+   }
+  },
+  {
+   "name": "bus|moderate|at the kerb, 30 buses/h",
+   "seed": 3,
+   "throughput": 1743.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 13.184893803137824,
+   "speed_before": 46.86744748342722,
+   "speed_feature": 42.086042601234894,
+   "speed_at": {
+    "car": 47.54226493935057,
+    "auto_rickshaw": 36.82998928865209,
+    "lcv": 41.872652760598406,
+    "two_wheeler": 45.19187574312956,
+    "bus": 10.63510483333721
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "bus_stop": 11,
+    "bus_standing": 11
+   }
+  },
+  {
+   "name": "bus|moderate|out in the road, 30 buses/h",
+   "seed": 1,
+   "throughput": 1641.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 15.044873252598313,
+   "speed_before": 47.388125132605914,
+   "speed_feature": 37.569623010645536,
+   "speed_at": {
+    "auto_rickshaw": 34.42827650401874,
+    "bus": 10.893951222141203,
+    "car": 38.7507817646147,
+    "two_wheeler": 38.79746069520661,
+    "lcv": 38.01702966804328
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.257701863354163,
+   "shy": 0.6972981366458348,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1,
+    "bus_standing": 11,
+    "bus_stop": 11
+   }
+  },
+  {
+   "name": "bus|moderate|out in the road, 30 buses/h",
+   "seed": 2,
+   "throughput": 1710.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 143.904513245266,
+   "speed_before": 41.67543862029924,
+   "speed_feature": 9.46186443671122,
+   "speed_at": {
+    "auto_rickshaw": 26.370845367286545,
+    "car": 28.379405526312112,
+    "two_wheeler": 30.53179308590864,
+    "bus": 11.06256724465775,
+    "lcv": 27.87294367318468
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.252472059606334,
+   "shy": 0.7025279403936643,
+   "road_width": 7.0,
+   "events": {
+    "bus_standing": 17,
+    "object_added": 1,
+    "bus_stop": 18
+   }
+  },
+  {
+   "name": "bus|moderate|out in the road, 30 buses/h",
+   "seed": 3,
+   "throughput": 1536.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 32.88047346478212,
+   "speed_before": 46.73281665702741,
+   "speed_feature": 19.248855182524725,
+   "speed_at": {
+    "car": 37.311924923495965,
+    "bus": 8.703902265813667,
+    "two_wheeler": 39.316209216560644,
+    "auto_rickshaw": 34.60090166385245,
+    "lcv": 32.622340980665456
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.0306869275605255,
+   "shy": 0.924313072439473,
+   "road_width": 7.0,
+   "events": {
+    "bus_stop": 11,
+    "bus_standing": 6,
+    "object_added": 1
+   }
+  },
+  {
+   "name": "bus|moderate|out in the road, 70 buses/h",
+   "seed": 1,
+   "throughput": 942.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 73.43940525592032,
+   "speed_before": 9.656875157477039,
+   "speed_feature": 6.392438914615088,
+   "speed_at": {
+    "auto_rickshaw": 33.99437649469505,
+    "two_wheeler": 35.67569977085161,
+    "car": 33.5935459107345,
+    "lcv": 37.34069966000061,
+    "bus": 11.666701075799145
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.278371701291446,
+   "shy": 0.6766282987085525,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1,
+    "bus_stop": 17,
+    "bus_standing": 11
+   }
+  },
+  {
+   "name": "bus|moderate|out in the road, 70 buses/h",
+   "seed": 2,
+   "throughput": 735.0,
+   "waiting": 103.0,
+   "guard": 0.0,
+   "delay": 205.89782228481178,
+   "speed_before": 4.44265927676571,
+   "speed_feature": 3.0310311066532125,
+   "speed_at": {
+    "auto_rickshaw": 23.878401570590814,
+    "two_wheeler": 25.242643725230526,
+    "lcv": 18.10296324649289,
+    "car": 22.504407438942373,
+    "bus": 10.997212320857216
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.2533148558759235,
+   "shy": 0.7016851441240745,
+   "road_width": 7.0,
+   "events": {
+    "bus_stop": 20,
+    "bus_standing": 15,
+    "object_added": 1
+   }
+  },
+  {
+   "name": "bus|moderate|out in the road, 70 buses/h",
+   "seed": 3,
+   "throughput": 1623.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 66.22045977678907,
+   "speed_before": 45.129096890511775,
+   "speed_feature": 14.639038421444829,
+   "speed_at": {
+    "lcv": 22.706301501457528,
+    "car": 25.141148276001406,
+    "auto_rickshaw": 26.07208630599019,
+    "two_wheeler": 28.03559146311197,
+    "bus": 9.09200657275984
+   },
+   "blocked_width": 0.045000000000001476,
+   "effective_width": 6.264136178861907,
+   "shy": 0.6908638211380915,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1,
+    "bus_stop": 31,
+    "bus_standing": 26
+   }
+  },
+  {
+   "name": "ped|0",
+   "seed": 1,
+   "throughput": 6732.0,
+   "waiting": 884.0,
+   "guard": 0.0,
+   "delay": 37.49741496076954,
+   "speed_before": 35.46888651107291,
+   "speed_feature": 35.02203615253428,
+   "speed_at": {
+    "bus": 30.746535668242394,
+    "lcv": 37.25391770434744,
+    "two_wheeler": 38.74636558045893,
+    "auto_rickshaw": 33.16650943412103,
+    "car": 35.611629154358845
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 10.5,
+   "events": {}
+  },
+  {
+   "name": "ped|0",
+   "seed": 2,
+   "throughput": 6633.0,
+   "waiting": 959.0,
+   "guard": 0.0,
+   "delay": 39.48196040982836,
+   "speed_before": 34.413491771781175,
+   "speed_feature": 34.28721712249394,
+   "speed_at": {
+    "bus": 30.584409276118382,
+    "auto_rickshaw": 33.32111445114083,
+    "lcv": 32.89932356659791,
+    "car": 35.55064172948811,
+    "two_wheeler": 38.831106318901305
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 10.5,
+   "events": {}
+  },
+  {
+   "name": "ped|0",
+   "seed": 3,
+   "throughput": 6642.0,
+   "waiting": 938.0,
+   "guard": 0.0,
+   "delay": 43.670852026865376,
+   "speed_before": 33.72033110578534,
+   "speed_feature": 32.617277019313086,
+   "speed_at": {
+    "lcv": 33.80743911098265,
+    "car": 33.141940580616826,
+    "bus": 29.683398787488485,
+    "two_wheeler": 37.35107770303784,
+    "auto_rickshaw": 31.624159014741362
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 10.5,
+   "events": {}
+  },
+  {
+   "name": "ped|100",
+   "seed": 1,
+   "throughput": 6774.0,
+   "waiting": 889.0,
+   "guard": 0.0,
+   "delay": 42.700494360459224,
+   "speed_before": 35.68030015466169,
+   "speed_feature": 30.359340296485286,
+   "speed_at": {
+    "car": 29.966537232120483,
+    "auto_rickshaw": 29.00342891297093,
+    "two_wheeler": 33.64641461281405,
+    "lcv": 31.720750833389296,
+    "bus": 28.377318837683138
+   },
+   "blocked_width": 0.00029702250000000047,
+   "effective_width": 10.154595738894072,
+   "shy": 0.34510723860592823,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 40,
+    "pedestrian_crossing": 39,
+    "object_removed": 39
+   }
+  },
+  {
+   "name": "ped|100",
+   "seed": 2,
+   "throughput": 6615.0,
+   "waiting": 977.0,
+   "guard": 0.0,
+   "delay": 44.87427808857046,
+   "speed_before": 34.83644027500843,
+   "speed_feature": 30.005497091806667,
+   "speed_at": {
+    "car": 28.767266567299213,
+    "auto_rickshaw": 27.43291981896667,
+    "lcv": 25.385660331454982,
+    "bus": 27.134904451258922,
+    "two_wheeler": 32.265090641267854
+   },
+   "blocked_width": 0.00039837749999998494,
+   "effective_width": 10.094702487053274,
+   "shy": 0.404899135446726,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 39,
+    "pedestrian_crossing": 39,
+    "object_removed": 39
+   }
+  },
+  {
+   "name": "ped|100",
+   "seed": 3,
+   "throughput": 6663.0,
+   "waiting": 966.0,
+   "guard": 0.0,
+   "delay": 49.48593917105444,
+   "speed_before": 34.32716348546137,
+   "speed_feature": 29.0405191557503,
+   "speed_at": {
+    "lcv": 28.74718158839932,
+    "auto_rickshaw": 25.88728109272017,
+    "bus": 26.725268256569283,
+    "two_wheeler": 30.717448976843304,
+    "car": 27.279771396406986
+   },
+   "blocked_width": 0.00038690249999997876,
+   "effective_width": 9.989983467870339,
+   "shy": 0.5096296296296604,
+   "road_width": 10.5,
+   "events": {
+    "object_removed": 41,
+    "pedestrian_crossing": 41,
+    "object_added": 41
+   }
+  },
+  {
+   "name": "ped|200",
+   "seed": 1,
+   "throughput": 6711.0,
+   "waiting": 883.0,
+   "guard": 0.0,
+   "delay": 53.7688888579327,
+   "speed_before": 32.77978831715667,
+   "speed_feature": 25.431165125705682,
+   "speed_at": {
+    "lcv": 26.59829997254561,
+    "two_wheeler": 29.875819719892156,
+    "car": 26.47575508032644,
+    "bus": 25.25520163082056,
+    "auto_rickshaw": 25.480089758845857
+   },
+   "blocked_width": 0.0008873457371322407,
+   "effective_width": 10.19627362449437,
+   "shy": 0.3028390297684969,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 78,
+    "pedestrian_crossing": 77,
+    "object_removed": 77
+   }
+  },
+  {
+   "name": "ped|200",
+   "seed": 2,
+   "throughput": 6639.0,
+   "waiting": 957.0,
+   "guard": 0.0,
+   "delay": 58.39904585380809,
+   "speed_before": 34.226200625802264,
+   "speed_feature": 23.55911592148411,
+   "speed_at": {
+    "car": 25.214752259445284,
+    "two_wheeler": 28.44779790833098,
+    "auto_rickshaw": 24.577031601129146,
+    "bus": 24.67025584494605,
+    "lcv": 23.981380666953978
+   },
+   "blocked_width": 0.0009333461538518755,
+   "effective_width": 10.160079869705182,
+   "shy": 0.3389867841409658,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 82,
+    "pedestrian_crossing": 82,
+    "object_removed": 82
+   }
+  },
+  {
+   "name": "ped|200",
+   "seed": 3,
+   "throughput": 6573.0,
+   "waiting": 939.0,
+   "guard": 0.0,
+   "delay": 68.88111819569271,
+   "speed_before": 32.135749941005606,
+   "speed_feature": 21.80884157351446,
+   "speed_at": {
+    "two_wheeler": 27.270570798317813,
+    "car": 24.302173505995608,
+    "auto_rickshaw": 23.81095083943912,
+    "bus": 23.796510354519032,
+    "lcv": 23.55462507543003
+   },
+   "blocked_width": 0.0009808764380026462,
+   "effective_width": 10.21509694109331,
+   "shy": 0.2839221824686861,
+   "road_width": 10.5,
+   "events": {
+    "pedestrian_crossing": 84,
+    "object_removed": 84,
+    "object_added": 85
+   }
+  },
+  {
+   "name": "ped|400",
+   "seed": 1,
+   "throughput": 6000.0,
+   "waiting": 1033.0,
+   "guard": 2.0,
+   "delay": 142.5580425436113,
+   "speed_before": 13.193004877769837,
+   "speed_feature": 16.282655546880054,
+   "speed_at": {
+    "lcv": 19.965871404290823,
+    "auto_rickshaw": 19.768319171983478,
+    "two_wheeler": 21.945248663595876,
+    "bus": 19.82523426817565,
+    "car": 19.84684783696971
+   },
+   "blocked_width": 0.0017817723862209648,
+   "effective_width": 10.26858311913261,
+   "shy": 0.2296351084811707,
+   "road_width": 10.5,
+   "events": {
+    "pedestrian_crossing": 150,
+    "object_added": 155,
+    "collision_guard": 2,
+    "object_removed": 150
+   }
+  },
+  {
+   "name": "ped|400",
+   "seed": 2,
+   "throughput": 5550.0,
+   "waiting": 1174.0,
+   "guard": 0.0,
+   "delay": 136.61067253901533,
+   "speed_before": 14.069158025568628,
+   "speed_feature": 15.47056135811372,
+   "speed_at": {
+    "bus": 17.461202005538922,
+    "auto_rickshaw": 18.498661649599516,
+    "car": 18.982462091666918,
+    "two_wheeler": 21.06519703624491,
+    "lcv": 17.822053422688192
+   },
+   "blocked_width": 0.0024435719934375265,
+   "effective_width": 10.21921439669397,
+   "shy": 0.2783420313125936,
+   "road_width": 10.5,
+   "events": {
+    "pedestrian_crossing": 178,
+    "object_removed": 178,
+    "object_added": 178
+   }
+  },
+  {
+   "name": "ped|400",
+   "seed": 3,
+   "throughput": 5652.0,
+   "waiting": 1147.0,
+   "guard": 0.0,
+   "delay": 157.20426033177702,
+   "speed_before": 12.79921215370144,
+   "speed_feature": 15.312187400478395,
+   "speed_at": {
+    "bus": 18.450059528489824,
+    "two_wheeler": 23.61775671606096,
+    "auto_rickshaw": 19.090856695144247,
+    "car": 18.78399426007768,
+    "lcv": 19.00839036395576
+   },
+   "blocked_width": 0.0024186801718175895,
+   "effective_width": 10.252286051240613,
+   "shy": 0.24529526858756953,
+   "road_width": 10.5,
+   "events": {
+    "pedestrian_crossing": 165,
+    "object_removed": 165,
+    "object_added": 165
+   }
+  },
+  {
+   "name": "ped|800",
+   "seed": 1,
+   "throughput": 4503.0,
+   "waiting": 1502.0,
+   "guard": 3.0,
+   "delay": 244.88517686161245,
+   "speed_before": 7.632301711725789,
+   "speed_feature": 11.673350250169065,
+   "speed_at": {
+    "lcv": 13.891125612682321,
+    "bus": 13.89217791851479,
+    "auto_rickshaw": 14.761298325489047,
+    "car": 15.214794378513234,
+    "two_wheeler": 17.934332046927086
+   },
+   "blocked_width": 0.004800599370304425,
+   "effective_width": 10.30572914610655,
+   "shy": 0.18947025452314653,
+   "road_width": 10.5,
+   "events": {
+    "pedestrian_crossing": 311,
+    "collision_guard": 3,
+    "object_added": 317,
+    "object_removed": 311
+   }
+  },
+  {
+   "name": "ped|800",
+   "seed": 2,
+   "throughput": 4476.0,
+   "waiting": 1586.0,
+   "guard": 4.0,
+   "delay": 258.76107016938977,
+   "speed_before": 7.570059063439618,
+   "speed_feature": 11.776371296185394,
+   "speed_at": {
+    "auto_rickshaw": 14.85420205300478,
+    "lcv": 14.214568670270733,
+    "two_wheeler": 17.448466188238775,
+    "bus": 15.561219117194538,
+    "car": 15.407344894469295
+   },
+   "blocked_width": 0.004423166173213957,
+   "effective_width": 10.279740419778772,
+   "shy": 0.2158364140480125,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 330,
+    "object_removed": 328,
+    "collision_guard": 4,
+    "pedestrian_crossing": 328
+   }
+  },
+  {
+   "name": "ped|800",
+   "seed": 3,
+   "throughput": 4677.0,
+   "waiting": 1508.0,
+   "guard": 0.0,
+   "delay": 233.64541213811134,
+   "speed_before": 7.896753468228074,
+   "speed_feature": 12.17328963694756,
+   "speed_at": {
+    "lcv": 14.647044807322656,
+    "car": 16.363429281506114,
+    "bus": 14.749067918292726,
+    "auto_rickshaw": 15.886274197707731,
+    "two_wheeler": 19.871139806913565
+   },
+   "blocked_width": 0.004657467652137007,
+   "effective_width": 10.279482317294109,
+   "shy": 0.21586021505375316,
+   "road_width": 10.5,
+   "events": {
+    "object_removed": 328,
+    "object_added": 328,
+    "pedestrian_crossing": 328
+   }
+  },
+  {
+   "name": "ped|1600",
+   "seed": 1,
+   "throughput": 3603.0,
+   "waiting": 1859.0,
+   "guard": 2.0,
+   "delay": 374.9194302925448,
+   "speed_before": 5.232949012726589,
+   "speed_feature": 8.6428425471851,
+   "speed_at": {
+    "lcv": 11.097286453324283,
+    "car": 11.20885601418487,
+    "two_wheeler": 14.369871788828377,
+    "auto_rickshaw": 11.064962958696613,
+    "bus": 10.377536637146932
+   },
+   "blocked_width": 0.010029707826280715,
+   "effective_width": 10.334009517154113,
+   "shy": 0.15596077501960529,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 631,
+    "pedestrian_crossing": 623,
+    "object_removed": 623,
+    "collision_guard": 2
+   }
+  },
+  {
+   "name": "ped|1600",
+   "seed": 2,
+   "throughput": 3627.0,
+   "waiting": 1902.0,
+   "guard": 9.0,
+   "delay": 358.2265090479619,
+   "speed_before": 5.501255919832511,
+   "speed_feature": 9.11276068389581,
+   "speed_at": {
+    "car": 11.898783037084478,
+    "two_wheeler": 14.44202687373535,
+    "auto_rickshaw": 11.636703904009513,
+    "lcv": 9.323127751437482,
+    "bus": 13.838577561154345
+   },
+   "blocked_width": 0.010404611653506963,
+   "effective_width": 10.334819260115237,
+   "shy": 0.15477612823125458,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 661,
+    "pedestrian_crossing": 650,
+    "object_removed": 650,
+    "collision_guard": 9
+   }
+  },
+  {
+   "name": "ped|1600",
+   "seed": 3,
+   "throughput": 3624.0,
+   "waiting": 1920.0,
+   "guard": 31.0,
+   "delay": 366.50255581253606,
+   "speed_before": 5.197738893233732,
+   "speed_feature": 8.873899423767803,
+   "speed_at": {
+    "two_wheeler": 14.87187155653963,
+    "car": 11.915484241319405,
+    "auto_rickshaw": 11.609623703691398,
+    "bus": 10.739496584589627,
+    "lcv": 13.053954157693397
+   },
+   "blocked_width": 0.009859122763184394,
+   "effective_width": 10.317204796612454,
+   "shy": 0.17293608062436086,
+   "road_width": 10.5,
+   "events": {
+    "object_added": 646,
+    "pedestrian_crossing": 639,
+    "object_removed": 639,
+    "collision_guard": 31
+   }
+  },
+  {
+   "name": "pothole|0",
+   "seed": 1,
+   "throughput": 426.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 1.49848656202777,
+   "speed_before": 50.692500290315856,
+   "speed_feature": 51.00129570841805,
+   "speed_at": {
+    "car": 60.00233915930805,
+    "auto_rickshaw": 40.518818988098246,
+    "two_wheeler": 52.621923609889166,
+    "lcv": 58.74504372853016,
+    "bus": 47.212299936033105
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "pothole|0",
+   "seed": 2,
+   "throughput": 381.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 2.443018627533509,
+   "speed_before": 49.76507592433724,
+   "speed_feature": 50.198545212015546,
+   "speed_at": {
+    "lcv": 50.38118610200045,
+    "two_wheeler": 52.69292166919253,
+    "bus": 39.54153825397881,
+    "car": 60.86634200885179,
+    "auto_rickshaw": 43.13777224769893
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "pothole|0",
+   "seed": 3,
+   "throughput": 351.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 2.1310476326959265,
+   "speed_before": 49.88258360350258,
+   "speed_feature": 49.997882397435475,
+   "speed_at": {
+    "car": 58.614610362826596,
+    "lcv": 51.33122803626429,
+    "auto_rickshaw": 44.54824952719826,
+    "bus": 49.76956387654445,
+    "two_wheeler": 51.907488590621355
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "pothole|40",
+   "seed": 1,
+   "throughput": 426.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 13.823202211181009,
+   "speed_before": 50.46196821465863,
+   "speed_feature": 36.60992868285639,
+   "speed_at": {
+    "two_wheeler": 51.41424915552669,
+    "lcv": 47.08632364563664,
+    "auto_rickshaw": 37.76105120140221,
+    "car": 46.480173217032934,
+    "bus": 39.660571440829244
+   },
+   "blocked_width": 0.019369423367870398,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "pothole_crossed": 383,
+    "object_added": 13
+   }
+  },
+  {
+   "name": "pothole|40",
+   "seed": 2,
+   "throughput": 381.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 9.776397161231634,
+   "speed_before": 49.74840357193172,
+   "speed_feature": 40.04560671973182,
+   "speed_at": {
+    "car": 46.54867852634312,
+    "auto_rickshaw": 39.99644381396263,
+    "bus": 37.67611459918525,
+    "two_wheeler": 51.60626013257938,
+    "lcv": 50.44282875194013
+   },
+   "blocked_width": 0.01296016034622505,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 9,
+    "pothole_crossed": 227
+   }
+  },
+  {
+   "name": "pothole|40",
+   "seed": 3,
+   "throughput": 360.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 15.815807425378654,
+   "speed_before": 49.805149518345814,
+   "speed_feature": 35.017280822955996,
+   "speed_at": {
+    "bus": 35.13653117889271,
+    "auto_rickshaw": 37.21705153417617,
+    "two_wheeler": 49.04782393894745,
+    "lcv": 38.95835402890293,
+    "car": 41.484582904540765
+   },
+   "blocked_width": 0.023237299598691245,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 15,
+    "pothole_crossed": 357
+   }
+  },
+  {
+   "name": "pothole|120",
+   "seed": 1,
+   "throughput": 435.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 34.17691028660149,
+   "speed_before": 50.348691257915824,
+   "speed_feature": 24.108033065195208,
+   "speed_at": {
+    "auto_rickshaw": 18.309098954064893,
+    "lcv": 18.664752195749656,
+    "car": 18.20178096899896,
+    "bus": 21.137199880423964,
+    "two_wheeler": 24.76381870404229
+   },
+   "blocked_width": 0.08835156174161723,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 48,
+    "pothole_crossed": 1663
+   }
+  },
+  {
+   "name": "pothole|120",
+   "seed": 2,
+   "throughput": 372.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 31.274976653794106,
+   "speed_before": 49.691342885218525,
+   "speed_feature": 26.16874018381958,
+   "speed_at": {
+    "auto_rickshaw": 31.000954782034285,
+    "lcv": 33.39770958444706,
+    "two_wheeler": 41.05593681480538,
+    "car": 29.495994797219236,
+    "bus": 30.857647483125803
+   },
+   "blocked_width": 0.11146442438331164,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 44,
+    "pothole_crossed": 1175
+   }
+  },
+  {
+   "name": "pothole|120",
+   "seed": 3,
+   "throughput": 363.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 35.99740240945239,
+   "speed_before": 49.716337849349195,
+   "speed_feature": 24.087095040837227,
+   "speed_at": {
+    "auto_rickshaw": 22.05416417708685,
+    "car": 23.79158978818805,
+    "bus": 25.40776065472187,
+    "two_wheeler": 37.80983166651837,
+    "lcv": 27.10291644358267
+   },
+   "blocked_width": 0.1152343676672396,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 50,
+    "pothole_crossed": 1308
+   }
+  },
+  {
+   "name": "hump",
+   "seed": 1,
+   "throughput": 612.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 10.227740258037159,
+   "speed_before": 49.97914636661665,
+   "speed_feature": 39.73377752322338,
+   "speed_at": {
+    "two_wheeler": 18.389269640851044,
+    "bus": 18.86555370013741,
+    "lcv": 18.100970041349,
+    "auto_rickshaw": 19.26195940215595,
+    "car": 18.472014116305182
+   },
+   "blocked_width": 0.06475000000000145,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1
+   }
+  },
+  {
+   "name": "hump",
+   "seed": 2,
+   "throughput": 609.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 11.55024625256141,
+   "speed_before": 47.57451453723752,
+   "speed_feature": 38.50728751550284,
+   "speed_at": {
+    "two_wheeler": 18.439695184389223,
+    "car": 18.733236416477272,
+    "auto_rickshaw": 17.49548983769742,
+    "lcv": 17.527994691952472,
+    "bus": 17.08489805079973
+   },
+   "blocked_width": 0.06475000000000145,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1
+   }
+  },
+  {
+   "name": "hump",
+   "seed": 3,
+   "throughput": 513.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 10.289176711706697,
+   "speed_before": 50.06109505969344,
+   "speed_feature": 39.72871722106456,
+   "speed_at": {
+    "auto_rickshaw": 17.796582272579414,
+    "lcv": 18.08717554586383,
+    "two_wheeler": 18.24986105076205,
+    "bus": 17.74352907448365,
+    "car": 17.700013458064237
+   },
+   "blocked_width": 0.06475000000000145,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {
+    "object_added": 1
+   }
+  },
+  {
+   "name": "ramp|0",
+   "seed": 1,
+   "throughput": 1110.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 6.310260299304451,
+   "speed_before": 42.23420085553104,
+   "speed_feature": 42.45498545647129,
+   "speed_at": {
+    "two_wheeler": 50.62872632954256,
+    "e_rickshaw": 25.420538702165658,
+    "car": 55.526835164165554
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|0",
+   "seed": 2,
+   "throughput": 1206.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 7.559236112094098,
+   "speed_before": 40.88214271108362,
+   "speed_feature": 42.12779003936062,
+   "speed_at": {
+    "car": 54.39358384530607,
+    "e_rickshaw": 25.4537955424491,
+    "two_wheeler": 50.440819883006206
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|0",
+   "seed": 3,
+   "throughput": 1143.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 6.632333467421294,
+   "speed_before": 39.77784188025428,
+   "speed_feature": 40.643102653691685,
+   "speed_at": {
+    "e_rickshaw": 25.059024801156596,
+    "two_wheeler": 49.7290709941017,
+    "car": 55.6235516504497
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|4",
+   "seed": 1,
+   "throughput": 1122.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 7.1410607855402715,
+   "speed_before": 42.2157685776943,
+   "speed_feature": 35.23066569817419,
+   "speed_at": {
+    "two_wheeler": 40.768456161748844,
+    "car": 43.725738777887976,
+    "e_rickshaw": 24.593529004127824
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|4",
+   "seed": 2,
+   "throughput": 1206.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 9.288875428178248,
+   "speed_before": 40.85709495042392,
+   "speed_feature": 34.49945175247787,
+   "speed_at": {
+    "car": 41.77689327409133,
+    "e_rickshaw": 24.400693952179207,
+    "two_wheeler": 40.27548741075026
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|4",
+   "seed": 3,
+   "throughput": 1146.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 7.288195678038496,
+   "speed_before": 39.752475754996325,
+   "speed_feature": 34.30802419910569,
+   "speed_at": {
+    "two_wheeler": 40.9514452154275,
+    "e_rickshaw": 24.25348596245133,
+    "car": 43.76092072408416
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|8",
+   "seed": 1,
+   "throughput": 1167.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 12.404885372212359,
+   "speed_before": 42.092604554959586,
+   "speed_feature": 21.504877319166187,
+   "speed_at": {
+    "two_wheeler": 28.993018130301223,
+    "e_rickshaw": 12.936688985844166,
+    "car": 27.83477892191323
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|8",
+   "seed": 2,
+   "throughput": 1218.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 15.62385555821507,
+   "speed_before": 40.71467761323214,
+   "speed_feature": 20.808884999187747,
+   "speed_at": {
+    "two_wheeler": 28.368821758758134,
+    "car": 27.331468062333787,
+    "e_rickshaw": 12.98856862144873
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  },
+  {
+   "name": "ramp|8",
+   "seed": 3,
+   "throughput": 1146.0,
+   "waiting": 0.0,
+   "guard": 0.0,
+   "delay": 15.738206339155349,
+   "speed_before": 39.62710017637008,
+   "speed_feature": 20.028996227563034,
+   "speed_at": {
+    "two_wheeler": 28.16446664793078,
+    "car": 27.321210799503696,
+    "e_rickshaw": 12.973438470027807
+   },
+   "blocked_width": 0.0,
+   "effective_width": null,
+   "shy": null,
+   "road_width": 7.0,
+   "events": {}
+  }
+ ]
+}

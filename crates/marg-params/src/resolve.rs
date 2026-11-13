@@ -192,7 +192,10 @@ fn apply(
             source: e,
         })?;
     let p = params.get_mut(path).expect("params mirror the register");
-    if entry.role == Role::Fix {
+    // A `fix` entry holds a measurement that must not be tuned. One the
+    // register leaves unset has no measurement to protect: a scenario that
+    // supplies it (a survey value for its site) is not overriding anything.
+    if entry.role == Role::Fix && entry.value.is_some() {
         if !opts.allow_fix_override {
             return Err(ResolveError::FixOverride(path.to_string()));
         }

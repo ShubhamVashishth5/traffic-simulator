@@ -911,120 +911,120 @@ entries:
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.cycle_rickshaw:
-    value: 0
+    value: 0.3
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.two_wheeler:
     value: 0.5
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.e_rickshaw:
-    value: 0
+    value: 0.3
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.auto_rickshaw:
-    value: 0
+    value: 0.3
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.car:
-    value: 0
+    value: 0.3
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.lcv:
-    value: 0
+    value: 0.15
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.bus:
-    value: 0
+    value: 0.15
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.truck:
-    value: 0
+    value: 0.15
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   lateral.creep_speed.tractor:
-    value: 0
+    value: 0.15
     unit: "m/s"
     grade: C
     role: fit
     stage: 3
-    source: "Assumed (plan/03 §3: two-wheelers seep through near-stopped queues)"
+    source: "Assumed (ADR-0012 part 2, option A: every class can creep, larger vehicles more slowly)"
     guide: "§2.2"
     register_row: 9.2/lateral_clearance
     range: [0.0, 2.0]
     live: true
-    notes: "Lateral speed available when nearly stopped; other vehicles can only move sideways as fast as their heading limit allows."
+    notes: "Lateral speed available when nearly stopped, so a vehicle stopped behind a standing body can pull out. Not measured; a swing-out gap (ADR-0012 option B) is the model to return to if these values matter in the stage-3 or stage-5 fits."
   gap_acceptance.critical_gap.bicycle:
     value: {dist: log_normal_median, median: 4.4, sigma: 0.2}
     unit: "s"

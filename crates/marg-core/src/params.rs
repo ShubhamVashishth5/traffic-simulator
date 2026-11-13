@@ -108,6 +108,15 @@ pub struct CoreParams {
     /// `θ_max` (rad) and its tangent.
     pub max_heading: f64,
     pub max_heading_tan: f64,
+    pub max_heading_sin: f64,
+    /// Kerbside parking (G§6.2). Unset in the register unless a scenario
+    /// or a calibration supplies them; a parking stretch may give its own.
+    pub parking: ParkingParams,
+    /// Stop-anywhere events (G§6.2, ADR-0014); unset unless supplied.
+    pub stopping: StopParams,
+    /// Road-situation parameters of G§6 (bus stops, potholes, humps,
+    /// gradients, pedestrians); most are unset in the register.
+    pub road: RoadParams,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -173,6 +182,86 @@ fn pair_matrix(
         }
     }
     Ok(m)
+}
+
+/// Groups of classes that share a pothole response and crossing speed.
+pub const POTHOLE_GROUPS: [&str; 3] = ["two_wheeler", "car", "heavy"];
+
+/// The pothole group of a class: two-wheelers and bicycles; cars and
+/// three-wheelers; goods vehicles, buses and tractors.
+pub fn pothole_group(class: VehicleClass) -> usize {
+    match class.key() {
+        "two_wheeler" | "bicycle" => 0,
+        "lcv" | "bus" | "truck" | "tractor" => 2,
+        _ => 1,
+    }
+}
+
+/// Road-situation parameters as the register has them (`None`: unset).
+/// Distances in m, speeds in m/s, the gradient and roughness losses in m/s
+/// per percent and per IRI unit.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct RoadParams {
+    pub bus_dwell: Option<Dist>,
+    pub bus_offset_longitudinal: Option<Dist>,
+    pub bus_offset_lateral: Option<Dist>,
+    pub waiting_passenger_width: Option<f64>,
+    /// Potholes per metre of road.
+    pub pothole_density: Option<f64>,
+    pub pothole_diameter: Option<Dist>,
+    pub pothole_depth: Option<Dist>,
+    pub pothole_detection: Option<f64>,
+    /// By pothole group: probability of swerving, slowing, straddling.
+    pub pothole_response: [[Option<f64>; 3]; 3],
+    pub pothole_speed: [Option<f64>; 3],
+    pub pothole_link: Option<f64>,
+    pub roughness_loss_car: Option<f64>,
+    pub roughness_loss_heavy: Option<f64>,
+    pub hump_speed: Option<Dist>,
+    pub gradient_loss: [Option<f64>; N_CLASSES],
+    /// Watts and kilograms.
+    pub e_rickshaw_power: Option<f64>,
+    pub e_rickshaw_mass: Option<f64>,
+    pub pedestrian_gap: Option<Dist>,
+    pub pedestrian_group: Option<Dist>,
+    pub pedestrian_speed: Option<f64>,
+    pub pedestrian_size: Option<f64>,
+}
+
+/// Stop-anywhere parameters as the register has them (`None`: unset).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct StopParams {
+    /// Stops per metre travelled, by class.
+    pub rate: [Option<f64>; N_CLASSES],
+    /// Probability that a stopping vehicle makes for the kerb, by class.
+    pub pull_over: [Option<f64>; N_CLASSES],
+    /// How long a stopped vehicle stands (s).
+    pub dwell: Option<Dist>,
+}
+
+/// Kerbside-parking parameters as the register has them (`None`: unset).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ParkingParams {
+    /// Gap between the kerb and a parked vehicle (m).
+    pub offset_from_kerb: Option<Dist>,
+    pub double_parking_probability: Option<f64>,
+    /// Manoeuvres per second for the register's reference length of kerb
+    /// (100 m: the register's unit is events per 100 m per hour).
+    pub manoeuvre_rate: Option<f64>,
+    /// How long a manoeuvre blocks the strip beside the space (s).
+    pub manoeuvre_duration: Option<Dist>,
+    pub cruising_share: Option<f64>,
+    /// Speed cap of a vehicle looking for a space (m/s).
+    pub cruising_speed: Option<f64>,
+}
+
+/// A distribution that may be unset (`null`) in the register.
+fn optional_dist(spec: &ResolvedSpec, path: &str) -> Result<Option<Dist>, ResolveError> {
+    match spec.dist_si(path) {
+        Ok(x) => Ok(Some(x)),
+        Err(ResolveError::Unset { .. }) => Ok(None),
+        Err(e) => Err(e),
+    }
 }
 
 /// A scalar that may be unset (`null`) in the register.
@@ -294,6 +383,88 @@ impl CoreParams {
             lateral_time_constant: spec.scalar_si("interaction.lateral.time_constant")?,
             max_heading,
             max_heading_tan: libm::tan(max_heading),
+            max_heading_sin: libm::sin(max_heading),
+            road: {
+                let group = |g: &str, what: &str| {
+                    optional_scalar(spec, &format!("road.pothole.{what}.{g}"))
+                };
+                let mut r = RoadParams {
+                    bus_dwell: optional_dist(spec, "road.bus.dwell_time")?,
+                    bus_offset_longitudinal: optional_dist(
+                        spec,
+                        "road.bus.stop_offset_longitudinal",
+                    )?,
+                    bus_offset_lateral: optional_dist(spec, "road.bus.stop_offset_lateral")?,
+                    waiting_passenger_width: optional_scalar(
+                        spec,
+                        "road.bus.waiting_passenger_width",
+                    )?,
+                    pothole_density: optional_scalar(spec, "road.pothole.density")?,
+                    pothole_diameter: optional_dist(spec, "road.pothole.diameter")?,
+                    pothole_depth: optional_dist(spec, "road.pothole.depth")?,
+                    pothole_detection: optional_scalar(spec, "road.pothole.detection_distance")?,
+                    pothole_link: optional_scalar(spec, "road.pothole.aggressiveness_link")?,
+                    roughness_loss_car: optional_scalar(
+                        spec,
+                        "road.roughness.speed_loss_per_iri.car",
+                    )?,
+                    roughness_loss_heavy: optional_scalar(
+                        spec,
+                        "road.roughness.speed_loss_per_iri.heavy",
+                    )?,
+                    hump_speed: optional_dist(spec, "road.hump.crossing_speed")?,
+                    e_rickshaw_power: optional_scalar(spec, "vehicles.e_rickshaw.max_power")?,
+                    e_rickshaw_mass: optional_scalar(spec, "vehicles.e_rickshaw.loaded_mass")?,
+                    pedestrian_gap: optional_dist(spec, "road.pedestrian.accepted_gap")?,
+                    pedestrian_group: optional_dist(spec, "road.pedestrian.group_size")?,
+                    pedestrian_speed: optional_scalar(spec, "road.pedestrian.walking_speed")?,
+                    pedestrian_size: optional_scalar(spec, "road.pedestrian.body_size")?,
+                    ..RoadParams::default()
+                };
+                for (k, g) in POTHOLE_GROUPS.iter().enumerate() {
+                    r.pothole_response[k] = [
+                        group(&format!("{g}.swerve"), "response")?,
+                        group(&format!("{g}.slow"), "response")?,
+                        group(&format!("{g}.straddle"), "response")?,
+                    ];
+                    r.pothole_speed[k] = group(g, "crossing_speed")?;
+                }
+                for c in VehicleClass::ALL {
+                    let path = format!("vehicles.gradient_speed_loss.{}", c.key());
+                    if spec.contains(&path) {
+                        r.gradient_loss[c.index()] = optional_scalar(spec, &path)?;
+                    }
+                }
+                r
+            },
+            stopping: {
+                let mut s = StopParams {
+                    dwell: optional_dist(spec, "road.stop_anywhere.dwell")?,
+                    ..StopParams::default()
+                };
+                for c in VehicleClass::ALL {
+                    let rate = format!("road.stop_anywhere.rate.{}", c.key());
+                    if spec.contains(&rate) {
+                        s.rate[c.index()] = optional_scalar(spec, &rate)?;
+                        s.pull_over[c.index()] = optional_scalar(
+                            spec,
+                            &format!("road.stop_anywhere.pull_over_probability.{}", c.key()),
+                        )?;
+                    }
+                }
+                s
+            },
+            parking: ParkingParams {
+                offset_from_kerb: optional_dist(spec, "road.parking.offset_from_kerb")?,
+                double_parking_probability: optional_scalar(
+                    spec,
+                    "road.parking.double_parking_probability",
+                )?,
+                manoeuvre_rate: optional_scalar(spec, "road.parking.manoeuvre_rate")?,
+                manoeuvre_duration: optional_dist(spec, "road.parking.manoeuvre_duration")?,
+                cruising_share: optional_scalar(spec, "road.parking.cruising_share")?,
+                cruising_speed: optional_scalar(spec, "road.parking.cruising_speed")?,
+            },
             politeness: spec.scalar_si("interaction.lateral.politeness")?,
             safe_decel: spec.scalar_si("interaction.lateral.safe_decel")?,
             switch_threshold: spec.scalar_si("interaction.lateral.switch_threshold")?,

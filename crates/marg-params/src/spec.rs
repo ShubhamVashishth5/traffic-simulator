@@ -1,6 +1,7 @@
 //! Scenario specification: network, demand, detectors, outputs and parameter
 //! overrides (plan/03-model-design.md, plan/04-data-outputs-analytics.md).
 
+use crate::dist::Dist;
 use crate::param::ParamValue;
 use crate::vehicle::{VehicleClass, VehicleType};
 use indexmap::IndexMap;
@@ -65,6 +66,211 @@ pub struct NetworkSpec {
     /// capacity or flow factor to set (ADR-0005).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub objects: Vec<ObjectSpec>,
+    /// Stretches of kerb where vehicles park (G§6.2). Each parked vehicle
+    /// is a road object; parking and unparking block space for a while.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parking: Vec<ParkingSpec>,
+    /// Places where vehicles stop to pick up and set down more often (a
+    /// metro exit, a market): G§6.2, ADR-0014.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attractors: Vec<AttractorSpec>,
+    /// Kerbside bus stops (G§6.3).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bus_stops: Vec<BusStopSpec>,
+    /// Stretches with potholes (G§6.1).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pothole_fields: Vec<PotholeFieldSpec>,
+    /// Speed humps (G§6.8).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub humps: Vec<HumpSpec>,
+    /// Stretches with a gradient or a rough surface (G§6.9, G§6.1): they
+    /// lower desired speeds by class and do nothing else.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub surfaces: Vec<SurfaceSpec>,
+    /// Standing water (G§6.10).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub waterlogging: Vec<WaterSpec>,
+    /// Stretches where pedestrians cross anywhere (G§6.4).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pedestrian_crossings: Vec<PedestrianCrossingSpec>,
+}
+
+/// A kerbside bus stop at the left edge. Buses that serve it pull in, stand
+/// for a dwell time and drive on (ADR-0014's stop mechanism); where they
+/// stand is drawn from the register's offsets (`road.bus.*`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BusStopSpec {
+    pub id: String,
+    pub ribbon: String,
+    /// Station of the middle of the platform (m).
+    pub s: f64,
+    /// Length of the platform along the road (m).
+    pub length: f64,
+    /// Share of passing buses that stop here, 0–1.
+    pub serving_share: f64,
+    /// Width of carriageway taken by passengers waiting on the road along
+    /// the platform (m); omit for the register's
+    /// `road.bus.waiting_passenger_width`, 0 for none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waiting_passenger_width: Option<f64>,
+    /// Factor on the stop-anywhere rate along the platform (autos and
+    /// e-rickshaws gather at stops); omit for none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_rate_multiplier: Option<f64>,
+}
+
+/// A stretch with potholes, placed at random at the start of the run.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PotholeFieldSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Potholes per kilometre of road; omit for `road.pothole.density`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub per_km: Option<f64>,
+    /// How much more often they lie towards the kerb (left): 0 is uniform
+    /// across the road, 1 is none at the median edge rising linearly to
+    /// twice the mean at the kerb.
+    pub kerb_bias: f64,
+}
+
+/// A speed hump across the road, or part of it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct HumpSpec {
+    pub id: String,
+    pub ribbon: String,
+    /// Station of its middle and its extent along the road (m).
+    pub s: f64,
+    pub length: f64,
+    /// Lateral extent; omit either for the carriageway edge. A hump that
+    /// stops short of an edge leaves a gap narrow vehicles can use.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_from: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_to: Option<f64>,
+}
+
+/// A stretch with an upgrade and/or a rough surface.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SurfaceSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Upgrade in percent (0 or omitted: level).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gradient_percent: Option<f64>,
+    /// Roughness in IRI units above a smooth surface (omitted: smooth).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roughness_iri: Option<f64>,
+}
+
+/// A patch of standing water. It caps speed on it (from its depth: G§6.10
+/// cites the depth–speed curve of Pregnolato et al. 2017), or closes the
+/// patch altogether, and hides the potholes under it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WaterSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Lateral extent; omit either for the carriageway edge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_from: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_to: Option<f64>,
+    /// Speed vehicles can keep through it (km/h); omit if `closed`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub speed_cap_kmh: Option<f64>,
+    /// Too deep to drive through: the patch takes its width.
+    #[serde(default)]
+    pub closed: bool,
+}
+
+/// A stretch along which pedestrians cross wherever they are (G§6.4).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PedestrianCrossingSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Crossings (groups) per hour over the whole stretch.
+    pub per_hour: f64,
+    /// Share that starts from the left edge (the kerb); the rest start from
+    /// the right edge (the median).
+    pub from_left_share: f64,
+}
+
+/// A stretch of a ribbon along which the stop-anywhere rate of every class
+/// (`road.stop_anywhere.rate.*`) is multiplied. It changes an incentive and
+/// nothing else (ADR-0005).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AttractorSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Factor on the rate of stops per vehicle-kilometre (not on flow or
+    /// capacity).
+    pub stop_rate_multiplier: f64,
+}
+
+/// Kerbside parking along one side of a ribbon (G§6.2). Parked vehicles are
+/// drawn at the start of the run to fill `occupancy` of the kerb length;
+/// they are road objects, so they act only by taking width (ADR-0005).
+///
+/// The survey quantities (`offset_from_kerb`, `double_parking_probability`,
+/// `manoeuvres_per_100m_h`, `cruising_share`) may be given here for this
+/// stretch; where omitted, the register value is used
+/// (`road.parking.*`), and the run is refused if that is unset too.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParkingSpec {
+    pub id: String,
+    pub ribbon: String,
+    /// The stretch of kerb, by station (m).
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Which edge of the carriageway the vehicles park at.
+    #[serde(default)]
+    pub side: RoadSide,
+    /// Share of the kerb length taken by parked vehicles at the start, 0–1
+    /// (measure it from video or imagery).
+    pub occupancy: f64,
+    /// Vehicle types that park here, with weights.
+    pub composition: IndexMap<VehicleType, f64>,
+    /// Gap between the kerb and a parked vehicle (m).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offset_from_kerb: Option<Dist>,
+    /// Probability that a parked vehicle has another standing beside it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub double_parking_probability: Option<f64>,
+    /// Parking and unparking manoeuvres per 100 m of kerb per hour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manoeuvres_per_100m_h: Option<f64>,
+    /// Share of passing vehicles (of the types that park here) that are
+    /// looking for a space and slow down along this stretch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cruising_share: Option<f64>,
+}
+
+/// An edge of the carriageway, seen in the direction of travel.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RoadSide {
+    /// `y_max`: the kerb in left-hand traffic.
+    #[default]
+    Left,
+    /// `y_min`: the median side in left-hand traffic.
+    Right,
 }
 
 /// A road object: a rectangle lying along a ribbon (a parked vehicle, a
@@ -106,12 +312,33 @@ pub enum ObjectKind {
     /// A solid body on the carriageway.
     #[default]
     Obstacle,
+    /// A vehicle parked at the kerb, or standing beside one (double parked).
+    ParkedVehicle,
+    /// A vehicle manoeuvring into or out of a parking space.
+    ParkingManoeuvre,
+    /// Passengers waiting on the carriageway at a bus stop.
+    WaitingPassengers,
+    /// A pedestrian, or a group, crossing the road.
+    Pedestrians,
+    /// A pothole: not a body; vehicles swerve, slow, straddle or hit it.
+    Pothole,
+    /// A speed hump: not a body; a speed cap by vehicle.
+    Hump,
+    /// Standing water shallow enough to drive through: a speed cap.
+    Water,
 }
 
 impl ObjectKind {
     pub fn key(self) -> &'static str {
         match self {
             ObjectKind::Obstacle => "obstacle",
+            ObjectKind::ParkedVehicle => "parked_vehicle",
+            ObjectKind::ParkingManoeuvre => "parking_manoeuvre",
+            ObjectKind::WaitingPassengers => "waiting_passengers",
+            ObjectKind::Pedestrians => "pedestrians",
+            ObjectKind::Pothole => "pothole",
+            ObjectKind::Hump => "hump",
+            ObjectKind::Water => "water",
         }
     }
 }
@@ -261,6 +488,22 @@ impl DetectorSpec {
     }
 }
 
+/// An effective-width observer over `[s_from, s_to]` of a ribbon, in bins
+/// of `bin_m` along the road. Per bin it reports the width road objects
+/// leave free, the shy distance the clearance model predicts for the
+/// vehicles that passed, and the width those vehicles actually used
+/// (`effective_width.parquet`). It reports; it changes nothing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectiveWidthSpec {
+    pub id: String,
+    pub ribbon: String,
+    pub s_from: f64,
+    pub s_to: f64,
+    /// Length of a bin along the road (m).
+    pub bin_m: f64,
+}
+
 /// Optional outputs.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -268,6 +511,10 @@ pub struct OutputSpec {
     /// Trajectory sampling; omit to write no trajectories.
     #[serde(default)]
     pub trajectories: Option<TrajectorySpec>,
+    /// Effective-width observers: how much of the carriageway traffic
+    /// uses, against what road objects leave free (G§6.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effective_width: Vec<EffectiveWidthSpec>,
 }
 
 /// Trajectory sampling rate and window.

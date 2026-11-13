@@ -1,0 +1,53 @@
+name: stop_anywhere_metro_exit
+description: >
+  P6.3 reference scenario: autos, e-rickshaws, cabs and bike taxis stop to pick up and set
+  down on a 10.5 m divided carriageway, six times as often along 200 m at a metro exit
+  (G§6.2, ADR-0014). A stopping vehicle makes for the kerb with a probability by class;
+  otherwise it stops where it is, in the stream. E-rickshaws are given the lowest probability.
+
+  The guide has no numbers for the rates, the pull-over probabilities or the dwell time
+  (register: unset). The values here are placeholders to exercise the mechanism, not survey
+  results.
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1500, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+  attractors:
+    - {id: metro_exit, ribbon: main, s_from: 700, s_to: 900, stop_rate_multiplier: 6}
+demand:
+  entries:
+    - id: stream
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 2200}
+      composition:
+        hatchback: 0.22
+        sedan: 0.10
+        suv: 0.06
+        motorcycle: 0.22
+        scooter: 0.18
+        auto_rickshaw: 0.12
+        e_rickshaw: 0.05
+        bus: 0.03
+        lcv: 0.02
+detectors:
+  - {kind: screenline, id: s400, ribbon: main, s: 400, interval_s: 300}
+  - {kind: screenline, id: s1400, ribbon: main, s: 1400, interval_s: 300}
+  - {kind: area, id: before, ribbon: main, s_from: 300, s_to: 600, interval_s: 300}
+  - {kind: area, id: exit, ribbon: main, s_from: 700, s_to: 900, interval_s: 300}
+kpi:
+  throughput_detector: s1400
+overrides:
+  road.stop_anywhere.rate.auto_rickshaw: 0.5
+  road.stop_anywhere.rate.e_rickshaw: 0.8
+  road.stop_anywhere.rate.car: 0.05
+  road.stop_anywhere.rate.two_wheeler: 0.03
+  road.stop_anywhere.pull_over_probability.auto_rickshaw: 0.7
+  road.stop_anywhere.pull_over_probability.e_rickshaw: 0.4
+  road.stop_anywhere.pull_over_probability.car: 0.8
+  road.stop_anywhere.pull_over_probability.two_wheeler: 0.9
+  road.stop_anywhere.dwell: {dist: log_normal_median, median: 20, sigma: 0.6}

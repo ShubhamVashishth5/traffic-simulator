@@ -49,6 +49,10 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Roundabouts are in scope; ring of ribbons or junction box | in scope (your answer); the model is chosen at the P7.0 gate | [ADR-0009](decisions/ADR-0009-roundabouts.md) |
 | The lateral model: two clearance levels (B&M), target choice plus tracking, Table 4 pair lines | accepted (your choice at the P5.1 gate) | [ADR-0010](decisions/ADR-0010-lateral-model.md) |
 | Stage-3 parameters lateral data cannot identify: demote to `sweep` | **needs your decision** (P5.8) | [ADR-0011](decisions/ADR-0011-stage3-identifiability.md) |
+| Road objects as standing bodies; rules for a narrowing road; every class can creep to pull out from behind a standing body | part 1 proposed (P6.1); part 2 accepted (your choice, option A) | [ADR-0012](decisions/ADR-0012-road-objects-and-narrowing.md) |
+| Kerbside parking: placement, manoeuvres, cruising, the effective-width observer; survey inputs come from the scenario | proposed (P6.2) | [ADR-0013](decisions/ADR-0013-kerbside-parking.md) |
+| Stop-anywhere: pull over or stop in the stream by a per-class probability; events per vehicle-km, multiplied at attractors | accepted (your choice, P6.3) | [ADR-0014](decisions/ADR-0014-stop-anywhere.md) |
+| Bus stops, potholes, humps, gradients, water and pedestrians: the rules chosen while building them | proposed (P6.4–P6.7), for your review | [ADR-0015](decisions/ADR-0015-bus-stops-surface-pedestrians.md) |
 
 ## Folder map
 

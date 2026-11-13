@@ -1,0 +1,61 @@
+name: kerbside_parking
+description: >
+  P6.2 reference scenario: a 10.5 m divided carriageway (three notional lanes) with vehicles
+  parked along 500 m of the kerb, some double parked, vehicles pulling in and out, and some
+  drivers looking for a space. Parking takes width and nothing else (G§6.2, ADR-0005). The
+  effective-width observers compare what the clearance model predicts with what traffic does,
+  beside the parked kerb and on the clear road before it.
+
+  The guide has no numbers for the kerb offset, double parking, the manoeuvre rate and
+  duration, the cruising share or the cruising speed (register: unset). The values here are
+  placeholders to exercise the mechanism, not survey results.
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1200, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+  parking:
+    - id: kerb
+      ribbon: main
+      s_from: 400
+      s_to: 900
+      side: left
+      occupancy: 0.7
+      composition: {hatchback: 0.45, sedan: 0.2, suv: 0.1, motorcycle: 0.15, auto_rickshaw: 0.1}
+      offset_from_kerb: {dist: uniform, min: 0.1, max: 0.6}
+      double_parking_probability: 0.05
+      manoeuvres_per_100m_h: 20
+      cruising_share: 0.05
+demand:
+  entries:
+    - id: stream
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 2000}
+      composition:
+        hatchback: 0.22
+        sedan: 0.10
+        suv: 0.06
+        motorcycle: 0.25
+        scooter: 0.20
+        auto_rickshaw: 0.12
+        bus: 0.03
+        lcv: 0.02
+detectors:
+  - {kind: screenline, id: s200, ribbon: main, s: 200, interval_s: 300}
+  - {kind: screenline, id: s650, ribbon: main, s: 650, interval_s: 300}
+  - {kind: screenline, id: s1100, ribbon: main, s: 1100, interval_s: 300}
+  - {kind: area, id: clear, ribbon: main, s_from: 100, s_to: 350, interval_s: 300}
+  - {kind: area, id: parked, ribbon: main, s_from: 450, s_to: 850, interval_s: 300}
+kpi:
+  throughput_detector: s1100
+outputs:
+  effective_width:
+    - {id: clear, ribbon: main, s_from: 100, s_to: 350, bin_m: 50}
+    - {id: parked, ribbon: main, s_from: 400, s_to: 900, bin_m: 50}
+overrides:
+  road.parking.manoeuvre_duration: {dist: log_normal_median, median: 20, sigma: 0.5}
+  road.parking.cruising_speed: 15

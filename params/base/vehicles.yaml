@@ -621,6 +621,16 @@ entries:
     guide: "§1"
     register_row: 9.1/e_rickshaw_envelope
     range: [0.5, 5.0]
+  e_rickshaw.loaded_mass:
+    value: null
+    unit: "kg"
+    grade: C
+    role: fix
+    source: "Not in the guide (G§6.9: derive the climbing speed from the power cap and a loaded mass)"
+    guide: "§6.9"
+    register_row: 9.1/upgrade_speed_loss
+    range: [200.0, 1200.0]
+    notes: "Vehicle, driver and passengers. On an upgrade the e-rickshaw's speed is capped at power / (mass x g x gradient), rolling resistance and drag neglected."
   e_rickshaw.max_passengers:
     value: 4
     unit: "1"

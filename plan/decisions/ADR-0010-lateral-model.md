@@ -215,7 +215,7 @@ pair are one episode in `conflicts.parquet`: start, end, minimum TTC, maximum DR
 | `w_c` | `…comfort_weight` | 0.5 m/s² | assumed: half a car's `a`, so a stuck two-wheeler squeezes and a stuck car does not | C, fit 3 |
 | `c_move` | `…move_cost` | 0.05 m/s² per m | assumed | C, fit 3 |
 | `c_edge` | `…edge_clearance` | 0.25 m | K&T 2018 (boundary steering scale) | B, fit 3 |
-| `v_creep` | `…creep_speed.<class>` | 0.5 m/s for two-wheelers and bicycles, 0 otherwise | assumed | C, fit 3 |
+| `v_creep` | `…creep_speed.<class>` | 0.5 m/s for two-wheelers and bicycles; 0.3 for cars and three-wheelers, 0.15 for heavy vehicles (ADR-0012 part 2; 0 before it) | assumed | C, fit 3 |
 | `Δt_dec`, `Δy_cand` | `core.decision_interval`, `core.lateral_candidate_step` | 0.5 s, 0.25 m | existing | C, fix |
 | `R_cand` | `core.lateral_candidate_range` | 3.5 m | one notional lane each way | C, fix |
 | TTC threshold | `observers.conflict.ttc_threshold` | 1.5 s | G§8.4 | B, fix |

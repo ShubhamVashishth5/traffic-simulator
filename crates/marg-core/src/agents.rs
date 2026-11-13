@@ -51,6 +51,25 @@ pub struct AgentStore {
     pub kappa: Vec<f64>,
     /// `exp(−γ_c κ)`: the agent's scale on lateral clearances.
     pub clearance_scale: Vec<f64>,
+    /// The agent's cruising draw (see [`crate::demand::Draws::cruising`]).
+    pub cruising: Vec<f64>,
+    /// Stop-anywhere state (ADR-0014): one of the `STOP_*` values.
+    pub stop_state: Vec<u8>,
+    /// Exposure left until the next stop-anywhere event (m of travel, an
+    /// attractor's multiplier applied); infinite for a class that never stops.
+    pub stop_exposure: Vec<f64>,
+    /// Travelled distance at which a stopping vehicle aims to stand.
+    pub stop_point: Vec<f64>,
+    /// While stopping: the dwell drawn (s). While standing: when it ends.
+    pub stop_until: Vec<f64>,
+    /// Stop-anywhere events so far.
+    pub stop_count: Vec<u32>,
+    /// How far from the kerb a vehicle that pulls over aims to stand (m).
+    pub stop_offset: Vec<f64>,
+    /// The bus stop it served last (index), or `u32::MAX`.
+    pub stop_last: Vec<u32>,
+    /// The speed it takes a hump at (m/s).
+    pub hump_speed: Vec<f64>,
     pub t_arrival: Vec<f64>,
     pub t_entry: Vec<f64>,
     pub entry_y: Vec<f64>,
@@ -100,9 +119,18 @@ pub struct NewAgent {
     pub comfortable_decel: f64,
     pub kappa: f64,
     pub clearance_scale: f64,
+    pub cruising: f64,
+    pub hump_speed: f64,
     pub t_arrival: f64,
     pub t_entry: f64,
 }
+
+/// Stop-anywhere states: driving; braking for a stop while making for the
+/// kerb; braking for a stop where it is; standing.
+pub const STOP_NONE: u8 = 0;
+pub const STOP_PULLING_OVER: u8 = 1;
+pub const STOP_IN_PLACE: u8 = 2;
+pub const STOP_STANDING: u8 = 3;
 
 /// Marker for a removed agent in a remap table.
 pub const REMOVED: u32 = u32::MAX;
@@ -138,6 +166,15 @@ macro_rules! each_column {
         $m!($s.comfortable_decel);
         $m!($s.kappa);
         $m!($s.clearance_scale);
+        $m!($s.cruising);
+        $m!($s.stop_state);
+        $m!($s.stop_exposure);
+        $m!($s.stop_point);
+        $m!($s.stop_until);
+        $m!($s.stop_count);
+        $m!($s.stop_offset);
+        $m!($s.stop_last);
+        $m!($s.hump_speed);
         $m!($s.t_arrival);
         $m!($s.t_entry);
         $m!($s.entry_y);
@@ -203,6 +240,15 @@ impl AgentStore {
         self.comfortable_decel.push(a.comfortable_decel);
         self.kappa.push(a.kappa);
         self.clearance_scale.push(a.clearance_scale);
+        self.cruising.push(a.cruising);
+        self.stop_state.push(STOP_NONE);
+        self.stop_exposure.push(f64::INFINITY);
+        self.stop_point.push(0.0);
+        self.stop_until.push(0.0);
+        self.stop_count.push(0);
+        self.stop_offset.push(0.0);
+        self.stop_last.push(u32::MAX);
+        self.hump_speed.push(a.hump_speed);
         self.t_arrival.push(a.t_arrival);
         self.t_entry.push(a.t_entry);
         self.entry_y.push(a.y);
@@ -287,6 +333,8 @@ mod tests {
             comfortable_decel: 1.0,
             kappa: 0.0,
             clearance_scale: 1.0,
+            cruising: 0.0,
+            hump_speed: 5.0,
             t_arrival: 0.0,
             t_entry: 0.0,
         }

@@ -114,8 +114,9 @@ v_y = clamp(v_y, −max(v_s·tan θ_max, v_creep), +max(v_s·tan θ_max, v_creep
 ```
 
 The defaults are `τ_lat = 1 s`, `θ_max = 0.2 rad` and `λ_steer = 0.30 m` (Kanagaraj & Treiber 2018).
-`v_creep` is a small lateral speed for two-wheelers in near-stopped queues, which gives seepage to the
-front of a queue at a red light.
+`v_creep` is a small lateral speed available when nearly stopped. For two-wheelers it gives seepage
+to the front of a queue at a red light. Every class has one (smaller for larger vehicles), so that
+a vehicle stopped behind a standing body can pull out (ADR-0012 part 2).
 
 **Collision guard.** After integration, overlap between oriented bounding boxes is resolved by
 cutting back the step. Each resolution is logged as a `collision_guard` event. Tests require zero
@@ -275,9 +276,20 @@ As `u` rises:
 
 ## 10. Road objects (G§6)
 
-> **P6.1:** how objects and a narrowing carriageway enter the lateral model, and an open
-> decision on pulling out from behind a standing body, are in
+> **P6.1:** how objects and a narrowing carriageway enter the lateral model, and how a vehicle
+> pulls out from behind a standing body (every class has a creep speed), are in
 > [ADR-0012](decisions/ADR-0012-road-objects-and-narrowing.md).
+>
+> **P6.2:** how parked vehicles are placed, when a parking manoeuvre begins and what it blocks,
+> cruising, and what the effective-width observer reports are in
+> [ADR-0013](decisions/ADR-0013-kerbside-parking.md).
+>
+> **P6.3:** how a vehicle stops to pick up or set down, and where those events come from, are in
+> [ADR-0014](decisions/ADR-0014-stop-anywhere.md).
+>
+> **P6.4–P6.7:** bus stops, potholes, humps, gradients, water and pedestrians as built are in
+> [ADR-0015](decisions/ADR-0015-bus-stops-surface-pedestrians.md). Pedestrians are moving road
+> objects with rolling gap acceptance, not agents in the vehicle store (§5).
 
 Every object has a position, a footprint and per-class effects through the four channels. None of
 them has a capacity multiplier.

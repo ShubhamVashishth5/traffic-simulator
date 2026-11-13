@@ -1,7 +1,8 @@
 # ADR-0012: Road objects, a narrowing carriageway, and pulling out from a standstill
 
-- **Status:** proposed. Part 1 is implemented and needs review (it adds rules the plan did not
-  spell out). **Part 2 needs a decision before P6.2**: nothing is chosen, the register is unchanged.
+- **Status:** part 1 implemented, needs review (it adds rules the plan did not spell out).
+  **Part 2: option A decided by the user on 2026-11-12; option B (swing-out) added on top on
+  2026-11-13 at the user's request.** Both implemented; the swing-out rules need review.
 - **Date:** 2026-11-12
 - **Phase / task:** P6.1 (governs P6.2–P6.8)
 
@@ -91,7 +92,7 @@ their tails. A test now requires the taper to keep discharging.
 - The kerb acts at a vehicle's centre station, as before, so the front corner of a long vehicle
   can still cross a taper's line.
 
-## Part 2. Decision needed: pulling out from behind something that stands still
+## Part 2. Pulling out from behind something that stands still
 
 ### The problem
 
@@ -142,11 +143,124 @@ It then pulls out moving forward, within the heading limit.
 **C. Leave it.** Objects are then usable only in light traffic.
 - Against: blocks stage 5.
 
-### Recommendation
+### Decision (2026-11-12): option A
 
-A, with smaller values for larger vehicles, as the way to unblock P6.2–P6.4 now, with B noted
-as the better model to return to if the creep values turn out to matter in the stage-3 or
-stage-5 fits. This is a recommendation only: the register is unchanged until you decide.
+The user chose A. Option B stays the model to return to if the creep values turn out to matter
+in the stage-3 or stage-5 fits.
+
+**Register.** `interaction.lateral.creep_speed.<class>` (grade C, `fit`, stage 3, all assumed,
+none measured):
+
+| Classes | Creep speed (m/s) |
+| --- | --- |
+| two-wheeler, bicycle | 0.5 (unchanged) |
+| car, auto-rickshaw, e-rickshaw, cycle-rickshaw | 0.3 |
+| LCV, bus, truck, tractor | 0.15 |
+
+**Two rules were needed with it (please review).** ADR-0010 §4 turns a body that creeps at a
+standstill to the heading limit at once. That was harmless for a 1.9 m motorcycle. For a car
+or a bus it is not:
+
+1. *A turned body is longer along the road as well as wider.* A 4.7 m car at 0.2 rad reaches
+   0.13 m further at each end. A vehicle does not creep if that would reach a body just in
+   front of or behind it (each vehicle's own possible turn is allowed for).
+2. *The corners of a long vehicle swing further than its side neighbours' range.* A 12 m bus
+   swings 1.2 m to each side. A creeping vehicle's lateral limits now count every body within
+   its swing, with half of the gap each, as for side neighbours.
+
+Both apply only to a vehicle that is creeping (below the stop speed, moving sideways faster
+than its forward movement allows). A moving vehicle is treated exactly as before, so scenarios
+in which nothing stops give bitwise the same results (reference corridor: same output hash).
+
+**Results.**
+
+| Check | Before (two-wheelers and bicycles creep) | After (every class) |
+| --- | --- | --- |
+| One parked car, 10.5 m road, 600 veh/h: throughput | 584 | 584 |
+| 1,200 veh/h: throughput / standing behind it at the end | 602 / 311 | **1,194 / 0** |
+| 1,800 veh/h | 508 / 367 | **1,804 / 2** |
+| 4,000 veh/h (over capacity) | 320 / 347 | **3,292 / 47** |
+| Barrier queue (P5.4), places gained in the queue: two-wheelers / cars | +1.4 to +1.7 / −0.4 to −0.9 | **+2.35 / −0.55** (seed 1, three closures) |
+| Guard events, 10⁴ random dense scenarios | 136 in 72 scenarios | **93 in 44**, all where the road narrows |
+| Overlapping bodies after the guard | 0 | 0 |
+| Reference corridor: output hash, ns per agent-step | | unchanged, 940 (944 before) |
+
+The P5.4 result holds: two-wheelers still gain places at a barrier and cars still lose them.
+Cars rarely creep in a packed queue because the swing of their corners needs room on both
+sides. Without the two rules above the barrier scenario logged 8 guard events and the random
+scenarios 14 outside narrowings; with them, none.
+
+**The creep values matter (P6.8, 2026-11-12).** Parking costs 1.6 times as much capacity as the
+effective width it takes; a plain narrower road costs 1.0 times. The loss is made where the
+parked row begins, by vehicles that stop behind the first parked vehicle and creep out. With
+every class creeping at 1.5 m/s the same kerb is close to one for one
+(`reports/phases/P6.md`). This is the condition under which option B was to be revisited.
+
+**Tried and dropped: keeping a creeping body's corners on the carriageway.** The kerb bounds
+a body's unturned width (since P5), so the corners of a long vehicle that turns beside the kerb
+cross its line: a bus creeping in a queue by up to a metre. Refusing such a turn locks up a
+taper: a vehicle stopped against the kerb can then never turn away from it (the taper test
+stopped discharging at t = 557 s). Left as it is; it belongs with part 1's open item on the
+kerb acting at a vehicle's centre station.
+
+`standing_obstacle_measurement` (ignored test) reproduces the first four rows;
+`stopped_vehicles_pull_out_from_behind_a_parked_car` is the regression test.
+
+### Option B added (2026-11-13): the swing-out gap
+
+The user asked for option B before P7, after P6.8 showed the creep values matter. Creep (option A)
+stays, as the fallback for a vehicle that ends up too close anyway. No new parameter: the
+heading limit `θ_max` (grade A) sets the run-up.
+
+**Rules (please review).** For a standing body ahead (a road object other than a pedestrian, or a
+vehicle standing to pick up, set down or serve a bus stop), a vehicle that means to drive on:
+
+1. **Predicts where it will be across the road when its front reaches the body.** It uses the
+   critically damped tracking of its target (ADR-0010 §4), over the shortest time it could take
+   to get there (at full acceleration), no further than `gap · tan θ_max`, within this step's
+   side limits and the carriageway. Vehicles standing still are taken after every side
+   neighbour is known, so the prediction sees whatever could block the swing.
+2. **Clear on arrival:** the body is braked for by that lateral gap (the leader weight of
+   ADR-0010), with no standstill gap: that gap is for waiting behind something, not for
+   passing it.
+3. **Not clear on arrival:** it brakes as if the body were nearer by `Δy / tan θ_max`, where `Δy`
+   is the shift still needed, on the nearer side that has room. Blocked, it therefore waits
+   with room to pull out moving forward. Steering out at the heading limit keeps that gap
+   constant, so it does not brake while it swings.
+4. **Never into a dead end.** A vehicle in the body's way never comes closer than the run-up it
+   needs from where it is now (with no standstill gap), so it can always steer clear moving
+   forward.
+5. **The lateral choice costs a blocked line the same way** (3, holding its line). Without this
+   the move phase held vehicles back while the choice saw the longer real gap as nearly free,
+   and some waited behind a body for good.
+6. A vehicle about to stop (pulling over, or stopping in place) draws up as before: it needs no
+   room. Otherwise a bus waiting behind the bus at a stop keeps 12 m of room and the stop serves
+   one bus at a time; at 90 buses per hour that jammed it.
+
+Shifts are measured with the unturned width: a car pulling out at the heading limit is 2.3 m
+wide instead of 1.6, and with that width the shift looked impossible mid-manoeuvre.
+
+**Results.** One parked car on a 10.5 m road, 30 minutes
+(`standing_obstacle_measurement`, ignored test):
+
+| Demand (veh/h) | Throughput, creep only (option A) | Swing-out, creep for two-wheelers and bicycles only | Swing-out and the register's creep (as shipped) |
+| --- | --- | --- | --- |
+| 1,200 | 1,194 | 1,194 | 1,194 |
+| 1,800 | 1,804 | **1,816** (508 before either) | 1,816 |
+| 4,000 (over capacity) | 3,292 | 1,072 | **3,808** |
+
+- Swing-out alone now does what creep was brought in for, up to about capacity.
+- Far over capacity it still needs creep: vehicles that end up too close in a jam have no run-up.
+- The micro-scenario `cars_keep_room_to_swing_out_and_pull_out_moving_forward` (creep off for
+  cars) shows a blocked car waiting with the room it needs and every queued car pulling out
+  moving forward once the way is clear.
+- 10⁴ random dense scenarios: 93 guard events, all where the road narrows, 0 overlaps
+  (unchanged). Reference corridor: same output hash.
+- **The width–capacity miss is not fixed by it** (P6.8, `reports/phases/P6.md`). The loss at the
+  head of a parked row is the merge itself, not the creep.
+- Buses at a stop stand up to 0.9 m further from the kerb than they aim: a bus comes to a stand
+  before its lateral tracking finishes, and a stopped bus cannot creep closer (its corners would
+  swing into waiting passengers).
 
 ## Consequences
 

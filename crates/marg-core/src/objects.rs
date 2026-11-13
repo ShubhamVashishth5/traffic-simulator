@@ -44,9 +44,25 @@ pub struct RoadObject {
     pub active: bool,
     /// Order of creation: breaks ties and names the object as a leader.
     pub serial: u64,
+    /// Water: the speed it can be driven through at (m/s). Infinite for
+    /// everything else (a pothole's and a hump's speeds depend on the vehicle).
+    pub speed: f64,
+    /// Pothole: its depth (m), and whether water hides it.
+    pub depth: f64,
+    pub hidden: bool,
 }
 
 impl RoadObject {
+    /// Whether this is something on the surface (a pothole, a hump,
+    /// shallow water) and not a body.
+    #[inline]
+    pub fn on_surface(&self) -> bool {
+        matches!(
+            self.kind,
+            ObjectKind::Pothole | ObjectKind::Hump | ObjectKind::Water
+        )
+    }
+
     #[inline]
     pub fn rear(&self) -> f64 {
         self.s - 0.5 * self.length
@@ -79,6 +95,8 @@ pub struct Objects {
     /// Longest active object (m).
     l_max: f64,
     next_serial: u64,
+    /// Counts the changes to the set of objects on the road.
+    generation: u64,
 }
 
 impl Objects {
@@ -93,6 +111,13 @@ impl Objects {
     #[inline]
     pub fn any_active(&self) -> bool {
         self.l_max > 0.0
+    }
+
+    /// A number that changes whenever an object appears on the road or
+    /// leaves it.
+    #[inline]
+    pub fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// Validate `spec` and add it. `from` is when a live addition appears
@@ -154,9 +179,47 @@ impl Objects {
             present,
             active: false,
             serial: self.next_serial,
+            speed: f64::INFINITY,
+            depth: 0.0,
+            hidden: false,
         });
         self.next_serial += 1;
         Ok(())
+    }
+
+    /// Add a pothole, a hump or a patch of shallow water: something on the
+    /// surface that is not a body. No class is blocked by it; the scan
+    /// treats it by its kind. Returns its index in `all`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn add_surface(
+        &mut self,
+        id: String,
+        kind: ObjectKind,
+        ribbon: usize,
+        s: f64,
+        y: f64,
+        length: f64,
+        width: f64,
+    ) -> usize {
+        self.all.push(RoadObject {
+            id,
+            kind,
+            ribbon,
+            s,
+            y,
+            length,
+            width,
+            clearance_class: None,
+            blocks: [false; N_CLASSES],
+            present: vec![(f64::NEG_INFINITY, f64::INFINITY)],
+            active: false,
+            serial: self.next_serial,
+            speed: f64::INFINITY,
+            depth: 0.0,
+            hidden: false,
+        });
+        self.next_serial += 1;
+        self.all.len() - 1
     }
 
     /// End the presence of object `id` at time `t`. Returns whether it was
@@ -192,6 +255,7 @@ impl Objects {
         if !any {
             return;
         }
+        self.generation += 1;
         for list in &mut self.by_ribbon {
             list.clear();
         }
@@ -494,6 +558,14 @@ mod tests {
             ],
             barriers: vec![],
             objects: vec![],
+            parking: vec![],
+            attractors: vec![],
+            bus_stops: vec![],
+            pothole_fields: vec![],
+            humps: vec![],
+            surfaces: vec![],
+            waterlogging: vec![],
+            pedestrian_crossings: vec![],
         })
         .unwrap()
     }
