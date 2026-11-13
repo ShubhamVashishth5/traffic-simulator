@@ -1,0 +1,66 @@
+{
+  "saturation_flow": [
+    {
+      "arm": "e",
+      "cycles": 21,
+      "veh_per_h": 1491.8100739008003,
+      "veh_per_h_per_m": 213.11572484297147,
+      "width_m": 7.0
+    },
+    {
+      "arm": "n",
+      "cycles": 25,
+      "veh_per_h": 1933.2438664979056,
+      "veh_per_h_per_m": 276.1776952139865,
+      "width_m": 7.0
+    },
+    {
+      "arm": "s",
+      "cycles": 27,
+      "veh_per_h": 2033.176441810839,
+      "veh_per_h_per_m": 290.4537774015484,
+      "width_m": 7.0
+    },
+    {
+      "arm": "w",
+      "cycles": 24,
+      "veh_per_h": 1630.4438681276529,
+      "veh_per_h_per_m": 232.92055258966468,
+      "width_m": 7.0
+    }
+  ],
+  "discharge_acceleration": {
+    "two_wheeler": {
+      "mean": 0.8982918077025206,
+      "sd": 0.42999700184669615,
+      "n": 389,
+      "check": 0.6,
+      "within_20pct": false,
+      "mean_duration_s": 11.67609254498715
+    },
+    "three_wheeler": {
+      "mean": 0.42315377324801773,
+      "sd": 0.18862432857617795,
+      "n": 160,
+      "check": 0.43,
+      "within_20pct": true,
+      "mean_duration_s": 15.074374999999998
+    },
+    "car": {
+      "mean": 0.492035003146812,
+      "sd": 0.24411814199083515,
+      "n": 251,
+      "check": 0.49,
+      "within_20pct": true,
+      "mean_duration_s": 11.951792828685262
+    },
+    "lcv": {
+      "mean": 0.45516275406291884,
+      "sd": 0.18057616788981218,
+      "n": 27,
+      "check": 0.46,
+      "within_20pct": true,
+      "mean_duration_s": 13.340740740740747
+    }
+  }
+}

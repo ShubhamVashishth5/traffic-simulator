@@ -66,13 +66,17 @@ fn branch(net: &Network, seed: u64, id: u64, ribbon: usize, turn: &mut (u32, u8)
     rib.branch[usize::from(turn.1)]
 }
 
-/// The body of agent `i` at `(s, y)` on its ribbon, turned by `tan` on it,
-/// as vehicles on other ribbons see it (ADR-0016 part 4): the chord from
-/// the point of its path half a length behind its centre to the point
-/// half a length ahead, at its lateral offset. On a straight ribbon that is
-/// the body itself; on a curve the body lies inside the arc, as a
-/// vehicle's rear follows inside its front, instead of its ends swinging
-/// out. Returns the centre and the unit heading `(x, y, hx, hy)`.
+/// The body of agent `i` at `(s, y)` on its ribbon as vehicles on other
+/// ribbons see it (ADR-0016 part 4): the chord from the point of its path
+/// half a length behind its centre to the point half a length ahead, at its
+/// lateral offset, lying along that chord. On a straight ribbon that is the
+/// footprint the vehicle has on its own ribbon; on a curve it lies inside
+/// the arc, as a vehicle's rear follows inside its front, instead of its
+/// ends swinging out. As on its own ribbon, a turned body is not rotated
+/// but made wider across its path (`body_half_width`): rotating a long body
+/// that creeps sideways would swing its ends by metres. `tan` is unused and
+/// kept for the callers. Returns the centre and the unit heading
+/// `(x, y, hx, hy)`.
 #[allow(clippy::too_many_arguments)]
 pub fn chord_pose(
     net: &Network,
@@ -117,13 +121,12 @@ pub fn chord_pose(
     } else {
         rib.direction(s)
     };
-    let cos = 1.0 / (1.0 + tan * tan).sqrt();
-    let sin = tan * cos;
+    let _ = tan;
     (
         0.5 * (rear.0 + front.0),
         0.5 * (rear.1 + front.1),
-        d[0] * cos - d[1] * sin,
-        d[1] * cos + d[0] * sin,
+        d[0],
+        d[1],
     )
 }
 
@@ -570,7 +573,16 @@ impl Junctions {
                         continue;
                     }
                     let (x, yw, hx, hy) = *pose.get_or_insert_with(|| {
-                        chord_pose(net, seed, prev, a, i as usize, s, y, a.heading_tan[i as usize])
+                        chord_pose(
+                            net,
+                            seed,
+                            prev,
+                            a,
+                            i as usize,
+                            s,
+                            y,
+                            a.heading_tan[i as usize],
+                        )
                     });
                     self.members[g as usize].push(Member {
                         i,
@@ -583,7 +595,8 @@ impl Junctions {
                 }
             }
         }
-        self.arbiter.run(a, &self.members, net, p, seed, &self.light);
+        self.arbiter
+            .run(a, &self.members, net, p, seed, &self.light);
     }
 
     /// A vehicle crossed the stop line of `arm` at `junction` at time `t`.

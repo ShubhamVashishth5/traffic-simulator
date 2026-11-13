@@ -54,21 +54,65 @@ fn light_traffic_obeys_the_signal_and_is_deterministic() {
     assert!(out.signal_cycles.iter().all(|c| c.approach_width == 7.0));
 }
 
-/// Dense traffic at the crossing. **Known to fail**: vehicles from one arm
-/// that leave it side by side for different movements can lock against each
-/// other inside the junction (ADR-0016, open problem 1), after which the
-/// collision guard holds them every step and the junction jams.
-#[test]
-#[ignore = "P7.2 not done: vehicles lock inside the junction in dense traffic (ADR-0016)"]
-fn dense_traffic_crosses_without_guard_events() {
-    let yaml = crossing(700, 900);
-    let mut sim = Simulation::new(&spec(&yaml, &[]), 1, 1).unwrap();
+/// Agents' records and events of one run of the crossing.
+fn run_crossing(yaml: &str, seed: u64) -> marg_core::RunOutputs {
+    let mut sim = Simulation::new(&spec(yaml, &[]), seed, 1).unwrap();
     sim.run_to_end();
-    let (_, out) = sim.finish().unwrap();
-    let guards = out
-        .events
+    sim.finish().unwrap().1
+}
+
+fn guards(out: &marg_core::RunOutputs) -> usize {
+    out.events
         .iter()
         .filter(|e| e.kind == "collision_guard")
+        .count()
+}
+
+/// P7.2 (ADR-0016 part 4, decision D): dense traffic at the crossing, every
+/// turn, 700 veh/h per arm. Vehicles from one arm that leave it side by side
+/// for crossing movements, permitted right turns waiting inside the box,
+/// buses: no vehicle is put back by the collision guard, and the junction
+/// keeps discharging (it is near saturation: the right turns comply).
+#[test]
+fn dense_traffic_crosses_without_guard_events() {
+    let out = run_crossing(&crossing(700, 900), 1);
+    assert_eq!(guards(&out), 0);
+    let crossed = out
+        .events
+        .iter()
+        .filter(|e| e.kind == "stop_line_crossed")
         .count();
-    assert_eq!(guards, 0);
+    let spawned = out.agents.len();
+    assert!(
+        crossed as f64 > 0.8 * spawned as f64,
+        "{crossed} crossings of {spawned} vehicles"
+    );
+}
+
+/// The same at 300 veh/h per arm, over several seeds: no guard events, and
+/// every vehicle but those still on their way gets through. Right turns
+/// under the signal wait for their gap inside the box.
+#[test]
+fn moderate_traffic_every_turn_flows_on_every_seed() {
+    let yaml = crossing(300, 900);
+    for seed in 1..=3 {
+        let out = run_crossing(&yaml, seed);
+        assert_eq!(guards(&out), 0, "seed {seed}");
+        let exited = out.agents.iter().filter(|a| a.exited).count();
+        assert!(
+            exited as f64 > 0.9 * out.agents.len() as f64,
+            "seed {seed}: {exited} of {} out",
+            out.agents.len()
+        );
+        let gaps: Vec<_> = out
+            .events
+            .iter()
+            .filter(|e| e.kind == "gap_accepted")
+            .collect();
+        assert!(!gaps.is_empty(), "seed {seed}: no gap taken");
+        assert!(
+            gaps.iter().any(|e| e.ribbon.starts_with("crossing:")),
+            "seed {seed}: no gap taken while waiting inside the box"
+        );
+    }
 }

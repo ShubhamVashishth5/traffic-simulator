@@ -38,6 +38,7 @@ uv run python scripts/p5_stage3_recovery.py    # P5.8 stage-3 screen + synthetic
 uv run python scripts/p5_milestone.py          # regenerate reports/phases/P5.md (reads P5_stage3.json)
 node web/e2e/p5_seepage.cjs                    # P5 viewer recording (needs playwright + marg serve)
 uv run python scripts/p6_milestone.py          # regenerate reports/phases/P6.md (93 runs, ~8 min)
+uv run python scripts/p7_signal_check.py       # P7.3: saturation flow and discharge acceleration (~10 s) -> reports/phases/P7_signal.json
 ```
 
 ## Rules

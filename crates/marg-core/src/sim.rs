@@ -1000,6 +1000,12 @@ impl Simulation {
         if jo.waiting && a.v[i] < self.p.stop_speed_below && a.wait_since[i].is_nan() {
             a.wait_since[i] = t;
         }
+        // Inside the junction with nothing left to give way to (the stream
+        // it waited for was stopped by the signal): committed from now.
+        if !jo.waiting && a.box_ticket[i].is_nan() && self.net.ribbon(a.ribbon[i] as usize).internal
+        {
+            a.box_ticket[i] = t;
+        }
         if jo.gap.is_nan() {
             return;
         }
@@ -1605,7 +1611,7 @@ impl Simulation {
             s: x,
             y: yw,
             half_length: 0.5 * a.length[i],
-            half_width: 0.5 * a.width[i],
+            half_width: body_half_width(a.width[i], a.length[i], tan),
             cos: hx,
             sin: hy,
         }

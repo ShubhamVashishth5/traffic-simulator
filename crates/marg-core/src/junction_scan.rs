@@ -485,7 +485,13 @@ impl MoveCtx<'_> {
             (rib.junction?, r)
         } else {
             let j = rib.junction?;
-            (j, rib.branch.get(usize::from(a.turn_out[i])).copied().flatten()?)
+            (
+                j,
+                rib.branch
+                    .get(usize::from(a.turn_out[i]))
+                    .copied()
+                    .flatten()?,
+            )
         };
         let jn = &net.junctions[j];
         let movement = jn
@@ -531,6 +537,7 @@ impl MoveCtx<'_> {
         no_cut_in: f64,
         acc: &mut f64,
         lead: &mut (f64, u64),
+        (stretch, swing, turn_room): (f64, f64, &mut f64),
         mut side: impl FnMut(bool, f64, f64, f64),
     ) {
         let (a, p, net) = (self.a, self.p, self.net);
@@ -569,16 +576,7 @@ impl MoveCtx<'_> {
         let (x0, y0, _) = rib.to_world(s, y);
         // Others see its body as the chord of its path (`chord_pose`): on a
         // curve that lies inside the arc, by this much across its path.
-        let (xc, yc, _, _) = chord_pose(
-            net,
-            self.seed,
-            self.prev,
-            a,
-            i,
-            s,
-            y,
-            a.heading_tan[i],
-        );
+        let (xc, yc, _, _) = chord_pose(net, self.seed, self.prev, a, i, s, y, a.heading_tan[i]);
         let dir0 = rib.direction(s);
         let y = y - dir0[1] * (xc - x0) + dir0[0] * (yc - y0);
         let ci = usize::from(a.class[i]);
@@ -612,7 +610,9 @@ impl MoveCtx<'_> {
                 let (ds, yk, dir) = (best.1 - s, best.2, best.3);
                 let cos = m.hx * dir[0] + m.hy * dir[1];
                 let sin = dir[0] * m.hy - dir[1] * m.hx;
-                let (lk, wk) = (a.length[k], a.width[k]);
+                // Its footprint across its own path (turned bodies are
+                // widened, not rotated: `chord_pose`).
+                let (lk, wk) = (a.length[k], 2.0 * a.half_width[k]);
                 let half_l = 0.5 * (lk * cos.abs() + wk * sin.abs());
                 let half_w = 0.5 * (lk * sin.abs() + wk * cos.abs());
                 let gy = edge_gap(y, hw, yk, half_w);
@@ -650,6 +650,17 @@ impl MoveCtx<'_> {
                 // to it unless it gives way to this vehicle: then only its
                 // body is to be missed, or one waiting politely beside the
                 // stream would stop the stream it waits for.
+                // A body just in front or behind limits how far this one
+                // may turn while it creeps sideways, as on its own ribbon
+                // (ADR-0012 part 2).
+                let end_gap = ds.abs() - 0.5 * l - half_l;
+                let theirs = 0.5 * wk * p.max_heading_sin;
+                if end_gap > 0.0
+                    && end_gap <= stretch + theirs
+                    && gy <= swing + 0.5 * lk * p.max_heading_sin
+                {
+                    *turn_room = turn_room.min(end_gap - theirs);
+                }
                 let keep = if arbitrated && self.junctions.arbiter.gives_way_to(a.id[k], a.id[i]) {
                     0.0
                 } else {

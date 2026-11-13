@@ -953,6 +953,7 @@ impl MoveCtx<'_> {
                 no_cut_in_ahead.max(l),
                 &mut acc,
                 &mut lead,
+                (stretch, swing, &mut turn_room),
                 |left, gy, excess, push| {
                     sides.repulsion += if left { -push } else { push };
                     let _ = excess;
@@ -979,8 +980,8 @@ impl MoveCtx<'_> {
                             continue;
                         }
                     }
-                    let hold = (free - idm.interaction(v, yd.gap, v, 1.0, 1.0))
-                        .max(-p.emergency_decel);
+                    let hold =
+                        (free - idm.interaction(v, yd.gap, v, 1.0, 1.0)).max(-p.emergency_decel);
                     if hold < lead.0 {
                         lead = (hold, NO_AGENT);
                     }

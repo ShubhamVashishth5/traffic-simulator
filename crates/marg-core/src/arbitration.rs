@@ -181,9 +181,7 @@ impl Arbiter {
     /// `goer` this step.
     #[inline]
     pub fn gives_way_to(&self, yielder: u64, goer: u64) -> bool {
-        self.kept
-            .binary_search(&Decision { yielder, goer })
-            .is_ok()
+        self.kept.binary_search(&Decision { yielder, goer }).is_ok()
     }
 
     /// Whether agents `i` and `k` are both at junction arbitration, at the
@@ -212,6 +210,7 @@ impl Arbiter {
         self.next.clear();
         for (j, group) in members.iter().enumerate().take(net.junctions.len()) {
             self.gather(j, group, a, net, p, seed, light);
+            self.order_tickets(a);
             let n = self.active.len();
             for x in 0..n {
                 for z in x + 1..n {
@@ -293,13 +292,13 @@ impl Arbiter {
                 path: [(0, 0.0, 0.0, 0, 0); PATH_RIBBONS],
                 n: 0,
                 half_l: l,
-                half_w: 0.5 * a.width[i],
+                half_w: a.half_width[i],
                 first: first as u32,
                 gives_way: false,
                 took_gap: false,
                 ticket: a.box_ticket[i],
                 pose: [m.x, m.y, m.hx, m.hy],
-                body: (l, 0.5 * a.width[i]),
+                body: (l, a.half_width[i]),
                 exit: (0, 0),
             };
             let (mut ribbon, mut start, mut dist) = (first, s0, d0);
@@ -434,7 +433,7 @@ impl Arbiter {
             let clear = 0.5
                 * (a.clearance_scale[i] + a.clearance_scale[k])
                 * p.pair_clearance(ci, ck, 0.5 * a.v[i]).1;
-            let (hl, hw) = (0.5 * a.length[k], 0.5 * a.width[k]);
+            let (hl, hw) = (0.5 * a.length[k], a.half_width[k]);
             let reach = x.half_w + clear;
             let hit = x.path[..x.n]
                 .iter()
@@ -454,6 +453,48 @@ impl Arbiter {
         None
     }
 
+    /// A vehicle cannot go before one ahead of it on its own movement that
+    /// is in its way: its ticket is no earlier than that one's, and if that
+    /// one has not committed, neither has it. Without this, the order of
+    /// tickets and the order of a queue could disagree and form a ring.
+    fn order_tickets(&mut self, a: &AgentStore) {
+        let n = self.active.len();
+        // Inside the junction, front to back along each ribbon.
+        self.mark.clear();
+        self.stack.clear();
+        for x in 0..n {
+            if self.active[x].d_line <= 0.0 {
+                self.stack.push((x, 0));
+            }
+        }
+        let key = |q: &Active| (q.first, -a.s[q.i as usize]);
+        self.stack.sort_by(|p, q| {
+            let (kp, kq) = (key(&self.active[p.0]), key(&self.active[q.0]));
+            kp.0.cmp(&kq.0).then(kp.1.total_cmp(&kq.1))
+        });
+        for x in 0..self.stack.len() {
+            let ix = self.stack[x].0;
+            let mut eff = self.active[ix].ticket;
+            for z in 0..x {
+                let iz = self.stack[z].0;
+                let (ax, az) = (&self.active[ix], &self.active[iz]);
+                if az.first != ax.first {
+                    continue;
+                }
+                let (yx, yz) = (a.y[ax.i as usize], a.y[az.i as usize]);
+                if (yx - yz).abs() < ax.body.1 + az.body.1 {
+                    // Not committed (NaN) is later than any ticket.
+                    eff = if eff.is_nan() || az.ticket.is_nan() {
+                        f64::NAN
+                    } else {
+                        eff.max(az.ticket)
+                    };
+                }
+            }
+            self.active[ix].ticket = eff;
+        }
+    }
+
     /// How far along its path vehicle `x`'s body first reaches the
     /// carriageway of a movement that has green and priority over its own
     /// (a lower rank): where it waits for a gap. `None`: it gives way to
@@ -471,7 +512,11 @@ impl Arbiter {
                     continue;
                 }
                 let area = &jn.conflicts[c as usize];
-                let other = if area.a == ra as usize { area.b } else { area.a };
+                let other = if area.a == ra as usize {
+                    area.b
+                } else {
+                    area.a
+                };
                 let rc = net.ribbon(other);
                 if area.kind == ConflictKind::Diverge
                     || rc.rank >= rank
@@ -635,14 +680,14 @@ impl Arbiter {
                 && c.kind != ConflictKind::Diverge
                 && net.ribbon(g.first as usize).rank > net.ribbon(o.first as usize).rank
         };
-        let by_rank = if gives_way(&ax, &az) && !(hard_x >= dx && hard_z < dz) {
+        // `x` goes: `z` gives way to it, or `x` took its gap; and `z` can
+        // still stop short or `x` cannot. The same the other way round.
+        let x_first = (gives_way(&az, &ax) || took_gap(&ax, &az)) && !(hard_z >= dz && hard_x < dx);
+        let z_first = (gives_way(&ax, &az) || took_gap(&az, &ax)) && !(hard_x >= dx && hard_z < dz);
+        let by_rank = if z_first {
             Some(false)
-        } else if gives_way(&az, &ax) && !(hard_z >= dz && hard_x < dx) {
+        } else if x_first {
             Some(true)
-        } else if took_gap(&ax, &az) && !(hard_z >= dz && hard_x < dx) {
-            Some(true)
-        } else if took_gap(&az, &ax) && !(hard_x >= dx && hard_z < dz) {
-            Some(false)
         } else {
             None
         };
@@ -709,8 +754,15 @@ impl Arbiter {
         };
         // Never send on a vehicle whose way is blocked by the body of the
         // one that was to wait for it, when that one's way is not.
-        let x_blocked = Self::blocks(&az, &ax, a.standstill_gap[i]);
-        let z_blocked = Self::blocks(&ax, &az, a.standstill_gap[k]);
+        // Within the gap it would keep to a leader at its speed.
+        let reach = |n: usize, o: usize| {
+            let (cn, co) = (usize::from(a.class[n]), usize::from(a.class[o]));
+            a.standstill_gap[n] * p.mult_standstill_gap[cn][co]
+                + a.v[n] * a.time_gap[n] * p.mult_time_gap[cn][co]
+                + PATH_STEP
+        };
+        let x_blocked = Self::blocks(&az, &ax, reach(i, k));
+        let z_blocked = Self::blocks(&ax, &az, reach(k, i));
         if x_goes && x_blocked && !z_blocked {
             x_goes = false;
         } else if !x_goes && z_blocked && !x_blocked {
@@ -719,28 +771,29 @@ impl Arbiter {
         // What each would have to do if it were the one to give way: kept
         // both, so that a cycle of vehicles waiting for one another can be
         // broken by turning one decision round (`break_cycles`).
-        let constraint = |yi: usize, gi: usize, yd: f64, e_y: f64, e_g: f64, act_y: &Active, half_g: f64| {
-            let (gap, v_lead) = match c.kind {
-                ConflictKind::Merge if (e_y - e_g) - act_y.half_l - half_g > 0.0 => {
-                    // As if the other were already ahead on the shared path.
-                    ((e_y - e_g) - act_y.half_l - half_g, a.v[gi])
-                }
-                _ => {
-                    // Short of the contact; one from its own arm waits at the line.
-                    let mut gap = yd;
-                    if same_arm && act_y.d_line - act_y.half_l > 0.0 {
-                        gap = gap.min(act_y.d_line - act_y.half_l);
+        let constraint =
+            |yi: usize, gi: usize, yd: f64, e_y: f64, e_g: f64, act_y: &Active, half_g: f64| {
+                let (gap, v_lead) = match c.kind {
+                    ConflictKind::Merge if (e_y - e_g) - act_y.half_l - half_g > 0.0 => {
+                        // As if the other were already ahead on the shared path.
+                        ((e_y - e_g) - act_y.half_l - half_g, a.v[gi])
                     }
-                    (gap, 0.0)
+                    _ => {
+                        // Short of the contact; one from its own arm waits at the line.
+                        let mut gap = yd;
+                        if same_arm && act_y.d_line - act_y.half_l > 0.0 {
+                            gap = gap.min(act_y.d_line - act_y.half_l);
+                        }
+                        (gap, 0.0)
+                    }
+                };
+                Yield {
+                    i: yi as u32,
+                    goer: gi as u32,
+                    gap,
+                    v_lead,
                 }
             };
-            Yield {
-                i: yi as u32,
-                goer: gi as u32,
-                gap,
-                v_lead,
-            }
-        };
         let x_yields = constraint(i, k, dx, c.e_x, c.e_z, &ax, az.half_l);
         let z_yields = constraint(k, i, dz, c.e_z, c.e_x, &az, ax.half_l);
         // Priority, then room to the contact: which decision to turn round
@@ -928,4 +981,123 @@ impl KeyCmp for (u8, f64, u64) {
 fn horizon(a: &AgentStore, i: usize) -> f64 {
     let v = a.v[i];
     a.standstill_gap[i] + v * a.time_gap[i] + v * v / (2.0 * a.comfortable_decel[i])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn active(i: u32) -> Active {
+        Active {
+            i,
+            id: u64::from(i),
+            junction: 0,
+            arm: u32::MAX,
+            d_line: -1.0,
+            path: [(0, 0.0, 0.0, 0, 0); PATH_RIBBONS],
+            n: 0,
+            half_l: 1.0,
+            half_w: 0.5,
+            first: 0,
+            gives_way: false,
+            took_gap: false,
+            ticket: f64::NAN,
+            pose: [0.0, 0.0, 1.0, 0.0],
+            body: (1.0, 0.5),
+            exit: (0, 0),
+        }
+    }
+
+    fn decision(x: u32, z: u32, x_goes: bool, room: f64) -> Pending {
+        let y = |i, g| Yield {
+            i,
+            goer: g,
+            gap: 1.0,
+            v_lead: 0.0,
+        };
+        Pending {
+            x,
+            z,
+            x_goes,
+            fixed: false,
+            x_yields: y(x, z),
+            z_yields: y(z, x),
+            release: [(1, -room, u64::from(x)), (1, -room, u64::from(z))],
+            blocked: [false, false],
+        }
+    }
+
+    /// Three vehicles that each wait for the next: one decision is turned
+    /// round, the rest stand, and the result has no cycle.
+    #[test]
+    fn a_ring_of_waiting_vehicles_is_broken_once() {
+        // 0 waits for 1, 1 for 2, 2 for 0; vehicle 1 has the most room.
+        let mut arb = Arbiter {
+            active: (0..3).map(active).collect(),
+            pending: vec![
+                decision(0, 1, false, 2.0),
+                decision(1, 2, false, 5.0),
+                decision(2, 0, false, 3.0),
+            ],
+            ..Arbiter::default()
+        };
+        arb.break_cycles();
+        assert_eq!(arb.next.len(), 3);
+        // Vehicle 1 (most room to its contact) is released: 2 waits for it.
+        assert!(arb.next.contains(&Decision {
+            yielder: 2,
+            goer: 1
+        }));
+        assert!(arb.next.contains(&Decision {
+            yielder: 0,
+            goer: 1
+        }));
+        assert!(arb.next.contains(&Decision {
+            yielder: 2,
+            goer: 0
+        }));
+        assert_eq!(arb.yields.len(), 3);
+    }
+
+    /// A vehicle whose way is blocked by the one it waits for is not the
+    /// one released.
+    #[test]
+    fn a_blocked_vehicle_is_not_released_from_a_ring() {
+        let mut d = decision(1, 2, false, 5.0);
+        d.blocked = [true, false];
+        let mut arb = Arbiter {
+            active: (0..3).map(active).collect(),
+            pending: vec![decision(0, 1, false, 2.0), d, decision(2, 0, false, 3.0)],
+            ..Arbiter::default()
+        };
+        arb.break_cycles();
+        // Not vehicle 1; of 0 and 2, vehicle 2 has more room.
+        assert!(arb.next.contains(&Decision {
+            yielder: 1,
+            goer: 2
+        }));
+        assert!(arb.next.contains(&Decision {
+            yielder: 0,
+            goer: 2
+        }));
+    }
+
+    /// Without a ring nothing changes.
+    #[test]
+    fn a_chain_is_left_alone() {
+        let mut arb = Arbiter {
+            active: (0..3).map(active).collect(),
+            pending: vec![decision(0, 1, false, 2.0), decision(1, 2, false, 5.0)],
+            ..Arbiter::default()
+        };
+        arb.break_cycles();
+        assert!(arb.next.contains(&Decision {
+            yielder: 0,
+            goer: 1
+        }));
+        assert!(arb.next.contains(&Decision {
+            yielder: 1,
+            goer: 2
+        }));
+    }
 }
