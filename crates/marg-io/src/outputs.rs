@@ -644,8 +644,9 @@ pub fn data_dictionary() -> String {
                     "f64, utf8, u64",
                     "s",
                     "kinds so far: collision_guard, lateral_move, object_added, object_removed, \
-                     parking_manoeuvre, stop_anywhere, stop_anywhere_standing (agent_id is \
-                     2⁶⁴ − 1 for the object and parking events)",
+                     parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, \
+                     bus_standing, pothole_crossed, pedestrian_crossing (agent_id is 2⁶⁴ − 1 \
+                     for the object, parking and pedestrian events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
@@ -656,14 +657,22 @@ pub fn data_dictionary() -> String {
                      vehicle; other = object and object (its id) against a road object; other = \
                      edge and cut_back_s when the kerb of a narrowing road stopped the vehicle \
                      short. object_added, object_removed: object (id), kind (obstacle, \
-                     parked_vehicle, parking_manoeuvre), length, width, with the footprint's \
+                     parked_vehicle, parking_manoeuvre, waiting_passengers, pedestrians, \
+                     pothole, hump, water), length, width, with the footprint's \
                      centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object \
                      (the id of the footprint that blocks the strip), action (park or unpark), \
                      duration_s, waited_s (how long it waited for the strip to be clear). \
                      stop_anywhere (a vehicle decides to stop, ADR-0014): rate_per_km, \
                      multiplier (the attractor's), pull_over, pull_over_probability, dwell_s, \
                      stop_in_m. stop_anywhere_standing (it has come to a stand): pull_over, \
-                     kerb_gap_m, until (s). lateral_move \
+                     kerb_gap_m, until (s). bus_stop (a bus makes for a stop, ADR-0015): stop, \
+                     stand_at_s, kerb_offset_m, dwell_s; bus_standing: as \
+                     stop_anywhere_standing. pothole_crossed (the front wheels reach a pothole \
+                     in the vehicle's path): pothole, choice (swerve, slow, straddle, hit, or \
+                     unseen under water), speed (m/s), diameter_m, depth_m. \
+                     pedestrian_crossing (when it ends): zone, group, from (left or right), \
+                     accepted_gap_s, waited_at_edge_s, waited_on_road_s, duration_s. \
+                     lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",
                 ),

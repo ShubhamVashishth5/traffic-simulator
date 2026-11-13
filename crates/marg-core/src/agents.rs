@@ -64,6 +64,12 @@ pub struct AgentStore {
     pub stop_until: Vec<f64>,
     /// Stop-anywhere events so far.
     pub stop_count: Vec<u32>,
+    /// How far from the kerb a vehicle that pulls over aims to stand (m).
+    pub stop_offset: Vec<f64>,
+    /// The bus stop it served last (index), or `u32::MAX`.
+    pub stop_last: Vec<u32>,
+    /// The speed it takes a hump at (m/s).
+    pub hump_speed: Vec<f64>,
     pub t_arrival: Vec<f64>,
     pub t_entry: Vec<f64>,
     pub entry_y: Vec<f64>,
@@ -114,6 +120,7 @@ pub struct NewAgent {
     pub kappa: f64,
     pub clearance_scale: f64,
     pub cruising: f64,
+    pub hump_speed: f64,
     pub t_arrival: f64,
     pub t_entry: f64,
 }
@@ -165,6 +172,9 @@ macro_rules! each_column {
         $m!($s.stop_point);
         $m!($s.stop_until);
         $m!($s.stop_count);
+        $m!($s.stop_offset);
+        $m!($s.stop_last);
+        $m!($s.hump_speed);
         $m!($s.t_arrival);
         $m!($s.t_entry);
         $m!($s.entry_y);
@@ -236,6 +246,9 @@ impl AgentStore {
         self.stop_point.push(0.0);
         self.stop_until.push(0.0);
         self.stop_count.push(0);
+        self.stop_offset.push(0.0);
+        self.stop_last.push(u32::MAX);
+        self.hump_speed.push(a.hump_speed);
         self.t_arrival.push(a.t_arrival);
         self.t_entry.push(a.t_entry);
         self.entry_y.push(a.y);
@@ -321,6 +334,7 @@ mod tests {
             kappa: 0.0,
             clearance_scale: 1.0,
             cruising: 0.0,
+            hump_speed: 5.0,
             t_arrival: 0.0,
             t_entry: 0.0,
         }

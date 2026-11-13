@@ -190,6 +190,12 @@ Cars rarely creep in a packed queue because the swing of their corners needs roo
 sides. Without the two rules above the barrier scenario logged 8 guard events and the random
 scenarios 14 outside narrowings; with them, none.
 
+**The creep values matter (P6.8, 2026-11-12).** Parking costs 1.6 times as much capacity as the
+effective width it takes; a plain narrower road costs 1.0 times. The loss is made where the
+parked row begins, by vehicles that stop behind the first parked vehicle and creep out. With
+every class creeping at 1.5 m/s the same kerb is close to one for one
+(`reports/phases/P6.md`). This is the condition under which option B was to be revisited.
+
 **Tried and dropped: keeping a creeping body's corners on the carriageway.** The kerb bounds
 a body's unturned width (since P5), so the corners of a long vehicle that turns beside the kerb
 cross its line: a bus creeping in a queue by up to a metre. Refusing such a turn locks up a

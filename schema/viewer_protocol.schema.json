@@ -283,6 +283,57 @@
         }
       ]
     },
+    "BusStopSpec": {
+      "description": "A kerbside bus stop at the left edge. Buses that serve it pull in, stand\nfor a dwell time and drive on (ADR-0014's stop mechanism); where they\nstand is drawn from the register's offsets (`road.bus.*`).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "length": {
+          "description": "Length of the platform along the road (m).",
+          "type": "number",
+          "format": "double"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "description": "Station of the middle of the platform (m).",
+          "type": "number",
+          "format": "double"
+        },
+        "serving_share": {
+          "description": "Share of passing buses that stop here, 0–1.",
+          "type": "number",
+          "format": "double"
+        },
+        "stop_rate_multiplier": {
+          "description": "Factor on the stop-anywhere rate along the platform (autos and\ne-rickshaws gather at stops); omit for none.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "waiting_passenger_width": {
+          "description": "Width of carriageway taken by passengers waiting on the road along\nthe platform (m); omit for the register's\n`road.bus.waiting_passenger_width`, 0 for none.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s",
+        "length",
+        "serving_share"
+      ]
+    },
     "ChangeView": {
       "type": "object",
       "properties": {
@@ -1651,6 +1702,49 @@
         "frame_columns"
       ]
     },
+    "HumpSpec": {
+      "description": "A speed hump across the road, or part of it.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "length": {
+          "type": "number",
+          "format": "double"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s": {
+          "description": "Station of its middle and its extent along the road (m).",
+          "type": "number",
+          "format": "double"
+        },
+        "y_from": {
+          "description": "Lateral extent; omit either for the carriageway edge. A hump that\nstops short of an edge leaves a gap narrow vehicles can use.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "y_to": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s",
+        "length"
+      ]
+    },
     "Inspector": {
       "type": "object",
       "properties": {
@@ -1904,6 +1998,20 @@
             "$ref": "#/$defs/BarrierSpec"
           }
         },
+        "bus_stops": {
+          "description": "Kerbside bus stops (G§6.3).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BusStopSpec"
+          }
+        },
+        "humps": {
+          "description": "Speed humps (G§6.8).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HumpSpec"
+          }
+        },
         "objects": {
           "description": "Road objects: things with a position and a footprint that vehicles\nreact to (G§6, plan/03-model-design.md §10). They act only through\nusable width, speed caps, gap supply and incentives; there is no\ncapacity or flow factor to set (ADR-0005).",
           "type": "array",
@@ -1918,10 +2026,38 @@
             "$ref": "#/$defs/ParkingSpec"
           }
         },
+        "pedestrian_crossings": {
+          "description": "Stretches where pedestrians cross anywhere (G§6.4).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PedestrianCrossingSpec"
+          }
+        },
+        "pothole_fields": {
+          "description": "Stretches with potholes (G§6.1).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PotholeFieldSpec"
+          }
+        },
         "ribbons": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/RibbonSpec"
+          }
+        },
+        "surfaces": {
+          "description": "Stretches with a gradient or a rough surface (G§6.9, G§6.1): they\nlower desired speeds by class and do nothing else.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SurfaceSpec"
+          }
+        },
+        "waterlogging": {
+          "description": "Standing water (G§6.10).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WaterSpec"
           }
         }
       },
@@ -1947,6 +2083,31 @@
           "description": "A vehicle manoeuvring into or out of a parking space.",
           "type": "string",
           "const": "parking_manoeuvre"
+        },
+        {
+          "description": "Passengers waiting on the carriageway at a bus stop.",
+          "type": "string",
+          "const": "waiting_passengers"
+        },
+        {
+          "description": "A pedestrian, or a group, crossing the road.",
+          "type": "string",
+          "const": "pedestrians"
+        },
+        {
+          "description": "A pothole: not a body; vehicles swerve, slow, straddle or hit it.",
+          "type": "string",
+          "const": "pothole"
+        },
+        {
+          "description": "A speed hump: not a body; a speed cap by vehicle.",
+          "type": "string",
+          "const": "hump"
+        },
+        {
+          "description": "Standing water shallow enough to drive through: a speed cap.",
+          "type": "string",
+          "const": "water"
         }
       ]
     },
@@ -2310,6 +2471,86 @@
         "s_to",
         "occupancy",
         "composition"
+      ]
+    },
+    "PedestrianCrossingSpec": {
+      "description": "A stretch along which pedestrians cross wherever they are (G§6.4).",
+      "type": "object",
+      "properties": {
+        "from_left_share": {
+          "description": "Share that starts from the left edge (the kerb); the rest start from\nthe right edge (the median).",
+          "type": "number",
+          "format": "double"
+        },
+        "id": {
+          "type": "string"
+        },
+        "per_hour": {
+          "description": "Crossings (groups) per hour over the whole stretch.",
+          "type": "number",
+          "format": "double"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s_from": {
+          "type": "number",
+          "format": "double"
+        },
+        "s_to": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s_from",
+        "s_to",
+        "per_hour",
+        "from_left_share"
+      ]
+    },
+    "PotholeFieldSpec": {
+      "description": "A stretch with potholes, placed at random at the start of the run.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kerb_bias": {
+          "description": "How much more often they lie towards the kerb (left): 0 is uniform\nacross the road, 1 is none at the median edge rising linearly to\ntwice the mean at the kerb.",
+          "type": "number",
+          "format": "double"
+        },
+        "per_km": {
+          "description": "Potholes per kilometre of road; omit for `road.pothole.density`.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s_from": {
+          "type": "number",
+          "format": "double"
+        },
+        "s_to": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s_from",
+        "s_to",
+        "kerb_bias"
       ]
     },
     "RibbonSpec": {
@@ -2850,6 +3091,49 @@
         "run_hash"
       ]
     },
+    "SurfaceSpec": {
+      "description": "A stretch with an upgrade and/or a rough surface.",
+      "type": "object",
+      "properties": {
+        "gradient_percent": {
+          "description": "Upgrade in percent (0 or omitted: level).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "id": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "roughness_iri": {
+          "description": "Roughness in IRI units above a smooth surface (omitted: smooth).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "s_from": {
+          "type": "number",
+          "format": "double"
+        },
+        "s_to": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s_from",
+        "s_to"
+      ]
+    },
     "TrajectorySpec": {
       "description": "Trajectory sampling rate and window.",
       "type": "object",
@@ -2956,6 +3240,61 @@
         "bus",
         "truck",
         "tractor"
+      ]
+    },
+    "WaterSpec": {
+      "description": "A patch of standing water. It caps speed on it (from its depth: G§6.10\ncites the depth–speed curve of Pregnolato et al. 2017), or closes the\npatch altogether, and hides the potholes under it.",
+      "type": "object",
+      "properties": {
+        "closed": {
+          "description": "Too deep to drive through: the patch takes its width.",
+          "type": "boolean",
+          "default": false
+        },
+        "id": {
+          "type": "string"
+        },
+        "ribbon": {
+          "type": "string"
+        },
+        "s_from": {
+          "type": "number",
+          "format": "double"
+        },
+        "s_to": {
+          "type": "number",
+          "format": "double"
+        },
+        "speed_cap_kmh": {
+          "description": "Speed vehicles can keep through it (km/h); omit if `closed`.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "y_from": {
+          "description": "Lateral extent; omit either for the carriageway edge.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "y_to": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "ribbon",
+        "s_from",
+        "s_to"
       ]
     },
     "WidthPoint": {

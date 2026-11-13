@@ -13,10 +13,12 @@ pub mod observe;
 pub mod output;
 pub mod params;
 pub mod parking;
+pub mod pedestrians;
 pub mod rng;
 pub mod scan;
 pub mod sim;
 pub mod stopping;
+pub mod surface;
 pub mod width;
 
 pub use output::{

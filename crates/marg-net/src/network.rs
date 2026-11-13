@@ -135,6 +135,12 @@ mod tests {
             objects: vec![],
             parking: vec![],
             attractors: vec![],
+            bus_stops: vec![],
+            pothole_fields: vec![],
+            humps: vec![],
+            surfaces: vec![],
+            waterlogging: vec![],
+            pedestrian_crossings: vec![],
         })
         .unwrap();
         assert_eq!(ok.ribbon(0).next, Some(1));
@@ -145,6 +151,12 @@ mod tests {
             objects: vec![],
             parking: vec![],
             attractors: vec![],
+            bus_stops: vec![],
+            pothole_fields: vec![],
+            humps: vec![],
+            surfaces: vec![],
+            waterlogging: vec![],
+            pedestrian_crossings: vec![],
         });
         assert!(matches!(cyc, Err(NetError::Cycle(_))));
         let unk = Network::build(&NetworkSpec {
@@ -153,6 +165,12 @@ mod tests {
             objects: vec![],
             parking: vec![],
             attractors: vec![],
+            bus_stops: vec![],
+            pothole_fields: vec![],
+            humps: vec![],
+            surfaces: vec![],
+            waterlogging: vec![],
+            pedestrian_crossings: vec![],
         });
         assert!(matches!(unk, Err(NetError::UnknownNext { .. })));
         let mut bad = r("a", None);
@@ -164,6 +182,12 @@ mod tests {
                 objects: vec![],
                 parking: vec![],
                 attractors: vec![],
+                bus_stops: vec![],
+                pothole_fields: vec![],
+                humps: vec![],
+                surfaces: vec![],
+                waterlogging: vec![],
+                pedestrian_crossings: vec![],
             }),
             Err(NetError::BadWidth(_))
         ));

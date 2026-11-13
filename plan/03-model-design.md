@@ -286,6 +286,10 @@ As `u` rises:
 >
 > **P6.3:** how a vehicle stops to pick up or set down, and where those events come from, are in
 > [ADR-0014](decisions/ADR-0014-stop-anywhere.md).
+>
+> **P6.4–P6.7:** bus stops, potholes, humps, gradients, water and pedestrians as built are in
+> [ADR-0015](decisions/ADR-0015-bus-stops-surface-pedestrians.md). Pedestrians are moving road
+> objects with rolling gap acceptance, not agents in the vehicle store (§5).
 
 Every object has a position, a footprint and per-class effects through the four channels. None of
 them has a capacity multiplier.

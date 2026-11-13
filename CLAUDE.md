@@ -37,6 +37,7 @@ cargo test --release -p marg-core --test guard -- --ignored --nocapture   # P5.5
 uv run python scripts/p5_stage3_recovery.py    # P5.8 stage-3 screen + synthetic recovery (~15 min) -> reports/phases/P5_stage3.json
 uv run python scripts/p5_milestone.py          # regenerate reports/phases/P5.md (reads P5_stage3.json)
 node web/e2e/p5_seepage.cjs                    # P5 viewer recording (needs playwright + marg serve)
+uv run python scripts/p6_milestone.py          # regenerate reports/phases/P6.md (93 runs, ~8 min)
 ```
 
 ## Rules

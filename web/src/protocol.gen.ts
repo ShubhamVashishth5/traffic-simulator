@@ -341,7 +341,15 @@ export interface ObjectSpec {
   /**
    * What a road object is.
    */
-  kind?: "obstacle" | "parked_vehicle" | "parking_manoeuvre";
+  kind?:
+    | "obstacle"
+    | "parked_vehicle"
+    | "parking_manoeuvre"
+    | "waiting_passengers"
+    | "pedestrians"
+    | "pothole"
+    | "hump"
+    | "water";
   /**
    * Extent of the footprint along the ribbon (m).
    */
@@ -598,6 +606,14 @@ export interface NetworkSpec {
    */
   barriers?: BarrierSpec[];
   /**
+   * Kerbside bus stops (G§6.3).
+   */
+  bus_stops?: BusStopSpec[];
+  /**
+   * Speed humps (G§6.8).
+   */
+  humps?: HumpSpec[];
+  /**
    * Road objects: things with a position and a footprint that vehicles
    * react to (G§6, plan/03-model-design.md §10). They act only through
    * usable width, speed caps, gap supply and incentives; there is no
@@ -609,7 +625,24 @@ export interface NetworkSpec {
    * is a road object; parking and unparking block space for a while.
    */
   parking?: ParkingSpec[];
+  /**
+   * Stretches where pedestrians cross anywhere (G§6.4).
+   */
+  pedestrian_crossings?: PedestrianCrossingSpec[];
+  /**
+   * Stretches with potholes (G§6.1).
+   */
+  pothole_fields?: PotholeFieldSpec[];
   ribbons: RibbonSpec[];
+  /**
+   * Stretches with a gradient or a rough surface (G§6.9, G§6.1): they
+   * lower desired speeds by class and do nothing else.
+   */
+  surfaces?: SurfaceSpec[];
+  /**
+   * Standing water (G§6.10).
+   */
+  waterlogging?: WaterSpec[];
 }
 /**
  * A stretch of a ribbon along which the stop-anywhere rate of every class
@@ -643,6 +676,56 @@ export interface BarrierSpec {
    * Station of the stop line on the ribbon.
    */
   s: number;
+}
+/**
+ * A kerbside bus stop at the left edge. Buses that serve it pull in, stand
+ * for a dwell time and drive on (ADR-0014's stop mechanism); where they
+ * stand is drawn from the register's offsets (`road.bus.*`).
+ */
+export interface BusStopSpec {
+  id: string;
+  /**
+   * Length of the platform along the road (m).
+   */
+  length: number;
+  ribbon: string;
+  /**
+   * Station of the middle of the platform (m).
+   */
+  s: number;
+  /**
+   * Share of passing buses that stop here, 0–1.
+   */
+  serving_share: number;
+  /**
+   * Factor on the stop-anywhere rate along the platform (autos and
+   * e-rickshaws gather at stops); omit for none.
+   */
+  stop_rate_multiplier?: number | null;
+  /**
+   * Width of carriageway taken by passengers waiting on the road along
+   * the platform (m); omit for the register's
+   * `road.bus.waiting_passenger_width`, 0 for none.
+   */
+  waiting_passenger_width?: number | null;
+}
+/**
+ * A speed hump across the road, or part of it.
+ */
+export interface HumpSpec {
+  id: string;
+  length: number;
+  ribbon: string;
+  /**
+   * Station of its middle and its extent along the road (m).
+   */
+  s: number;
+  /**
+   * Lateral extent; omit either for the carriageway edge. A hump that
+   * stops short of an edge leaves a gap narrow vehicles can use.
+   */
+  y_from?: number | null;
+  y_to?: number | null;
 }
 /**
  * Kerbside parking along one side of a ribbon (G§6.2). Parked vehicles are
@@ -710,6 +793,43 @@ export interface ParkingSpec {
   side?: "left" | "right";
 }
 /**
+ * A stretch along which pedestrians cross wherever they are (G§6.4).
+ */
+export interface PedestrianCrossingSpec {
+  /**
+   * Share that starts from the left edge (the kerb); the rest start from
+   * the right edge (the median).
+   */
+  from_left_share: number;
+  id: string;
+  /**
+   * Crossings (groups) per hour over the whole stretch.
+   */
+  per_hour: number;
+  ribbon: string;
+  s_from: number;
+  s_to: number;
+}
+/**
+ * A stretch with potholes, placed at random at the start of the run.
+ */
+export interface PotholeFieldSpec {
+  id: string;
+  /**
+   * How much more often they lie towards the kerb (left): 0 is uniform
+   * across the road, 1 is none at the median edge rising linearly to
+   * twice the mean at the kerb.
+   */
+  kerb_bias: number;
+  /**
+   * Potholes per kilometre of road; omit for `road.pothole.density`.
+   */
+  per_km?: number | null;
+  ribbon: string;
+  s_from: number;
+  s_to: number;
+}
+/**
  * A ribbon: a reference polyline with a lateral width profile. `y` is
  * positive to the left of the direction of travel; for left-hand traffic the
  * kerb is on the left (`y_max`) and the median on the right (`y_min`).
@@ -737,6 +857,47 @@ export interface WidthPoint {
   s: number;
   y_max: number;
   y_min: number;
+}
+/**
+ * A stretch with an upgrade and/or a rough surface.
+ */
+export interface SurfaceSpec {
+  /**
+   * Upgrade in percent (0 or omitted: level).
+   */
+  gradient_percent?: number | null;
+  id: string;
+  ribbon: string;
+  /**
+   * Roughness in IRI units above a smooth surface (omitted: smooth).
+   */
+  roughness_iri?: number | null;
+  s_from: number;
+  s_to: number;
+}
+/**
+ * A patch of standing water. It caps speed on it (from its depth: G§6.10
+ * cites the depth–speed curve of Pregnolato et al. 2017), or closes the
+ * patch altogether, and hides the potholes under it.
+ */
+export interface WaterSpec {
+  /**
+   * Too deep to drive through: the patch takes its width.
+   */
+  closed?: boolean;
+  id: string;
+  ribbon: string;
+  s_from: number;
+  s_to: number;
+  /**
+   * Speed vehicles can keep through it (km/h); omit if `closed`.
+   */
+  speed_cap_kmh?: number | null;
+  /**
+   * Lateral extent; omit either for the carriageway edge.
+   */
+  y_from?: number | null;
+  y_to?: number | null;
 }
 /**
  * Optional outputs.

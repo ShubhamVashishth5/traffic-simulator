@@ -9,11 +9,12 @@
 //! dwells, and drives on. It stays an agent throughout: others pass it as
 //! they pass any standing vehicle (ADR-0012).
 
+use crate::objects::Objects;
 use crate::params::{CoreParams, N_CLASSES};
 use crate::rng::{StreamKind, StreamRng};
 use marg_net::Network;
 use marg_params::Dist;
-use marg_params::spec::AttractorSpec;
+use marg_params::spec::{NetworkSpec, ObjectKind, ObjectSpec};
 
 /// Counter blocks of an agent's decision stream used here: three per event.
 const EVENT_BLOCK: u64 = 1 << 20;
@@ -45,18 +46,58 @@ pub struct Stopping {
     pull_over: [f64; N_CLASSES],
     dwell: Option<Dist>,
     attractors: Vec<Attractor>,
+    bus_stops: Vec<BusStop>,
+    bus_class: usize,
+    bus_dwell: Option<Dist>,
+    bus_longitudinal: Option<Dist>,
+    bus_lateral: Option<Dist>,
 }
+
+/// A kerbside bus stop (G§6.3).
+#[derive(Debug, Clone, PartialEq)]
+struct BusStop {
+    id: String,
+    ribbon: usize,
+    s: f64,
+    share: f64,
+    /// Width of carriageway taken by waiting passengers (m).
+    passengers: f64,
+}
+
+/// Where and for how long a bus stands at a stop.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BusCall<'a> {
+    pub stop: u32,
+    pub id: &'a str,
+    /// Station at which the bus aims to stand.
+    pub s: f64,
+    /// Gap it aims to leave between itself and the kerb (m).
+    pub offset: f64,
+    pub dwell: f64,
+}
+
+/// Where a bus's stop decisions start in its decision stream.
+const BUS_BASE: u64 = 1 << 51;
 
 impl Stopping {
     pub fn new(
-        specs: &[AttractorSpec],
+        network: &NetworkSpec,
         net: &Network,
         p: &CoreParams,
         seed: u64,
+        objects: &mut Objects,
     ) -> Result<Self, String> {
+        let specs = &network.attractors;
         let mut s = Self {
             seed,
             dwell: p.stopping.dwell.clone(),
+            bus_class: marg_params::VehicleClass::ALL
+                .iter()
+                .position(|c| c.key() == "bus")
+                .unwrap_or(usize::MAX),
+            bus_dwell: p.road.bus_dwell.clone(),
+            bus_longitudinal: p.road.bus_offset_longitudinal.clone(),
+            bus_lateral: p.road.bus_offset_lateral.clone(),
             ..Self::default()
         };
         for (c, class) in marg_params::VehicleClass::ALL.iter().enumerate() {
@@ -118,13 +159,143 @@ impl Stopping {
                 multiplier: spec.stop_rate_multiplier,
             });
         }
+        for (k, spec) in network.bus_stops.iter().enumerate() {
+            let bad = |m: String| format!("bus stop `{}`: {m}", spec.id);
+            let unset = |path: &str| {
+                bad(format!(
+                    "the register's `{path}` is unset: set it in the scenario's overrides"
+                ))
+            };
+            if spec.id.is_empty() || network.bus_stops[..k].iter().any(|o| o.id == spec.id) {
+                return Err(bad("ids must be unique and not empty".into()));
+            }
+            let (from, to) = (spec.s - 0.5 * spec.length, spec.s + 0.5 * spec.length);
+            let ribbon = crate::surface::stretch(net, &spec.ribbon, from, to).map_err(bad)?;
+            if !(0.0..=1.0).contains(&spec.serving_share) {
+                return Err(bad("serving_share must be between 0 and 1".into()));
+            }
+            if s.bus_dwell.is_none() {
+                return Err(unset("road.bus.dwell_time"));
+            }
+            if s.bus_longitudinal.is_none() {
+                return Err(unset("road.bus.stop_offset_longitudinal"));
+            }
+            if s.bus_lateral.is_none() {
+                return Err(unset("road.bus.stop_offset_lateral"));
+            }
+            let passengers = match spec.waiting_passenger_width {
+                Some(w) => w,
+                None => p
+                    .road
+                    .waiting_passenger_width
+                    .ok_or_else(|| unset("road.bus.waiting_passenger_width"))?,
+            };
+            if passengers.is_nan() || passengers < 0.0 {
+                return Err(bad("waiting_passenger_width must not be negative".into()));
+            }
+            if passengers > 0.0 {
+                // Passengers waiting on the road: a strip along the platform.
+                let kerb = net.ribbon(ribbon).y_bounds(spec.s).1;
+                objects.add(
+                    &ObjectSpec {
+                        id: format!("{}/passengers", spec.id),
+                        kind: ObjectKind::WaitingPassengers,
+                        ribbon: spec.ribbon.clone(),
+                        s: spec.s,
+                        y: kerb - 0.5 * passengers,
+                        length: spec.length,
+                        width: passengers,
+                        clearance_as: None,
+                        response: Default::default(),
+                        present: Vec::new(),
+                    },
+                    net,
+                    None,
+                )?;
+            }
+            if let Some(multiplier) = spec.stop_rate_multiplier {
+                if !s.enabled || multiplier.is_nan() || multiplier < 0.0 {
+                    return Err(bad("stop_rate_multiplier needs a stop-anywhere rate \
+                         (`road.stop_anywhere.rate.*`) and must not be negative"
+                        .into()));
+                }
+                s.attractors.push(Attractor {
+                    ribbon,
+                    s_from: from,
+                    s_to: to,
+                    multiplier,
+                });
+            }
+            s.bus_stops.push(BusStop {
+                id: spec.id.clone(),
+                ribbon,
+                s: spec.s,
+                share: spec.serving_share,
+                passengers,
+            });
+        }
         Ok(s)
     }
 
-    /// Whether any class stops anywhere.
+    /// Whether any vehicle may stop: anywhere, or a bus at a bus stop.
     #[inline]
     pub fn enabled(&self) -> bool {
-        self.enabled
+        self.enabled || !self.bus_stops.is_empty()
+    }
+
+    /// Whether a vehicle of `class` may have a bus stop to serve.
+    #[inline]
+    pub fn serves_bus_stops(&self, class: usize) -> bool {
+        class == self.bus_class && !self.bus_stops.is_empty()
+    }
+
+    /// The next stop that bus `id` at station `s` of ribbon `r` serves,
+    /// if it is within `reach` m: where it aims to stand and for how long.
+    /// `last` is the stop it served last.
+    pub fn bus_call(
+        &self,
+        id: u64,
+        r: usize,
+        s: f64,
+        reach: f64,
+        last: u32,
+    ) -> Option<BusCall<'_>> {
+        let mut best: Option<BusCall> = None;
+        for (k, stop) in self.bus_stops.iter().enumerate() {
+            if stop.ribbon != r || k as u32 == last {
+                continue;
+            }
+            let rng = |draw: u64| {
+                StreamRng::at(
+                    self.seed,
+                    StreamKind::Decisions,
+                    id,
+                    BUS_BASE + (4 * k as u64 + draw) * EVENT_BLOCK,
+                )
+            };
+            if rng(0).uniform() >= stop.share {
+                continue;
+            }
+            let sample =
+                |d: &Option<Dist>, draw: u64| d.as_ref().map_or(0.0, |d| d.sample(&mut rng(draw)));
+            let at = stop.s + sample(&self.bus_longitudinal, 1);
+            if at <= s || at - s > reach || best.as_ref().is_some_and(|b| b.s <= at) {
+                continue;
+            }
+            let dwell = sample(&self.bus_dwell, 3);
+            best = Some(BusCall {
+                stop: k as u32,
+                id: &stop.id,
+                s: at,
+                offset: stop.passengers + sample(&self.bus_lateral, 2).max(0.0),
+                dwell: if dwell > 0.0 {
+                    dwell
+                } else {
+                    self.bus_dwell.as_ref().map_or(0.0, Dist::mean)
+                },
+            });
+        }
+        best
     }
 
     /// Stops per metre of a class outside attractors.

@@ -26,9 +26,11 @@ use crate::output::{
 };
 use crate::params::{CoreParams, Drawn};
 use crate::parking::Parking;
+use crate::pedestrians::Pedestrians;
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use crate::stopping::Stopping;
+use crate::surface::Surface;
 use crate::width::WidthObservers;
 use marg_net::Network;
 use marg_params::spec::ObjectSpec;
@@ -126,6 +128,10 @@ pub struct Simulation {
     objects: Objects,
     /// Stop-anywhere events (ADR-0014).
     stopping: Stopping,
+    /// Potholes, humps, water, gradients, roughness.
+    surface: Surface,
+    /// Pedestrians crossing midblock.
+    pedestrians: Pedestrians,
     /// Effective-width observers (G§6.2).
     widths: WidthObservers,
     /// Kerbside parking: parked vehicles are objects; this runs the
@@ -265,7 +271,11 @@ impl Simulation {
         }
         let parking = Parking::new(&scenario.network.parking, &net, &p, seed, &mut objects)
             .map_err(SimError::InvalidScenario)?;
-        let stopping = Stopping::new(&scenario.network.attractors, &net, &p, seed)
+        let stopping = Stopping::new(&scenario.network, &net, &p, seed, &mut objects)
+            .map_err(SimError::InvalidScenario)?;
+        let surface = Surface::new(&scenario.network, &net, &p, seed, &mut objects)
+            .map_err(SimError::InvalidScenario)?;
+        let pedestrians = Pedestrians::new(&scenario.network.pedestrian_crossings, &net, &p, seed)
             .map_err(SimError::InvalidScenario)?;
         let widths = WidthObservers::new(&scenario.outputs.effective_width, &net, &p)
             .map_err(SimError::InvalidScenario)?;
@@ -296,6 +306,8 @@ impl Simulation {
             objects,
             parking,
             stopping,
+            surface,
+            pedestrians,
             widths,
             narrow,
             edge_stops: Vec::new(),
@@ -609,6 +621,11 @@ impl Simulation {
         &self.objects.all
     }
 
+    /// Pedestrians crossing midblock.
+    pub fn pedestrians(&self) -> &Pedestrians {
+        &self.pedestrians
+    }
+
     /// Kerbside parking stretches and their state.
     pub fn parking(&self) -> &Parking {
         &self.parking
@@ -655,6 +672,7 @@ impl Simulation {
             barriers: &self.barriers,
             objects: &self.objects,
             narrow: &self.narrow,
+            surface: &self.surface,
             cut,
             steer_cut: p.steering_cutoff_distance(),
             l_max: self.agents.length.iter().copied().fold(0.0, f64::max),
@@ -713,6 +731,37 @@ impl Simulation {
             b.is_closed = b.closed.iter().any(|&(from, to)| t >= from && t < to);
         }
         let (events, net) = (&mut self.events, &self.net);
+        if !self.pedestrians.is_empty() {
+            self.pedestrians.step(
+                t,
+                self.dt,
+                &self.agents,
+                &self.orders,
+                net,
+                &self.p,
+                &mut self.objects,
+                |c| {
+                    events.push(EventRecord {
+                        t,
+                        kind: "pedestrian_crossing",
+                        agent_id: NO_AGENT,
+                        ribbon: net.ribbon(c.ribbon).id.clone(),
+                        s: c.s,
+                        y: c.y,
+                        attrs: format!(
+                            "{{\"zone\":{},\"group\":{},\"from\":\"{}\",\"accepted_gap_s\":{},\"waited_at_edge_s\":{},\"waited_on_road_s\":{},\"duration_s\":{}}}",
+                            json_string(&c.zone),
+                            c.group,
+                            if c.from_left { "left" } else { "right" },
+                            c.accepted_gap,
+                            c.waited_at_edge,
+                            c.waited_on_road,
+                            c.duration
+                        ),
+                    });
+                },
+            );
+        }
         self.parking.step(
             t,
             &self.agents,
@@ -892,6 +941,8 @@ impl Simulation {
         self.edge_stops.clear();
         let cruising = self.parking.any_cruising();
         let stopping = self.stopping.enabled();
+        let speed_zones = self.surface.any_zones();
+        let potholes = self.surface.any_potholes() && self.objects.any_active();
         for i in 0..a.len() {
             let (v, acc) = (a.v[i], a.acc[i]);
             let v1 = v + acc * dt;
@@ -1015,6 +1066,16 @@ impl Simulation {
             // The median band's speed bonus follows the lateral position.
             let in_band = y1 - edge_lo < p.median_band_width;
             a.v0[i] = a.v0_base[i] + if in_band { a.v0_bonus[i] } else { 0.0 };
+            // A gradient or a rough surface lowers the desired speed.
+            if speed_zones {
+                a.v0[i] = self.surface.desired_speed(
+                    r,
+                    a.s[i],
+                    usize::from(a.class[i]),
+                    a.v0[i],
+                    p.stop_rearm_above,
+                );
+            }
             // A vehicle looking for a parking space drives slowly along the
             // stretch (a speed cap, G§6.2).
             if cruising
@@ -1024,22 +1085,57 @@ impl Simulation {
             {
                 a.v0[i] = a.v0[i].min(cap);
             }
-            if stopping && a.stop_exposure[i] < f64::INFINITY {
+            if stopping
+                && (a.stop_exposure[i] < f64::INFINITY
+                    || self.stopping.serves_bus_stops(usize::from(a.class[i])))
+            {
                 let class = usize::from(a.class[i]);
+                let idm = Idm {
+                    v0: a.v0[i],
+                    time_gap: a.time_gap[i],
+                    standstill_gap: a.standstill_gap[i],
+                    max_accel: a.max_accel[i],
+                    comfortable_decel: a.comfortable_decel[i],
+                    exponent: p.accel_exponent,
+                };
+                // A bus makes for a stop it serves from as far off as
+                // drivers look ahead; it brakes for it when it has to.
+                let call = if a.stop_state[i] == STOP_NONE && self.stopping.serves_bus_stops(class)
+                {
+                    self.stopping
+                        .bus_call(a.id[i], r, a.s[i], p.lookahead, a.stop_last[i])
+                } else {
+                    None
+                };
+                if let Some(call) = &call {
+                    a.stop_state[i] = STOP_PULLING_OVER;
+                    a.stop_point[i] = a.distance[i] + (call.s - a.s[i]) + a.standstill_gap[i];
+                    a.stop_until[i] = call.dwell;
+                    a.stop_offset[i] = call.offset;
+                    a.stop_last[i] = call.stop;
+                    self.events.push(EventRecord {
+                        t: self.t + dt,
+                        kind: "bus_stop",
+                        agent_id: a.id[i],
+                        ribbon: self.net.ribbon(r).id.clone(),
+                        s: a.s[i],
+                        y: y1,
+                        attrs: format!(
+                            "{{\"stop\":{},\"stand_at_s\":{},\"kerb_offset_m\":{},\"dwell_s\":{}}}",
+                            json_string(call.id),
+                            call.s,
+                            call.offset,
+                            call.dwell
+                        ),
+                    });
+                }
                 match a.stop_state[i] {
+                    _ if call.is_some() => {}
                     STOP_NONE => {
                         let multiplier = self.stopping.multiplier(r, a.s[i]);
                         a.stop_exposure[i] -= ds * multiplier;
                         if a.stop_exposure[i] <= 0.0 {
                             let d = self.stopping.decide(a.id[i], class, a.stop_count[i]);
-                            let idm = Idm {
-                                v0: a.v0[i],
-                                time_gap: a.time_gap[i],
-                                standstill_gap: a.standstill_gap[i],
-                                max_accel: a.max_accel[i],
-                                comfortable_decel: a.comfortable_decel[i],
-                                exponent: p.accel_exponent,
-                            };
                             // Where its following model would begin to
                             // respond to something standing in its way.
                             let ahead = idm.desired_gap(a.v[i], a.v[i], 1.0, 1.0);
@@ -1049,6 +1145,7 @@ impl Simulation {
                                 STOP_IN_PLACE
                             };
                             a.stop_point[i] = a.distance[i] + ahead;
+                            a.stop_offset[i] = 0.0;
                             a.stop_until[i] = d.dwell;
                             a.y_target[i] = y1;
                             self.events.push(EventRecord {
@@ -1078,14 +1175,25 @@ impl Simulation {
                         }
                     }
                     _ => {
-                        if a.v[i] < p.stop_speed_below {
+                        // A bus stands at its stop, or right behind a bus
+                        // that is standing there; held up further back, it
+                        // is only in a queue. Anything else stands where it
+                        // has come to a stop.
+                        let there = !self.stopping.serves_bus_stops(class)
+                            || a.stop_point[i] - a.distance[i]
+                                <= a.length[i] + 2.0 * a.standstill_gap[i];
+                        if a.v[i] < p.stop_speed_below && there {
                             let pulled_over = a.stop_state[i] == STOP_PULLING_OVER;
                             a.stop_state[i] = STOP_STANDING;
                             a.stop_until[i] += self.t + dt;
                             a.y_target[i] = y1;
                             self.events.push(EventRecord {
                                 t: self.t + dt,
-                                kind: "stop_anywhere_standing",
+                                kind: if self.stopping.serves_bus_stops(class) {
+                                    "bus_standing"
+                                } else {
+                                    "stop_anywhere_standing"
+                                },
                                 agent_id: a.id[i],
                                 ribbon: self.net.ribbon(r).id.clone(),
                                 s: a.s[i],
@@ -1099,6 +1207,43 @@ impl Simulation {
                         }
                     }
                 }
+            }
+            if potholes {
+                let (half, class) = (0.5 * a.length[i], usize::from(a.class[i]));
+                let (events, surface, net) = (&mut self.events, &self.surface, &self.net);
+                let (id, kappa, v, s, width) = (a.id[i], a.kappa[i], a.v[i], a.s[i], a.width[i]);
+                self.objects
+                    .near(net, &self.prev, r, s, half, half, |o, along| {
+                        // The front wheels reach the hole in this step.
+                        let reach = along - 0.5 * o.length - half;
+                        if o.kind != marg_params::spec::ObjectKind::Pothole
+                            || reach > 0.0
+                            || reach <= -ds
+                            || edge_gap(y1, 0.5 * width, o.y, 0.5 * o.width) >= 0.0
+                        {
+                            return;
+                        }
+                        let choice = if o.hidden {
+                            "unseen"
+                        } else {
+                            ["swerve", "slow", "straddle", "hit"]
+                                [surface.pothole_choice(id, class, kappa, o.serial)]
+                        };
+                        events.push(EventRecord {
+                            t: self.t + dt,
+                            kind: "pothole_crossed",
+                            agent_id: id,
+                            ribbon: net.ribbon(r).id.clone(),
+                            s,
+                            y: y1,
+                            attrs: format!(
+                                "{{\"pothole\":{},\"choice\":\"{choice}\",\"speed\":{v},\"diameter_m\":{},\"depth_m\":{}}}",
+                                json_string(&o.id),
+                                o.width,
+                                o.depth
+                            ),
+                        });
+                    });
             }
             if a.v[i] < p.stop_speed_below {
                 if a.stop_armed[i] {
@@ -1540,6 +1685,7 @@ impl Simulation {
             kappa: d.kappa,
             clearance_scale,
             cruising: d.cruising,
+            hump_speed: d.hump_speed,
             t_arrival: arr.t_arrival,
             t_entry: self.t,
         };

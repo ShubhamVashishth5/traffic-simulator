@@ -18,7 +18,9 @@ use crate::model::lateral::{
 use crate::model::longitudinal::Idm;
 use crate::objects::{EDGE_LEADER, EdgeAhead, Narrowings, Objects};
 use crate::params::CoreParams;
+use crate::surface::{Role, Surface};
 use marg_net::Network;
+use marg_params::spec::ObjectKind;
 use std::cell::RefCell;
 
 thread_local! {
@@ -125,6 +127,8 @@ pub struct MoveCtx<'a> {
     /// Road objects, and where the carriageway narrows.
     pub objects: &'a Objects,
     pub narrow: &'a Narrowings,
+    /// Potholes, humps, water: how each vehicle takes them.
+    pub surface: &'a Surface,
     /// Lateral distance beyond the minimum clearance at which a leader's
     /// weight, and a side neighbour's steering response, are cut off.
     pub cut: f64,
@@ -242,6 +246,30 @@ impl Sides {
     }
 }
 
+/// The acceleration of a driver who must be down to `speed` in `gap` m
+/// (zero or less: now). Faster than that, he brakes at `b_kin² / b`, where
+/// `b_kin = (v² − speed²) / (2·gap)` is the constant rate that would just do
+/// it: the Intelligent Driver Model's braking strategy (Treiber & Kesting,
+/// Traffic Flow Dynamics, §11.3), gentle while far off and settling at
+/// `b_kin`. He does not accelerate beyond the speed from which comfortable
+/// braking still gets there, `√(speed² + 2·b·gap)`.
+#[inline]
+fn approach(idm: &Idm, v: f64, speed: f64, gap: f64) -> f64 {
+    let gap = gap.max(0.0);
+    let allowed = (speed * speed + 2.0 * idm.comfortable_decel * gap).sqrt();
+    let free = Idm {
+        v0: allowed.min(idm.v0),
+        ..*idm
+    }
+    .free_accel(v);
+    if v > speed && gap > 0.0 {
+        let kinematic = (v * v - speed * speed) / (2.0 * gap);
+        free.min(-kinematic * kinematic / idm.comfortable_decel)
+    } else {
+        free
+    }
+}
+
 impl MoveCtx<'_> {
     #[inline]
     fn idm(&self, i: usize) -> Idm {
@@ -343,6 +371,9 @@ impl MoveCtx<'_> {
             (f64::NEG_INFINITY, f64::NEG_INFINITY)
         };
         let mut turn_room = f64::INFINITY;
+        // How far ahead the road surface can be seen: to the rear of the
+        // nearest vehicle in the way (it hides a pothole beyond it).
+        let mut seen_to = f64::INFINITY;
         let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
         'scan: loop {
             let order = &self.orders[ribbon];
@@ -470,6 +501,9 @@ impl MoveCtx<'_> {
                     lead = (weighted, a.id[j]);
                 }
                 acc = acc.min(weighted);
+                if excess <= 0.0 {
+                    seen_to = seen_to.min(gap_s);
+                }
                 if excess <= 0.0 && horizon == p.lookahead {
                     cov.add(a.y[j] - hwj - c_min, a.y[j] + hwj + c_min);
                     if cov.full() {
@@ -575,6 +609,36 @@ impl MoveCtx<'_> {
                 horizon - 0.5 * self.l_max
             };
             let near = |o: &crate::objects::RoadObject, ds: f64| {
+                if o.on_surface() {
+                    // Not a body: something the vehicle drives over, if
+                    // it is in its way at all.
+                    let gap_s = ds.abs() - 0.5 * (l + o.length);
+                    if (gap_s > 0.0 && ds < 0.0)
+                        || edge_gap(y, half_body, o.y, 0.5 * o.width) >= 0.0
+                    {
+                        return;
+                    }
+                    let role = self.surface.role(
+                        o,
+                        a.id[i],
+                        ci,
+                        a.kappa[i],
+                        a.hump_speed[i],
+                        gap_s,
+                        seen_to,
+                    );
+                    let speed = match role {
+                        Role::Slow { speed, .. } => speed,
+                        Role::Over { speed } if gap_s <= 0.0 => speed,
+                        _ => return,
+                    };
+                    let slow = approach(&idm, v, speed, gap_s).max(-p.emergency_decel);
+                    if slow < lead.0 {
+                        lead = (slow, o.leader_id());
+                    }
+                    acc = acc.min(slow);
+                    return;
+                }
                 if !o.blocks[ci] {
                     return;
                 }
@@ -612,7 +676,12 @@ impl MoveCtx<'_> {
                 if gap_s <= no_cut_in_ahead {
                     sides.wall(left, y, gy);
                 }
-                if excess > self.cut {
+                // A bus pulling in draws up alongside the passengers waiting
+                // on the road: they are beside its path, not in it.
+                let alongside = o.kind == ObjectKind::WaitingPassengers
+                    && a.stop_state[i] == STOP_PULLING_OVER
+                    && gy >= 0.0;
+                if excess > self.cut || alongside {
                     return;
                 }
                 let (mt, ms) = p.object_multipliers(ci, o.clearance_class);
@@ -687,7 +756,10 @@ impl MoveCtx<'_> {
         let due = (self.step.wrapping_add(a.id[i])).is_multiple_of(self.decision_steps)
             || lead.1 != a.decision_leader[i];
         let (target, choice) = if stop == STOP_PULLING_OVER {
-            (self.net.ribbon(r).y_bounds(s).1 - 0.5 * a.width[i], None)
+            (
+                self.net.ribbon(r).y_bounds(s).1 - 0.5 * a.width[i] - a.stop_offset[i],
+                None,
+            )
         } else if stop == STOP_IN_PLACE {
             (a.y_target[i], None)
         } else if due {
@@ -1065,6 +1137,39 @@ impl MoveCtx<'_> {
         let mut full = false;
         if self.objects.any_active() {
             let near = |o: &crate::objects::RoadObject, ds: f64| {
+                if o.on_surface() && !full {
+                    // A line over a hump, water or a pothole the driver
+                    // means to steer round is worth what slowing for it costs.
+                    let gap_s = ds.abs() - 0.5 * (l + o.length);
+                    if gap_s > 0.0 && ds < 0.0 {
+                        return;
+                    }
+                    let role = self.surface.role(
+                        o,
+                        a.id[i],
+                        ci,
+                        a.kappa[i],
+                        a.hump_speed[i],
+                        gap_s,
+                        f64::INFINITY,
+                    );
+                    let Role::Slow { speed, avoid: true } = role else {
+                        return;
+                    };
+                    let accel = approach(idm, v, speed, gap_s).max(-p.emergency_decel);
+                    if free - accel < p.switch_threshold {
+                        return;
+                    }
+                    full = !nb.push_leader(LeaderTerm {
+                        y: o.y,
+                        half_width: 0.5 * o.width,
+                        accel,
+                        c_min: 0.0,
+                        c_des: 0.0,
+                        near: false,
+                    });
+                    return;
+                }
                 if !o.blocks[ci] || full {
                     return;
                 }

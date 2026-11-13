@@ -195,7 +195,7 @@ Five of thirteen phases are built. Phase-by-phase evidence is in
 | P3 | Experiments, twins, SLURM backend, sensitivity, staged calibration, reports | done; milestone partial (below) |
 | P4 | Web viewer: live sessions, replay, twin compare, schema-driven parameter panel | done, except a rendering check that needs a GPU |
 | P5 | Lateral behaviour, filtering, seepage, 2-D conflicts | done |
-| P6 | Road objects and side friction (parking, bus stops, potholes, humps, rain, pedestrians) | in progress: objects and kerbside parking done |
+| P6 | Road objects and side friction (parking, bus stops, potholes, humps, rain, pedestrians) | done; the width–capacity target is missed (see `reports/phases/P6.md`) |
 | P7 | Junctions, signals, gap acceptance, median openings, splits, roundabouts | planned |
 | P8 | Personas, violations, imitation, signal control states | planned |
 | P9 | Zones, enforcement fields, scenario bundles (rain, night, fog, GRAP, EVs) | planned |

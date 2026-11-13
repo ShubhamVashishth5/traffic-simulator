@@ -1,0 +1,93 @@
+name: side_friction_street
+description: >
+  P6 showcase: one busy 10.5 m street with everything side friction offers. Kerbside parking
+  with double parking and manoeuvres, a bus stop with passengers on the road, autos and
+  e-rickshaws stopping anywhere (more at the stop), pedestrians crossing at a market, a
+  potholed stretch partly under water, and a speed hump that stops short of the kerb.
+  Every effect acts through width, speed caps, gap supply or incentives (G§6, ADR-0005).
+
+  The guide has no numbers for most of these inputs (register: unset). The values here are
+  placeholders to exercise the mechanisms, not survey results.
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1600, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+  parking:
+    - id: kerb
+      ribbon: main
+      s_from: 200
+      s_to: 450
+      occupancy: 0.7
+      composition: {hatchback: 0.5, sedan: 0.2, motorcycle: 0.2, auto_rickshaw: 0.1}
+      offset_from_kerb: {dist: uniform, min: 0.1, max: 0.6}
+      double_parking_probability: 0.05
+      manoeuvres_per_100m_h: 15
+      cruising_share: 0.03
+  bus_stops:
+    - {id: stop, ribbon: main, s: 600, length: 30, serving_share: 0.8, waiting_passenger_width: 0.5, stop_rate_multiplier: 5}
+  pedestrian_crossings:
+    - {id: market, ribbon: main, s_from: 750, s_to: 850, per_hour: 300, from_left_share: 0.5}
+  pothole_fields:
+    - {id: rough, ribbon: main, s_from: 950, s_to: 1200, per_km: 60, kerb_bias: 0.6}
+  waterlogging:
+    - {id: puddle, ribbon: main, s_from: 1100, s_to: 1150, y_from: 2.0, speed_cap_kmh: 15}
+  humps:
+    - {id: hump, ribbon: main, s: 1350, length: 3.7, y_to: 4.2}
+demand:
+  entries:
+    - id: stream
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 1800}
+      composition:
+        hatchback: 0.22
+        sedan: 0.10
+        suv: 0.06
+        motorcycle: 0.23
+        scooter: 0.18
+        auto_rickshaw: 0.12
+        e_rickshaw: 0.04
+        bus: 0.03
+        lcv: 0.02
+detectors:
+  - {kind: screenline, id: s100, ribbon: main, s: 100, interval_s: 300}
+  - {kind: screenline, id: s1500, ribbon: main, s: 1500, interval_s: 300}
+  - {kind: area, id: street, ribbon: main, s_from: 200, s_to: 1400, interval_s: 300}
+kpi:
+  throughput_detector: s1500
+outputs:
+  effective_width:
+    - {id: street, ribbon: main, s_from: 200, s_to: 1400, bin_m: 50}
+overrides:
+  road.parking.manoeuvre_duration: {dist: log_normal_median, median: 20, sigma: 0.5}
+  road.parking.cruising_speed: 15
+  road.stop_anywhere.rate.auto_rickshaw: 0.4
+  road.stop_anywhere.rate.e_rickshaw: 0.6
+  road.stop_anywhere.pull_over_probability.auto_rickshaw: 0.7
+  road.stop_anywhere.pull_over_probability.e_rickshaw: 0.4
+  road.stop_anywhere.dwell: {dist: log_normal_median, median: 20, sigma: 0.6}
+  road.bus.dwell_time: {dist: log_normal_median, median: 20, sigma: 0.5}
+  road.bus.stop_offset_longitudinal: {dist: normal, mean: 0, sd: 5}
+  road.bus.stop_offset_lateral: {dist: uniform, min: 0.2, max: 0.8}
+  road.pedestrian.accepted_gap: {dist: log_normal_median, median: 4, sigma: 0.3}
+  road.pedestrian.group_size: {dist: uniform, min: 0.5, max: 3.5}
+  road.pedestrian.walking_speed: 1.2
+  road.pedestrian.body_size: 0.6
+  road.pothole.detection_distance: 30
+  road.pothole.aggressiveness_link: 0.5
+  road.pothole.crossing_speed.two_wheeler: 10
+  road.pothole.crossing_speed.car: 15
+  road.pothole.crossing_speed.heavy: 20
+  road.pothole.response.two_wheeler.swerve: 0.7
+  road.pothole.response.two_wheeler.slow: 0.2
+  road.pothole.response.two_wheeler.straddle: 0.0
+  road.pothole.response.car.swerve: 0.4
+  road.pothole.response.car.slow: 0.35
+  road.pothole.response.car.straddle: 0.15
+  road.pothole.response.heavy.swerve: 0.1
+  road.pothole.response.heavy.slow: 0.6
+  road.pothole.response.heavy.straddle: 0.2
