@@ -391,9 +391,6 @@ fn stopped_vehicles_pull_out_from_behind_a_parked_car() {
         "{}",
         kpi(&out, "throughput_veh_h")
     );
-    for e in out.events.iter().filter(|e| e.kind == "collision_guard") {
-        eprintln!("DBG {e:?}");
-    }
     assert_eq!(kpi(&out, "collision_guard_events"), 0.0);
     eprintln!(
         "{} vehicles stopped behind the parked car; {still_there} of them still behind it at the end",
