@@ -594,3 +594,63 @@ entries:
     register_row: 9.6/waterlogging
     range: [0.0, 1.0]
     notes: "Depth-dependent speed cap per flooded segment; take the curve from the paper in P6.6."
+  split.late_awareness_distance:
+    value: null
+    unit: "m"
+    grade: C
+    role: sweep
+    source: "No Indian study found (guide §6.7)"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 1000.0]
+    notes: "Distance before a split at which a late realiser learns which branch it needs (a distribution). Unset: a scenario with a split must supply it (ADR-0017)."
+  split.route_weight:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No Indian study found (guide §6.7); form in ADR-0017"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 20.0]
+    notes: "w_route in m/s2 per metre: utility of each metre a lateral target brings the vehicle nearer its branch, at full urgency (u = tan(theta_max)); scaled by u below that (ADR-0017)."
+  split.urgency_clearance_link:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No Indian study found (guide §6.7: 'as u rises the agent accepts smaller lateral gaps'); form in ADR-0017"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 3.0]
+    notes: "gamma_u: at full urgency the clearance a vehicle keeps to side neighbours when it chooses a lateral target is scaled by exp(-gamma_u) (ADR-0017)."
+  junction.turn_lateral_acceleration:
+    value: null
+    unit: "m/s2"
+    grade: C
+    role: sweep
+    source: "Not in the guide (ADR-0009: the lateral acceleration that sets speed from radius)"
+    guide: "§6.7"
+    register_row: p7/junctions
+    range: [0.5, 6.0]
+    notes: "Speed on a curved ribbon inside a junction is capped at sqrt(a_lat * radius): a speed cap from geometry (ADR-0005). Unset: turning ribbons have no cap."
+  junction.roundabout.entry_critical_gap_factor:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Not in the guide (ADR-0009). The guide's critical gaps are from uncontrolled intersections, not roundabout entries"
+    guide: "§2.4"
+    register_row: p7/junctions
+    range: [0.1, 2.0]
+    notes: "Factor on each class's critical gap (interaction.gap_acceptance.critical_gap.*) at a roundabout entry. Unset: a scenario with a roundabout must supply it."
+  junction.roundabout.priority_compliance:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Not in the guide (ADR-0009)"
+    guide: "§2.4"
+    register_row: p7/junctions
+    range: [0.0, 1.0]
+    notes: "Share of entrants who wait for a gap in the circulating stream; the rest enter and sort it out on the ring. Unset: a scenario with a roundabout must supply it."

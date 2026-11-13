@@ -5,8 +5,10 @@
 //! Agents live in `(ribbon, s, y)`; world coordinates are only for output,
 //! the viewer and cross-ribbon interaction.
 
+pub mod junction;
 pub mod network;
 pub mod ribbon;
 
+pub use junction::{Arm, ConflictArea, ConflictKind, Control, Junction, Movement, Phase, Turn};
 pub use network::{NetError, Network};
 pub use ribbon::Ribbon;

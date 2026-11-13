@@ -566,6 +566,7 @@ mod tests {
             surfaces: vec![],
             waterlogging: vec![],
             pedestrian_crossings: vec![],
+            junctions: vec![],
         })
         .unwrap()
     }

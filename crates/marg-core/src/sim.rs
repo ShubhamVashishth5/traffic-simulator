@@ -10,10 +10,11 @@
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
 use crate::agents::{
-    AgentStore, NO_AGENT, NewAgent, REMOVED, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER,
-    STOP_STANDING,
+    AgentStore, NO_AGENT, NO_RIBBON, NewAgent, REMOVED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_WAIT,
+    STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
 };
 use crate::demand::{Arrival, Demand, Draws, draw_one};
+use crate::junctions::{Junctions, draw_turn, onward};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
 use crate::model::lateral::{ChoiceParams, body_half_width, body_stretch, edge_gap};
@@ -27,6 +28,7 @@ use crate::output::{
 use crate::params::{CoreParams, Drawn};
 use crate::parking::Parking;
 use crate::pedestrians::Pedestrians;
+use crate::rng::{StreamKind, StreamRng};
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use crate::stopping::Stopping;
@@ -138,6 +140,13 @@ pub struct Simulation {
     /// manoeuvres and knows where vehicles cruise for a space.
     parking: Parking,
     narrow: Narrowings,
+    /// Junctions: signals, vehicles near each junction, cycle records.
+    junctions: Junctions,
+    /// Counts of what happened at splits (KPIs).
+    split_waits: u64,
+    split_give_ups: u64,
+    missed_branches: u64,
+    gaps_accepted: u64,
     /// Agents the kerb stopped this step: index, and how far each was cut back.
     edge_stops: Vec<(u32, f64)>,
     /// Steps between an agent's scheduled lateral decisions.
@@ -222,6 +231,7 @@ impl Simulation {
         for r in 0..n_ribbons {
             if let Some(n) = net.ribbon(r).next
                 && prev[n].is_none()
+                && net.ribbon(n).preds == 1
             {
                 prev[n] = Some(r);
             }
@@ -280,6 +290,7 @@ impl Simulation {
         let widths = WidthObservers::new(&scenario.outputs.effective_width, &net, &p)
             .map_err(SimError::InvalidScenario)?;
         let narrow = Narrowings::new(&net);
+        let junctions = Junctions::new(&net, &p).map_err(SimError::InvalidScenario)?;
         let decision_steps = decision_steps(&p, scenario.dt_s);
         Ok(Self {
             dt: scenario.dt_s,
@@ -310,6 +321,11 @@ impl Simulation {
             pedestrians,
             widths,
             narrow,
+            junctions,
+            split_waits: 0,
+            split_give_ups: 0,
+            missed_branches: 0,
+            gaps_accepted: 0,
             edge_stops: Vec::new(),
             decision_steps,
             conflicts: Vec::new(),
@@ -694,6 +710,8 @@ impl Simulation {
             vy_max,
             c_min_cap,
             v_max: fold(&a.v),
+            junctions: &self.junctions,
+            seed: self.seed,
         }
     }
 
@@ -810,6 +828,25 @@ impl Simulation {
                 ),
             });
         });
+        self.junctions
+            .step(t, &mut self.agents, &self.orders, net, &self.p, |ch| {
+                let j = &net.junctions[ch.junction];
+                events.push(EventRecord {
+                    t,
+                    kind: "signal_state",
+                    agent_id: NO_AGENT,
+                    ribbon: String::new(),
+                    s: f64::NAN,
+                    y: f64::NAN,
+                    attrs: format!(
+                        "{{\"junction\":{},\"phase\":{},\"state\":\"{}\",\"lasts_s\":{}}}",
+                        json_string(&j.id),
+                        ch.phase,
+                        ch.state,
+                        ch.lasts
+                    ),
+                });
+            });
         let mut buf = std::mem::take(&mut self.move_buf);
         {
             let ctx = self.move_ctx();
@@ -871,8 +908,111 @@ impl Simulation {
                 self.agents.y_target[i] = c.target;
             }
             self.track_conflict(i, out, t);
+            if self.junctions.enabled {
+                self.apply_junction(i, &out.junction, t);
+            }
         }
         self.move_buf = buf;
+    }
+
+    /// Record what agent `i` decided at the stop line ahead this step.
+    fn apply_junction(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        let a = &mut self.agents;
+        let junction_id = |a: &AgentStore| {
+            self.net
+                .junctions
+                .get(a.turn_junction[i] as usize)
+                .map_or(String::new(), |j| j.id.clone())
+        };
+        let event = |a: &AgentStore, kind: &'static str, attrs: String| EventRecord {
+            t,
+            kind,
+            agent_id: a.id[i],
+            ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+            s: a.s[i],
+            y: a.y[i],
+            attrs,
+        };
+        if jo.aware && !a.aware[i] {
+            a.aware[i] = true;
+        }
+        if jo.split != SPLIT_NONE && a.split_state[i] == SPLIT_NONE {
+            a.split_state[i] = jo.split;
+            if jo.split == SPLIT_WAIT || jo.split == SPLIT_GAVE_UP {
+                let waits = jo.split == SPLIT_WAIT;
+                if waits {
+                    self.split_waits += 1;
+                } else {
+                    self.split_give_ups += 1;
+                }
+                let ev = event(
+                    a,
+                    "split_decision",
+                    format!(
+                        "{{\"junction\":{},\"decision\":\"{}\",\"stop_and_wait_probability\":{},\"urgency\":{},\"needed_move_m\":{},\"late_realiser\":{},\"speed\":{}}}",
+                        json_string(&junction_id(a)),
+                        if waits { "stop_and_wait" } else { "give_up" },
+                        jo.split_p,
+                        jo.urgency,
+                        jo.needed_move,
+                        a.late_realiser[i],
+                        a.v[i]
+                    ),
+                );
+                self.events.push(ev);
+            }
+        }
+        let a = &mut self.agents;
+        if jo.held && a.v[i] < self.p.stop_speed_below {
+            if a.wait_since[i].is_nan() {
+                a.wait_since[i] = t;
+            }
+            a.queued[i] = true;
+        }
+        if jo.gap.is_nan() {
+            return;
+        }
+        if jo.accepted {
+            a.gate_open[i] = true;
+            self.gaps_accepted += 1;
+            let waited = if a.wait_since[i].is_nan() {
+                0.0
+            } else {
+                t - a.wait_since[i]
+            };
+            let finite = |x: f64| {
+                if x.is_finite() {
+                    format!("{x}")
+                } else {
+                    "null".to_string()
+                }
+            };
+            let ev = event(
+                a,
+                "gap_accepted",
+                format!(
+                    "{{\"junction\":{},\"gap_s\":{},\"critical_gap_s\":{},\"largest_rejected_s\":{},\"rejected\":{},\"waited_s\":{},\"against_class\":{},\"speed\":{}}}",
+                    json_string(&junction_id(a)),
+                    finite(jo.gap),
+                    finite(jo.needed),
+                    finite(a.gap_rejected[i]),
+                    a.gap_rejects[i],
+                    waited,
+                    if jo.gap_ref == NO_AGENT {
+                        "null".to_string()
+                    } else {
+                        format!("\"{}\"", VehicleClass::ALL[usize::from(jo.gap_class)].key())
+                    },
+                    a.v[i]
+                ),
+            );
+            self.events.push(ev);
+        } else if jo.gap_ref != a.gap_ref[i] {
+            // A new gap, turned down.
+            a.gap_ref[i] = jo.gap_ref;
+            a.gap_rejects[i] += 1;
+            a.gap_rejected[i] = a.gap_rejected[i].max(jo.gap);
+        }
     }
 
     /// Extend, close or open agent `i`'s conflict episode (ADR-0010 §6). An
@@ -967,7 +1107,9 @@ impl Simulation {
             let reach = (ds * p.max_heading_tan).max(creep);
             let dy = (a.vy[i] * dt).clamp(-reach, reach);
             let r = a.ribbon[i] as usize;
-            let (mut edge_lo, mut edge_hi) = chain_bounds(&self.net, r, a.s[i]);
+            let turn = (a.turn_junction[i], a.turn_out[i]);
+            let (mut edge_lo, mut edge_hi) =
+                chain_bounds(&self.net, self.seed, a.id[i], turn, r, a.s[i]);
             let (mut road_lo, mut road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
             let (y0, (lim_lo, lim_hi)) = (a.y[i], self.y_limits[i]);
             // A body widens as it turns (ADR-0010 §4): its corners swing out
@@ -1028,7 +1170,8 @@ impl Simulation {
                         0.0
                     };
                     ds = fraction * full;
-                    (edge_lo, edge_hi) = chain_bounds(&self.net, r, s0 + ds);
+                    (edge_lo, edge_hi) =
+                        chain_bounds(&self.net, self.seed, a.id[i], turn, r, s0 + ds);
                     (road_lo, road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
                     y1 = y0.clamp(road_lo, road_hi);
                     if y1 >= kerb_lo && y1 <= kerb_hi {
@@ -1066,6 +1209,10 @@ impl Simulation {
             // The median band's speed bonus follows the lateral position.
             let in_band = y1 - edge_lo < p.median_band_width;
             a.v0[i] = a.v0_base[i] + if in_band { a.v0_bonus[i] } else { 0.0 };
+            // A curve inside a junction caps the speed (ADR-0009, ADR-0016).
+            if self.junctions.any_caps {
+                a.v0[i] = a.v0[i].min(self.junctions.speed_cap[r]);
+            }
             // A gradient or a rough surface lowers the desired speed.
             if speed_zones {
                 a.v0[i] = self.surface.desired_speed(
@@ -1351,6 +1498,7 @@ impl Simulation {
                     let i = self.orders[r][k] as usize;
                     let reach = 0.5 * (self.agents.length[i] + l_max) + slack;
                     let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
+                    let mut turn = (self.agents.turn_junction[i], self.agents.turn_out[i]);
                     'scan: loop {
                         while pos < self.orders[ribbon].len() {
                             let j = self.orders[ribbon][pos] as usize;
@@ -1385,9 +1533,12 @@ impl Simulation {
                             self.guard_restore(back, Against::Agent(other), depth, t);
                             changed = true;
                         }
-                        match self.net.ribbon(ribbon).next {
+                        match onward(&self.net, self.seed, self.agents.id[i], ribbon, &mut turn) {
                             Some(n) => {
                                 offset += self.net.ribbon(ribbon).length();
+                                if offset - self.agents.s_prev[i] > reach {
+                                    break;
+                                }
                                 ribbon = n;
                                 pos = 0;
                             }
@@ -1398,6 +1549,96 @@ impl Simulation {
             }
             if !changed {
                 break;
+            }
+        }
+        if self.junctions.enabled {
+            self.junction_guard(t, &mut any);
+        }
+    }
+
+    /// The body of agent `i` in world coordinates, now or before the step.
+    fn world_body(&self, i: usize, before: bool) -> Body {
+        let a = &self.agents;
+        let rib = self.net.ribbon(a.ribbon[i] as usize);
+        let (s, y, tan) = if before {
+            (a.s_prev[i], a.y_prev[i], a.heading_tan_prev[i])
+        } else {
+            (a.s[i], a.y[i], a.heading_tan[i])
+        };
+        let (x, yw, _) = rib.to_world(s, y);
+        let d = rib.direction(s);
+        let cos_t = 1.0 / (1.0 + tan * tan).sqrt();
+        let sin_t = tan * cos_t;
+        Body {
+            s: x,
+            y: yw,
+            half_length: 0.5 * a.length[i],
+            half_width: 0.5 * a.width[i],
+            cos: d[0] * cos_t - d[1] * sin_t,
+            sin: d[1] * cos_t + d[0] * sin_t,
+        }
+    }
+
+    /// The collision guard between vehicles on different ribbons near a
+    /// junction, in world coordinates (ADR-0016): a vehicle that drove into
+    /// another this step goes back to where it was.
+    fn junction_guard(&mut self, t: f64, any: &mut bool) {
+        for g in 0..self.junctions.members.len() {
+            let n = self.junctions.members[g].len();
+            if n < 2 {
+                continue;
+            }
+            let reach = {
+                let a = &self.agents;
+                let l = a.length.iter().copied().fold(0.0, f64::max);
+                let w = a.width.iter().copied().fold(0.0, f64::max);
+                l.hypot(w)
+            };
+            let mut bodies: Vec<Body> = (0..n)
+                .map(|k| self.world_body(self.junctions.members[g][k].i as usize, false))
+                .collect();
+            for x in 0..n {
+                for z in x + 1..n {
+                    let (mx, mz) = (self.junctions.members[g][x], self.junctions.members[g][z]);
+                    let (rx, rz) = (mx.ribbon as usize, mz.ribbon as usize);
+                    if rx == rz || !self.junctions.related(rx, rz) {
+                        continue;
+                    }
+                    let (bx, bz) = (bodies[x], bodies[z]);
+                    if (bx.s - bz.s).abs() > reach
+                        || (bx.y - bz.y).abs() > reach
+                        || !overlap(&bx, &bz)
+                    {
+                        continue;
+                    }
+                    let (i, j) = (mx.i as usize, mz.i as usize);
+                    // Already overlapping before the step (a handover
+                    // between frames): let them drive apart.
+                    if overlap(&self.world_body(i, true), &self.world_body(j, true)) {
+                        continue;
+                    }
+                    if !*any {
+                        *any = true;
+                        self.guard_restored.clear();
+                        self.guard_restored.resize(self.agents.len(), false);
+                    }
+                    let depth = penetration(&bx, &bz);
+                    let (back, other, slot) = if !self.guard_restored[i] {
+                        (i, j, x)
+                    } else if !self.guard_restored[j] {
+                        (j, i, z)
+                    } else {
+                        continue;
+                    };
+                    self.guard_restore(back, Against::Agent(other), depth, t);
+                    bodies[slot] = self.world_body(back, false);
+                    // If it was the other that moved into it, that one
+                    // goes back too.
+                    if overlap(&bodies[x], &bodies[z]) && !self.guard_restored[other] {
+                        self.guard_restore(other, Against::Agent(back), depth, t);
+                        bodies[if slot == x { z } else { x }] = self.world_body(other, false);
+                    }
+                }
             }
         }
     }
@@ -1461,13 +1702,22 @@ impl Simulation {
                 if self.agents.s[i] < len {
                     break;
                 }
-                match self.net.ribbon(r).next {
+                if self.junctions.enabled {
+                    self.before_line(i, r, t);
+                }
+                let mut turn = (self.agents.turn_junction[i], self.agents.turn_out[i]);
+                match onward(&self.net, self.seed, self.agents.id[i], r, &mut turn) {
                     Some(n) => {
                         self.agents.s[i] -= len;
                         self.agents.s_prev[i] -= len;
                         self.agents.conflict_s[i] -= len;
                         self.agents.ribbon[i] = n as u32;
                         moved = true;
+                        if self.junctions.enabled {
+                            self.agents.turn_junction[i] = turn.0;
+                            self.agents.turn_out[i] = turn.1;
+                            self.after_line(i, r, n, t);
+                        }
                     }
                     None => {
                         let a = &self.agents;
@@ -1486,6 +1736,161 @@ impl Simulation {
             }
             if moved && !self.agents.exited[i] {
                 self.transferred.push(i as u32);
+            }
+        }
+    }
+
+    /// Agent `i` reaches the end of ribbon `r`. At a split it takes the
+    /// branch it is in, whatever it wanted (G§6.7).
+    fn before_line(&mut self, i: usize, r: usize, t: f64) {
+        let rib = self.net.ribbon(r);
+        let (Some(j), Some(arm)) = (rib.junction, rib.arm_in) else {
+            return;
+        };
+        let a = &self.agents;
+        if a.turn_junction[i] as usize != j {
+            return;
+        }
+        let (out, y) = (usize::from(a.turn_out[i]), a.y[i]);
+        let Some((lo, hi)) = self.junctions.window_of(&self.net, j, arm, out) else {
+            return;
+        };
+        if (y >= lo && y <= hi) || !self.junctions.hard_window(&self.net, j, arm, out) {
+            return;
+        }
+        let jn = &self.net.junctions[j];
+        let took = jn.movements.iter().enumerate().find(|(m, mv)| {
+            mv.from == arm
+                && mv.to != out
+                && (!self.junctions.hard_window(&self.net, j, arm, mv.to)
+                    || self.junctions.window[j][*m].is_none_or(|(lo, hi)| y >= lo && y <= hi))
+        });
+        let Some((_, mv)) = took else { return };
+        self.missed_branches += 1;
+        self.events.push(EventRecord {
+            t,
+            kind: "missed_branch",
+            agent_id: a.id[i],
+            ribbon: rib.id.clone(),
+            s: a.s[i],
+            y,
+            attrs: format!(
+                "{{\"junction\":{},\"wanted\":{},\"took\":{},\"aware\":{},\"gave_up\":{},\"late_realiser\":{}}}",
+                json_string(&jn.id),
+                json_string(&jn.arms[out].id),
+                json_string(&jn.arms[mv.to].id),
+                a.aware[i],
+                a.split_state[i] == SPLIT_GAVE_UP,
+                a.late_realiser[i]
+            ),
+        });
+        self.agents.turn_out[i] = mv.to as u8;
+    }
+
+    /// Agent `i` moved from ribbon `r` onto `n`.
+    fn after_line(&mut self, i: usize, r: usize, n: usize, t: f64) {
+        let (rib, nrib) = (self.net.ribbon(r), self.net.ribbon(n));
+        self.agents.came_from[i] = r as u32;
+        if let (Some(j), Some(arm)) = (rib.junction, rib.arm_in) {
+            // It crossed a stop line.
+            let a = &self.agents;
+            let (s0, s1) = (a.s_prev[i], a.s[i]);
+            let t_cross = if s1 > s0 {
+                t - self.dt * (s1 / (s1 - s0)).clamp(0.0, 1.0)
+            } else {
+                t
+            };
+            self.junctions.crossed(j, arm, t_cross, a.queued[i]);
+            let jn = &self.net.junctions[j];
+            let out = usize::from(a.turn_out[i]);
+            let movement = jn.movement_of[arm][out].map(|m| jn.movements[m].turn);
+            if Junctions::countdown(&self.net, j).is_some() {
+                self.events.push(EventRecord {
+                    t: t_cross,
+                    kind: "stop_line_crossed",
+                    agent_id: a.id[i],
+                    ribbon: rib.id.clone(),
+                    s: rib.length(),
+                    y: a.y[i],
+                    attrs: format!(
+                        "{{\"junction\":{},\"arm\":{},\"to\":{},\"queued\":{},\"waited_s\":{},\"speed\":{},\"light\":{}}}",
+                        json_string(&jn.id),
+                        json_string(&jn.arms[arm].id),
+                        json_string(&jn.arms[out].id),
+                        a.queued[i],
+                        if a.wait_since[i].is_nan() {
+                            0.0
+                        } else {
+                            t_cross - a.wait_since[i]
+                        },
+                        a.v[i],
+                        self.junctions.light[n]
+                    ),
+                });
+            }
+            // A U-turning vehicle makes for the place where it joins the
+            // receiving carriageway (G§6.7).
+            let mut land = f64::NAN;
+            if movement == Some(marg_net::Turn::UTurn)
+                && jn.kind == marg_params::spec::JunctionKind::Box
+                && let Some(rout) = jn.arms[out].outbound
+            {
+                let (lo, hi) = self.net.ribbon(rout).y_bounds(0.0);
+                let jp = &self.p.junction;
+                let path = jn.u_turn_path.as_ref().or(if hi - lo >= jp.six_lane_width {
+                    jp.u_turn_path_six.as_ref()
+                } else {
+                    jp.u_turn_path_four.as_ref()
+                });
+                if let Some(path) = path {
+                    let mut rng = StreamRng::at(
+                        self.seed,
+                        StreamKind::Decisions,
+                        a.id[i],
+                        U_TURN_BASE + j as u64,
+                    );
+                    let from_median = path.sample(&mut rng).max(0.0);
+                    let half = 0.5 * a.width[i];
+                    land = (lo + from_median + half).min(hi - half).max(lo + half);
+                    self.events.push(EventRecord {
+                        t: t_cross,
+                        kind: "u_turn",
+                        agent_id: a.id[i],
+                        ribbon: rib.id.clone(),
+                        s: rib.length(),
+                        y: a.y[i],
+                        attrs: format!(
+                            "{{\"junction\":{},\"path_from_median_m\":{},\"joins_at_y\":{},\"receiving_width_m\":{}}}",
+                            json_string(&jn.id),
+                            from_median,
+                            land,
+                            hi - lo
+                        ),
+                    });
+                }
+            }
+            let a = &mut self.agents;
+            a.land_y[i] = land;
+            a.gate_open[i] = false;
+            a.wait_since[i] = f64::NAN;
+            a.gap_ref[i] = NO_AGENT;
+            a.gap_rejected[i] = f64::NAN;
+            a.gap_rejects[i] = 0;
+            a.queued[i] = false;
+            a.aware[i] = false;
+            a.split_state[i] = SPLIT_NONE;
+            a.decision_leader[i] = crate::agents::UNDECIDED;
+        }
+        if !nrib.internal {
+            // Out of the junction: the next one ahead, if any.
+            let a = &mut self.agents;
+            a.land_y[i] = f64::NAN;
+            match nrib.ahead {
+                Some((j2, arm2)) => {
+                    a.turn_junction[i] = j2 as u32;
+                    a.turn_out[i] = draw_turn(self.seed, a.id[i], &self.net, j2, arm2);
+                }
+                None => a.turn_junction[i] = NO_RIBBON,
             }
         }
     }
@@ -1688,8 +2093,16 @@ impl Simulation {
             hump_speed: d.hump_speed,
             t_arrival: arr.t_arrival,
             t_entry: self.t,
+            critical_gap: d.critical_gap,
+            heavy_factor: d.heavy_factor,
+            aware_distance: d.aware_distance,
+            late_realiser: d.late_realiser,
         };
         let i = self.agents.push(new);
+        if let Some((j, arm)) = self.net.ribbon(r).ahead {
+            self.agents.turn_junction[i as usize] = j as u32;
+            self.agents.turn_out[i as usize] = draw_turn(self.seed, arr.id, &self.net, j, arm);
+        }
         if self.stopping.enabled() {
             self.agents.stop_exposure[i as usize] =
                 self.stopping.exposure(arr.id, class.index(), 0);
@@ -1871,6 +2284,7 @@ impl Simulation {
                 .then(x.other_id.cmp(&y.other_id))
         });
         let kpis = self.kpis_with(&agents, &conflicts);
+        self.junctions.finish(&self.net, self.t);
         let ribbons = self.net.ribbons.iter().map(|r| r.id.clone()).collect();
         Ok((
             summary,
@@ -1880,6 +2294,7 @@ impl Simulation {
                 events: std::mem::take(&mut self.events),
                 conflicts,
                 effective_width: self.widths.records(&self.net),
+                signal_cycles: std::mem::take(&mut self.junctions.cycles),
                 kpis,
                 ribbons,
             },
@@ -1964,9 +2379,16 @@ impl Simulation {
             ("conflicts_sideswipe", count("sideswipe")),
             ("lateral_moves", lateral_moves as f64),
             ("lateral_decisions", self.lateral_decisions as f64),
+            ("gaps_accepted", self.gaps_accepted as f64),
+            ("split_stop_and_wait", self.split_waits as f64),
+            ("split_give_up", self.split_give_ups as f64),
+            ("missed_branches", self.missed_branches as f64),
         ]
     }
 }
+
+/// Counter block of the U-turn path draw (`StreamKind::Decisions`).
+const U_TURN_BASE: u64 = 5 << 40;
 
 /// What the collision guard put a vehicle back for.
 #[derive(Debug, Clone, Copy)]
@@ -1997,16 +2419,26 @@ fn json_string(text: &str) -> String {
 /// chain when `s` is beyond the ribbon's end (a vehicle changes ribbon at
 /// the end of the step that takes it across).
 #[inline]
-fn chain_bounds(net: &Network, r: usize, s: f64) -> (f64, f64) {
+fn chain_bounds(
+    net: &Network,
+    seed: u64,
+    id: u64,
+    mut turn: (u32, u8),
+    r: usize,
+    s: f64,
+) -> (f64, f64) {
     let (mut r, mut s) = (r, s);
     loop {
         let ribbon = net.ribbon(r);
-        match ribbon.next {
-            Some(n) if s >= ribbon.length() => {
+        if s < ribbon.length() {
+            return ribbon.y_bounds(s);
+        }
+        match onward(net, seed, id, r, &mut turn) {
+            Some(n) => {
                 s -= ribbon.length();
                 r = n;
             }
-            _ => return ribbon.y_bounds(s),
+            None => return ribbon.y_bounds(s),
         }
     }
 }

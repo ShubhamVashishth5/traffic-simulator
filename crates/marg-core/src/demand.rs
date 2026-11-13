@@ -51,6 +51,14 @@ pub struct Draws {
     /// The speed the driver takes a speed hump at (m/s); infinite if the
     /// register has no hump speed.
     pub hump_speed: f64,
+    /// Critical gap at an uncontrolled junction (s), before any factor.
+    pub critical_gap: f64,
+    /// Factor on it against a heavy vehicle.
+    pub heavy_factor: f64,
+    /// Whether the driver is a late realiser at splits, and how far before
+    /// a split it learns its branch (m; infinite if the register has none).
+    pub late_realiser: bool,
+    pub aware_distance: f64,
 }
 
 /// Replace a non-positive draw (possible in a normal's far tail) by the mean.
@@ -83,6 +91,9 @@ impl Draws {
     pub fn sample(seed: u64, id: u64, vtype: VehicleType, p: &CoreParams) -> Self {
         let cp = &p.classes[vtype.class().index()];
         let draw = |drawn| draw_one(seed, id, vtype, p, drawn);
+        let kappa = p.kappa_mean
+            + p.kappa_sd * marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, 9));
+        let late_realiser = draw_rng(seed, id, 14).uniform() < p.junction.late_share.unwrap_or(0.0);
         Draws {
             length: draw(Drawn::Length),
             width: draw(Drawn::Width),
@@ -96,13 +107,28 @@ impl Draws {
                 .sample(&mut draw_rng(seed, id, 7))
                 .clamp(0.0, 1.0),
             median_band_bonus: p.median_band_bonus.sample(&mut draw_rng(seed, id, 8)),
-            kappa: p.kappa_mean
-                + p.kappa_sd
-                    * marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, 9)),
+            kappa,
             cruising: draw_rng(seed, id, 10).uniform(),
             hump_speed: p.road.hump_speed.as_ref().map_or(f64::INFINITY, |d| {
                 positive(d.sample(&mut draw_rng(seed, id, 11)), d.mean())
             }),
+            critical_gap: {
+                let d = &p.junction.critical_gap[vtype.class().index()];
+                positive(d.sample(&mut draw_rng(seed, id, 12)), d.mean())
+                    * libm::exp(-p.junction.gap_link * kappa)
+            },
+            heavy_factor: p.junction.heavy_factor.sample(&mut draw_rng(seed, id, 13)),
+            late_realiser,
+            aware_distance: {
+                let d = if late_realiser {
+                    p.junction.late_awareness.as_ref()
+                } else {
+                    p.junction.awareness.as_ref()
+                };
+                d.map_or(f64::INFINITY, |d| {
+                    positive(d.sample(&mut draw_rng(seed, id, 15)), d.mean())
+                })
+            },
         }
     }
 }

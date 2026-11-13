@@ -574,6 +574,11 @@ export interface EntrySpec {
    * Station of the entry on the ribbon.
    */
   s?: number;
+  /**
+   * Feed the entry from a signal upstream instead of letting arrivals
+   * in as they come (G§7.3).
+   */
+  upstream_signal?: UpstreamSignalSpec | null;
 }
 /**
  * Flow from time `from_s` onwards.
@@ -581,6 +586,19 @@ export interface EntrySpec {
 export interface FlowInterval {
   from_s: number;
   veh_per_h: number;
+}
+/**
+ * A signal upstream of an entry, not otherwise simulated: arrivals wait
+ * in the entry's queue while it is red and are let in while it is green,
+ * so they enter in platoons (G§7.3).
+ */
+export interface UpstreamSignalSpec {
+  cycle_s: number;
+  green_s: number;
+  /**
+   * Time into the cycle at simulated time 0 (s); green comes first.
+   */
+  offset_s?: number;
 }
 /**
  * Which detectors the headline KPIs use.
@@ -613,6 +631,11 @@ export interface NetworkSpec {
    * Speed humps (G§6.8).
    */
   humps?: HumpSpec[];
+  /**
+   * Junctions: places where ribbons meet and vehicles choose where to
+   * go (G§2.4, §6.6, §6.7; ADR-0009, ADR-0016).
+   */
+  junctions?: JunctionSpec[];
   /**
    * Road objects: things with a position and a footprint that vehicles
    * react to (G§6, plan/03-model-design.md §10). They act only through
@@ -726,6 +749,113 @@ export interface HumpSpec {
    */
   y_from?: number | null;
   y_to?: number | null;
+}
+/**
+ * A junction: arms (a ribbon arriving, a ribbon leaving, or both), the
+ * share of each arriving stream that leaves by each arm, and who goes
+ * first. The builder makes the ribbons inside it.
+ *
+ * - `box`: one wide, lane-free movement ribbon from each arriving arm to
+ *   each arm its traffic leaves by, and the areas where two of them overlap.
+ *   A median opening is a box with two opposite carriageways as arms and
+ *   U-turn shares.
+ * - `split`: the arriving ribbon hands over directly to the leaving
+ *   ribbons, which must start where it ends and share its frame (each
+ *   takes part of its width). A vehicle must be inside its branch's part of
+ *   the width when it gets there (G§6.7).
+ * - `roundabout`: a ring of arc ribbons round `centre`, with a connector
+ *   from each arriving arm onto the ring and one off it to each leaving
+ *   arm (ADR-0009). Traffic circulates clockwise (left-hand traffic).
+ */
+export interface JunctionSpec {
+  arms: ArmSpec[];
+  /**
+   * Roundabout: centre of the island (world metres), radius of the
+   * middle of the circulating carriageway and its width (m).
+   *
+   * @minItems 2
+   * @maxItems 2
+   */
+  centre?: [number, number] | null;
+  /**
+   * Who goes first.
+   */
+  control?:
+    | {
+        kind: "uncontrolled";
+        major?: string[];
+      }
+    | {
+        /**
+         * The countdown display. It changes nothing while every driver
+         * complies (P7); violations read it from P8 on.
+         */
+        countdown?: "none" | "working" | "broken";
+        kind: "signal";
+        /**
+         * Time into the cycle at simulated time 0 (s).
+         */
+        offset_s?: number;
+        /**
+         * Stages in order; the cycle is the sum of their times.
+         */
+        phases: PhaseSpec[];
+      };
+  id: string;
+  /**
+   * How a junction is built.
+   */
+  kind?: "box" | "split" | "roundabout";
+  ring_radius?: number | null;
+  ring_width?: number | null;
+  /**
+   * Split: how far before the split its sign can be read (m); omit for
+   * the register's `split.sign_visibility_distance`.
+   */
+  sign_visibility_distance?: number | null;
+  /**
+   * Turning shares: arriving arm → leaving arm → share (normalised per
+   * arriving arm; count them at the site, G§7.5). A pair that is absent
+   * or zero gets no movement.
+   */
+  turns: {
+    [k: string]: {
+      [k: string]: number;
+    };
+  };
+  /**
+   * U-turns (a movement back out by the arm it came in by, or whose
+   * leaving ribbon runs against the arriving one): how far from the
+   * median edge of the receiving carriageway a U-turning vehicle joins
+   * it (m). Omit for the register's `gap_acceptance.u_turn.path.*`.
+   */
+  u_turn_path?: Dist | null;
+}
+/**
+ * One arm of a junction.
+ */
+export interface ArmSpec {
+  id: string;
+  /**
+   * The ribbon that arrives here; its end is the stop line.
+   */
+  in?: string | null;
+  /**
+   * The ribbon that leaves from here.
+   */
+  out?: string | null;
+}
+/**
+ * One stage of a fixed-time plan: green for every movement from `arms`
+ * (and for the listed `movements`, written `from>to`), then amber, then
+ * red for all.
+ */
+export interface PhaseSpec {
+  all_red_s?: number;
+  amber_s: number;
+  arms?: string[];
+  green_s: number;
+  movements?: string[];
 }
 /**
  * Kerbside parking along one side of a ribbon (G§6.2). Parked vehicles are

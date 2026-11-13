@@ -93,6 +93,153 @@ pub struct NetworkSpec {
     /// Stretches where pedestrians cross anywhere (G§6.4).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub pedestrian_crossings: Vec<PedestrianCrossingSpec>,
+    /// Junctions: places where ribbons meet and vehicles choose where to
+    /// go (G§2.4, §6.6, §6.7; ADR-0009, ADR-0016).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub junctions: Vec<JunctionSpec>,
+}
+
+/// A junction: arms (a ribbon arriving, a ribbon leaving, or both), the
+/// share of each arriving stream that leaves by each arm, and who goes
+/// first. The builder makes the ribbons inside it.
+///
+/// - `box`: one wide, lane-free movement ribbon from each arriving arm to
+///   each arm its traffic leaves by, and the areas where two of them overlap.
+///   A median opening is a box with two opposite carriageways as arms and
+///   U-turn shares.
+/// - `split`: the arriving ribbon hands over directly to the leaving
+///   ribbons, which must start where it ends and share its frame (each
+///   takes part of its width). A vehicle must be inside its branch's part of
+///   the width when it gets there (G§6.7).
+/// - `roundabout`: a ring of arc ribbons round `centre`, with a connector
+///   from each arriving arm onto the ring and one off it to each leaving
+///   arm (ADR-0009). Traffic circulates clockwise (left-hand traffic).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct JunctionSpec {
+    pub id: String,
+    #[serde(default)]
+    pub kind: JunctionKind,
+    pub arms: Vec<ArmSpec>,
+    /// Turning shares: arriving arm → leaving arm → share (normalised per
+    /// arriving arm; count them at the site, G§7.5). A pair that is absent
+    /// or zero gets no movement.
+    pub turns: IndexMap<String, IndexMap<String, f64>>,
+    /// Who goes first.
+    #[serde(default)]
+    pub control: ControlSpec,
+    /// Roundabout: centre of the island (world metres), radius of the
+    /// middle of the circulating carriageway and its width (m).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub centre: Option<[f64; 2]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ring_radius: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ring_width: Option<f64>,
+    /// Split: how far before the split its sign can be read (m); omit for
+    /// the register's `split.sign_visibility_distance`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sign_visibility_distance: Option<f64>,
+    /// U-turns (a movement back out by the arm it came in by, or whose
+    /// leaving ribbon runs against the arriving one): how far from the
+    /// median edge of the receiving carriageway a U-turning vehicle joins
+    /// it (m). Omit for the register's `gap_acceptance.u_turn.path.*`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub u_turn_path: Option<Dist>,
+}
+
+/// How a junction is built.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum JunctionKind {
+    #[default]
+    Box,
+    Split,
+    Roundabout,
+}
+
+/// One arm of a junction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArmSpec {
+    pub id: String,
+    /// The ribbon that arrives here; its end is the stop line.
+    #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
+    pub inbound: Option<String>,
+    /// The ribbon that leaves from here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub out: Option<String>,
+}
+
+/// Who goes first at a junction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ControlSpec {
+    /// No signal. Movements from `major` arms have priority over the
+    /// others; lower-priority movements wait for a gap (G§2.4). With no
+    /// major arm every movement has the same priority and nobody waits for
+    /// a gap: vehicles sort it out inside the junction.
+    Uncontrolled {
+        #[serde(default)]
+        major: Vec<String>,
+    },
+    /// A fixed-time signal (G§6.6, normal state).
+    Signal {
+        /// Stages in order; the cycle is the sum of their times.
+        phases: Vec<PhaseSpec>,
+        /// Time into the cycle at simulated time 0 (s).
+        #[serde(default)]
+        offset_s: f64,
+        /// The countdown display. It changes nothing while every driver
+        /// complies (P7); violations read it from P8 on.
+        #[serde(default)]
+        countdown: CountdownState,
+    },
+}
+
+impl Default for ControlSpec {
+    fn default() -> Self {
+        ControlSpec::Uncontrolled { major: Vec::new() }
+    }
+}
+
+/// A signal's countdown display.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CountdownState {
+    #[default]
+    None,
+    Working,
+    Broken,
+}
+
+/// One stage of a fixed-time plan: green for every movement from `arms`
+/// (and for the listed `movements`, written `from>to`), then amber, then
+/// red for all.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PhaseSpec {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub arms: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub movements: Vec<String>,
+    pub green_s: f64,
+    pub amber_s: f64,
+    #[serde(default)]
+    pub all_red_s: f64,
+}
+
+/// A signal upstream of an entry, not otherwise simulated: arrivals wait
+/// in the entry's queue while it is red and are let in while it is green,
+/// so they enter in platoons (G§7.3).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct UpstreamSignalSpec {
+    pub cycle_s: f64,
+    pub green_s: f64,
+    /// Time into the cycle at simulated time 0 (s); green comes first.
+    #[serde(default)]
+    pub offset_s: f64,
 }
 
 /// A kerbside bus stop at the left edge. Buses that serve it pull in, stand
@@ -424,6 +571,10 @@ pub struct EntrySpec {
     /// Share of each vehicle type in the stream (normalised; count it at the
     /// site — registration shares are not the stream, G§7.1).
     pub composition: IndexMap<VehicleType, f64>,
+    /// Feed the entry from a signal upstream instead of letting arrivals
+    /// in as they come (G§7.3).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_signal: Option<UpstreamSignalSpec>,
 }
 
 /// Flow from time `from_s` onwards.

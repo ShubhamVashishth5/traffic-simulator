@@ -734,6 +734,94 @@ pub fn choose_target(p: &ChoiceParams, me: &Subject, nb: &mut Neighbours) -> Cho
     }
 }
 
+/// The lateral target of a driver who must be inside `[lo_w, hi_w]` (its
+/// centre) further on, and is not (plan/03-model-design.md §9, ADR-0017):
+/// among the candidates on the way there, the one with the highest utility
+/// of ADR-0010 §3 plus `weight` (m/s² per metre) for each metre it brings
+/// the vehicle nearer the interval, if that beats the switching threshold.
+/// `None`: no such candidate; the ordinary choice applies.
+pub fn choose_towards(
+    p: &ChoiceParams,
+    me: &Subject,
+    nb: &mut Neighbours,
+    lo_w: f64,
+    hi_w: f64,
+    weight: f64,
+) -> Option<Choice> {
+    let away = |y: f64| (lo_w - y).max(y - hi_w).max(0.0);
+    let from = away(me.y);
+    if from <= 0.0 || weight <= 0.0 {
+        return None;
+    }
+    nb.leaders[..nb.n_leaders].sort_unstable_by(|a, b| a.accel.total_cmp(&b.accel));
+    let (leaders, followers, sides) = (
+        &nb.leaders[..nb.n_leaders],
+        &nb.followers[..nb.n_followers],
+        &nb.sides[..nb.n_sides],
+    );
+    let mut others = [0.0; MAX_NEIGHBOURS];
+    let mut imposed_now = [0.0; MAX_NEIGHBOURS];
+    for (k, f) in followers.iter().enumerate() {
+        let excess = edge_gap(me.y, me.half_width, f.y, f.half_width) - f.c_min;
+        let now = if excess > p.cutoff {
+            f.free
+        } else {
+            f.free + leader_weight(excess, p.braking_scale) * (f.imposed - f.free)
+        };
+        imposed_now[k] = now;
+        others[k] = if f.acc_now < now { f.acc_now } else { f.free };
+    }
+    let scene = Scene {
+        p,
+        me,
+        leaders,
+        followers,
+        sides,
+        others: &others[..followers.len()],
+        imposed_now: &imposed_now[..followers.len()],
+    };
+    let mut base = Batch::new();
+    base.push(me.y);
+    scene.evaluate(&mut base);
+    let sign = if me.y < lo_w { 1.0 } else { -1.0 };
+    let edge = if me.y < lo_w { lo_w } else { hi_w };
+    let mut batch = Batch::new();
+    let steps = ((p.range / p.step).floor() as usize).min(BATCH - 1);
+    let mut done = false;
+    for m in 1..=steps {
+        let mut y = me.y + sign * m as f64 * p.step;
+        // No further than the near edge of the interval.
+        if (y - edge) * sign >= 0.0 {
+            y = edge;
+            done = true;
+        }
+        let y = y.clamp(me.lo.min(me.y), me.hi.max(me.y));
+        if batch.n == 0 || batch.y[batch.n - 1] != y {
+            batch.push(y);
+        }
+        if done {
+            break;
+        }
+    }
+    scene.evaluate(&mut batch);
+    let mut best: Option<Choice> = None;
+    for m in 0..batch.n {
+        if let Some(c) = scene.choice(&batch, m, &base) {
+            let total = c.utility + weight * (from - away(c.target));
+            if total > best.map_or(p.switch_threshold, |x| x.utility) {
+                best = Some(Choice {
+                    utility: total,
+                    ..c
+                });
+            }
+        }
+    }
+    best.map(|c| Choice {
+        switched: (c.target - me.target).abs() >= 0.5 * p.step,
+        ..c
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -84,9 +84,9 @@ One row per discrete event.
 
 | Column | Type | Unit | Meaning |
 | --- | --- | --- | --- |
-| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed, parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, bus_standing, pothole_crossed, pedestrian_crossing (agent_id is 2⁶⁴ − 1 for the object, parking and pedestrian events) |
+| t, kind, agent_id | f64, utf8, u64 | s | kinds so far: collision_guard, lateral_move, object_added, object_removed, parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, bus_standing, pothole_crossed, pedestrian_crossing, signal_state, stop_line_crossed, gap_accepted, split_decision, missed_branch, u_turn (agent_id is 2⁶⁴ − 1 for the object, parking, pedestrian and signal events) |
 | ribbon, s, y | utf8, f64, f64 | m | where |
-| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), kind (obstacle, parked_vehicle, parking_manoeuvre, waiting_passengers, pedestrians, pothole, hump, water), length, width, with the footprint's centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object (the id of the footprint that blocks the strip), action (park or unpark), duration_s, waited_s (how long it waited for the strip to be clear). stop_anywhere (a vehicle decides to stop, ADR-0014): rate_per_km, multiplier (the attractor's), pull_over, pull_over_probability, dwell_s, stop_in_m. stop_anywhere_standing (it has come to a stand): pull_over, kerb_gap_m, until (s). bus_stop (a bus makes for a stop, ADR-0015): stop, stand_at_s, kerb_offset_m, dwell_s; bus_standing: as stop_anywhere_standing. pothole_crossed (the front wheels reach a pothole in the vehicle's path): pothole, choice (swerve, slow, straddle, hit, or unseen under water), speed (m/s), diameter_m, depth_m. pedestrian_crossing (when it ends): zone, group, from (left or right), accepted_gap_s, waited_at_edge_s, waited_on_road_s, duration_s. lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
+| attrs | utf8 (JSON) |  | collision_guard: other_id, overlap_m, cut_back_s, cut_back_y against a vehicle; other = object and object (its id) against a road object; other = edge and cut_back_s when the kerb of a narrowing road stopped the vehicle short. object_added, object_removed: object (id), kind (obstacle, parked_vehicle, parking_manoeuvre, waiting_passengers, pedestrians, pothole, hump, water), length, width, with the footprint's centre in ribbon, s, y. parking_manoeuvre (when it begins): zone, object (the id of the footprint that blocks the strip), action (park or unpark), duration_s, waited_s (how long it waited for the strip to be clear). stop_anywhere (a vehicle decides to stop, ADR-0014): rate_per_km, multiplier (the attractor's), pull_over, pull_over_probability, dwell_s, stop_in_m. stop_anywhere_standing (it has come to a stand): pull_over, kerb_gap_m, until (s). bus_stop (a bus makes for a stop, ADR-0015): stop, stand_at_s, kerb_offset_m, dwell_s; bus_standing: as stop_anywhere_standing. pothole_crossed (the front wheels reach a pothole in the vehicle's path): pothole, choice (swerve, slow, straddle, hit, or unseen under water), speed (m/s), diameter_m, depth_m. pedestrian_crossing (when it ends): zone, group, from (left or right), accepted_gap_s, waited_at_edge_s, waited_on_road_s, duration_s. signal_state (a signal changes, P7.3): junction, phase, state (green, amber, all_red), lasts_s. stop_line_crossed (signalised junctions): junction, arm, to, queued (it had stood at the closed line), waited_s, speed, light (1 green, 2 amber, 3 red). gap_accepted (a vehicle that gives way takes a gap, G§2.4): junction, gap_s (time from its own arrival at the line to the arrival of the conflicting vehicle that leaves least to spare; null if none was coming), critical_gap_s (what it needed against that vehicle), largest_rejected_s and rejected (the gaps it turned down at this line), waited_s, against_class, speed. split_decision (at the deadline before a split or a U-turn, not on the side it needs, G§6.7): junction, decision (stop_and_wait or give_up), stop_and_wait_probability, urgency (0–1), needed_move_m, late_realiser, speed. missed_branch (it reached a split outside its branch's part of the road and took the branch it was in): junction, wanted, took, aware, gave_up, late_realiser. u_turn (it starts a U-turn): junction, path_from_median_m (drawn), joins_at_y, receiving_width_m. lateral_move (only with `observers.lateral.log_decisions = 1`): target and the utility terms utility, own, polite, comfort, cost (m/s²) |
 
 ## effective_width.parquet
 
@@ -105,6 +105,24 @@ One row per effective-width observer (`outputs.effective_width`) and bin along t
 | used_lo, used_hi | f64? | m | lateral band covered by vehicle bodies |
 | time_beside, time_spent | f64 | veh·s | time vehicles spent beside an object, and in the bin |
 | mean_speed | f64? | m/s | space-mean speed in the bin |
+
+## signal_cycles.parquet
+
+One row per arm of a signalised junction and cycle, from the start of the arm's green to the start of its next green (P7.3). Written only when a scenario has a signal. Saturation flow is measured, never set: queued vehicles after the third, over the time from the third's crossing of the stop line to the last one's.
+
+| Column | Type | Unit | Meaning |
+| --- | --- | --- | --- |
+| junction, arm, ribbon | utf8 |  | the arriving ribbon ends at the stop line |
+| cycle, phase | u32 |  | cycle number of the arm; stage that gives it green |
+| queue_at_green | u32 | veh | vehicles that had stood at the closed line when green began |
+| discharged, discharged_from_queue | u32 | veh | vehicles that crossed the stop line in the cycle; those that had stood in the queue |
+| saturation_vehicles | u32 | veh | queued vehicles the saturation flow is measured over (0: fewer than eight queued) |
+| t_green | f64 | s | start of green |
+| green_s, amber_s, red_s | f64 | s | red runs from the end of amber to the next green (to the end of the run for the last cycle) |
+| saturation_headway | f64? | s | mean time between queued vehicles, whole approach |
+| saturation_flow | f64? | veh/h | 3600 / saturation_headway |
+| approach_width | f64 | m | width of the arriving ribbon at the stop line |
+| saturation_flow_per_m | f64? | veh/h/m | per metre of approach width (the road is lane-free) |
 
 ## conflicts.parquet
 

@@ -117,6 +117,8 @@ pub struct CoreParams {
     /// Road-situation parameters of G§6 (bus stops, potholes, humps,
     /// gradients, pedestrians); most are unset in the register.
     pub road: RoadParams,
+    /// Junctions, gap acceptance, splits and U-turns (G§2.4, §6.7).
+    pub junction: JunctionParams,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -226,6 +228,35 @@ pub struct RoadParams {
     pub pedestrian_group: Option<Dist>,
     pub pedestrian_speed: Option<f64>,
     pub pedestrian_size: Option<f64>,
+}
+
+/// Junction parameters (`None`: unset in the register).
+#[derive(Debug, Clone, PartialEq)]
+pub struct JunctionParams {
+    /// Lateral acceleration that sets the speed on a curve (m/s²).
+    pub turn_accel: Option<f64>,
+    /// Critical gap by entering class (s), per agent.
+    pub critical_gap: Vec<Dist>,
+    /// Factor on the critical gap against a heavy vehicle, per agent.
+    pub heavy_factor: Dist,
+    /// `γ_g`: critical gaps are scaled by `exp(−γ_g κ)`.
+    pub gap_link: f64,
+    pub u_turn_gap_factor: Option<f64>,
+    pub u_turn_path_four: Option<Dist>,
+    pub u_turn_path_six: Option<Dist>,
+    pub six_lane_width: f64,
+    pub ring_gap_factor: Option<f64>,
+    pub ring_compliance: Option<f64>,
+    /// Distance before a split at which a driver knows its branch (m):
+    /// most drivers, and late realisers; the late share.
+    pub awareness: Option<Dist>,
+    pub late_awareness: Option<Dist>,
+    pub late_share: Option<f64>,
+    pub sign_visibility: Option<f64>,
+    pub stop_and_wait: Option<f64>,
+    /// `w_route` (1/s²) and `γ_u`.
+    pub route_weight: Option<f64>,
+    pub urgency_link: Option<f64>,
 }
 
 /// Stop-anywhere parameters as the register has them (`None`: unset).
@@ -436,6 +467,48 @@ impl CoreParams {
                     }
                 }
                 r
+            },
+            junction: JunctionParams {
+                turn_accel: optional_scalar(spec, "road.junction.turn_lateral_acceleration")?,
+                critical_gap: VehicleClass::ALL
+                    .iter()
+                    .map(|c| {
+                        spec.dist_si(&format!(
+                            "interaction.gap_acceptance.critical_gap.{}",
+                            c.key()
+                        ))
+                    })
+                    .collect::<Result<_, _>>()?,
+                heavy_factor: spec.dist_si("interaction.gap_acceptance.heavy_stream_factor")?,
+                gap_link: spec.scalar_si("personas.links.critical_gap")?,
+                u_turn_gap_factor: optional_scalar(
+                    spec,
+                    "interaction.gap_acceptance.u_turn.critical_gap_factor",
+                )?,
+                u_turn_path_four: optional_dist(
+                    spec,
+                    "interaction.gap_acceptance.u_turn.path.four_lane",
+                )?,
+                u_turn_path_six: optional_dist(
+                    spec,
+                    "interaction.gap_acceptance.u_turn.path.six_lane",
+                )?,
+                six_lane_width: spec.scalar_si("core.six_lane_carriageway_width")?,
+                ring_gap_factor: optional_scalar(
+                    spec,
+                    "road.junction.roundabout.entry_critical_gap_factor",
+                )?,
+                ring_compliance: optional_scalar(
+                    spec,
+                    "road.junction.roundabout.priority_compliance",
+                )?,
+                awareness: optional_dist(spec, "road.split.awareness_distance")?,
+                late_awareness: optional_dist(spec, "road.split.late_awareness_distance")?,
+                late_share: optional_scalar(spec, "road.split.late_realiser_share")?,
+                sign_visibility: optional_scalar(spec, "road.split.sign_visibility_distance")?,
+                stop_and_wait: optional_scalar(spec, "road.split.stop_and_wait_probability")?,
+                route_weight: optional_scalar(spec, "road.split.route_weight")?,
+                urgency_link: optional_scalar(spec, "road.split.urgency_clearance_link")?,
             },
             stopping: {
                 let mut s = StopParams {

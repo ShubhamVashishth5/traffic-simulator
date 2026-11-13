@@ -279,3 +279,14 @@ entries:
     register_row: 9.3/e_rickshaw_stop_propensity
     range: [0.0, 60.0]
     notes: "Poisson stop rate by land use; challans give a ranking (parking : wrong-way about 37 : 1), not a rate."
+  links.critical_gap:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.1 and plan/03-model-design.md §6 name the link (t_c scaled by exp(-gamma_g kappa)), not its size"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [0.0, 1.0]
+    live: true
+    notes: "gamma_g: an agent's critical gaps are scaled by exp(-gamma_g * kappa). 0 until personas are fitted (P8): the per-agent lognormal already spreads critical gaps."

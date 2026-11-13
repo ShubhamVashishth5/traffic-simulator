@@ -14,8 +14,28 @@ pub struct Ribbon {
     dir: Vec<[f64; 2]>,
     /// Width profile, sorted by `s`.
     width: Vec<WidthPoint>,
-    /// Index of the successor ribbon in the network.
+    /// Index of the successor ribbon in the network, where every vehicle
+    /// goes the same way. `None` at the end of the network **and** where
+    /// vehicles choose (see `branch`).
     pub next: Option<usize>,
+    /// Where vehicles choose: the successor for each leaving arm of
+    /// `junction` (empty where they do not).
+    pub branch: Vec<Option<usize>>,
+    /// The junction this ribbon arrives at (then `arm_in` is its arm) or
+    /// lies inside.
+    pub junction: Option<usize>,
+    pub arm_in: Option<usize>,
+    /// Built by a junction, inside it.
+    pub internal: bool,
+    /// Priority among the ribbons inside a junction: a lower number goes
+    /// first (0 for ribbons outside junctions).
+    pub rank: u8,
+    /// How many ribbons lead onto this one.
+    pub preds: u32,
+    /// Smallest radius of the reference line (m); infinite if straight.
+    pub min_radius: f64,
+    /// The next junction reached by following `next`, and the arm arrived by.
+    pub ahead: Option<(usize, usize)>,
 }
 
 impl Ribbon {
@@ -39,7 +59,64 @@ impl Ribbon {
             dir,
             width,
             next: None,
+            branch: Vec::new(),
+            junction: None,
+            arm_in: None,
+            internal: false,
+            rank: 0,
+            preds: 0,
+            min_radius: f64::INFINITY,
+            ahead: None,
         }
+    }
+
+    /// Smallest radius of curvature of the reference line: at each vertex,
+    /// the mean length of the two segments over the change of direction.
+    pub(crate) fn measure_radius(&mut self) {
+        let mut r = f64::INFINITY;
+        for k in 1..self.dir.len() {
+            let (a, b) = (self.dir[k - 1], self.dir[k]);
+            let turn = (a[0] * b[1] - a[1] * b[0])
+                .atan2(a[0] * b[0] + a[1] * b[1])
+                .abs();
+            if turn > 1e-9 {
+                let len = 0.5 * (self.cum[k + 1] - self.cum[k - 1]);
+                r = r.min(len / turn);
+            }
+        }
+        self.min_radius = r;
+    }
+
+    /// World position and heading of the reference line's start and end.
+    pub fn start_pose(&self) -> (f64, f64, f64) {
+        self.to_world(0.0, 0.0)
+    }
+    pub fn end_pose(&self) -> (f64, f64, f64) {
+        self.to_world(self.length(), 0.0)
+    }
+
+    /// Nearest point of the reference line to a world point, **not**
+    /// extended beyond the ends: `(s, y, squared distance)`. `y` is the
+    /// signed lateral offset from the line's direction at that point.
+    pub fn nearest(&self, x: f64, y: f64) -> (f64, f64, f64) {
+        let mut best = (0.0, 0.0, f64::INFINITY);
+        for (k, &[ux, uy]) in self.dir.iter().enumerate() {
+            let p = self.pts[k];
+            let seg_len = self.cum[k + 1] - self.cum[k];
+            let (rx, ry) = (x - p[0], y - p[1]);
+            let t = (rx * ux + ry * uy).clamp(0.0, seg_len);
+            let (px, py) = (p[0] + ux * t, p[1] + uy * t);
+            let d2 = (x - px).powi(2) + (y - py).powi(2);
+            if d2 < best.2 {
+                best = (self.cum[k] + t, -uy * (x - px) + ux * (y - py), d2);
+            }
+        }
+        best
+    }
+
+    /// Direction of the reference line at station `s` (unit vector).
+    pub fn direction(&self, s: f64) -> [f64; 2] {
+        self.dir[self.segment(s)]
     }
 
     /// Length of the reference line.

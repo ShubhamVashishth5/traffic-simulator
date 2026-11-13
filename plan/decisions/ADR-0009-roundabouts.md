@@ -1,7 +1,8 @@
 # ADR-0009: Roundabouts
 
-- **Status:** proposed. **Roundabouts are in scope** (the user, 2026-11-09: the simulator should
-  handle most real situations). The choice between options 1 and 2 is deferred to the P7.0 gate
+- **Status:** accepted — **option 1, a ring of ribbons** (the user, 2026-11-13, at the P7.0 gate).
+  The ring is built (`kind: roundabout`, geometry tested in `marg-net`); how vehicles behave on
+  it is **not tested yet** (see ADR-0016, and P7.8 in STATUS)
 - **Date:** 2026-11-09
 - **Phase / task:** P7 (review gate P7.0), read by P11
 
@@ -84,3 +85,17 @@ Option 1, as a new task P7.8 after P7.4 and P7.6, because it builds on both. Its
   stop once the distance along the chain passes the look-ahead.
 - The register gains a `junctions` group with about five grade C entries, which the Lutyens'
   zone studies would sweep.
+
+## As built (2026-11-13)
+- `marg-net` builds the ring from `centre`, `ring_radius` and `ring_width`: an arc between each
+  pair of neighbouring points where an arm leaves or joins the ring, a connector on from each
+  arriving arm and one off to each leaving arm. Circulation is clockwise (left-hand traffic).
+- The ring is closed only through branch tables: no ribbon on it has a `next`, so every walk
+  that follows `next` still ends, and the walk that follows a vehicle's own route leaves the ring
+  at its arm. Route-following walks also stop once they are past the lookahead.
+- Register entries differ from the outline above in two places. The entry critical gap is one
+  factor on each class's §2.4 gap (`road.junction.roundabout.entry_critical_gap_factor`), not
+  ten new distributions. `exit_awareness` was not added: a vehicle can leave from any part of
+  the ring's width. Both are unset in the register, with `priority_compliance`; a scenario with
+  a roundabout must supply them.
+- Speed on the ring comes from `road.junction.turn_lateral_acceleration` and the radius.

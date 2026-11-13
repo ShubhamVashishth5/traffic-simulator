@@ -1168,3 +1168,36 @@ entries:
     register_row: 9.2/u_turn_gap_path
     range: [0.1, 50.0]
     notes: "Gamma shape of the U-turn lateral path on four-lane roads; bimodal on six-lane roads (P7.5)."
+  gap_acceptance.u_turn.critical_gap_factor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 4
+    source: "Mohapatra, Dey & Chandra 2016 report U-turn critical gaps smaller than developed-country values; the per-class values were not available to P7.5"
+    guide: "§6.7"
+    register_row: 9.2/u_turn_gap_path
+    range: [0.1, 2.0]
+    notes: "Factor on each class's critical gap for a U-turn at a median opening. Unset: a scenario with U-turns must supply it (or the per-class values once read from the paper)."
+  gap_acceptance.u_turn.path.four_lane:
+    value: null
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Mohapatra, Dey & Chandra 2016 (gamma on four-lane roads); parameters not available to P7.5"
+    guide: "§6.7"
+    register_row: 9.2/u_turn_gap_path
+    range: [0.0, 15.0]
+    notes: "Distance from the median edge of the receiving carriageway at which a U-turning vehicle's inner side joins it, on a four-lane divided road (a gamma distribution). Unset: supply it per scenario or per junction (u_turn_path)."
+  gap_acceptance.u_turn.path.six_lane:
+    value: null
+    unit: "m"
+    grade: A
+    role: fit
+    stage: 4
+    source: "Mohapatra, Dey & Chandra 2016 (can be bimodal on six-lane roads, depending on the two-wheeler share); parameters not available to P7.5"
+    guide: "§6.7"
+    register_row: 9.2/u_turn_gap_path
+    range: [0.0, 20.0]
+    notes: "As four_lane, on a six-lane divided road (a mixture). The receiving carriageway counts as six-lane from core.six_lane_carriageway_width."

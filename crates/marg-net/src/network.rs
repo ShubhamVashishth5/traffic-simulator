@@ -1,5 +1,6 @@
 //! The road network: ribbons and their connections.
 
+use crate::junction::{self, Junction};
 use crate::ribbon::Ribbon;
 use indexmap::IndexMap;
 use marg_params::spec::NetworkSpec;
@@ -21,12 +22,15 @@ pub enum NetError {
     Cycle(String),
     #[error("unknown ribbon `{0}`")]
     UnknownRibbon(String),
+    #[error("junction `{0}`: {1}")]
+    Junction(String, String),
 }
 
 /// A built network.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Network {
     pub ribbons: Vec<Ribbon>,
+    pub junctions: Vec<Junction>,
     by_id: IndexMap<String, usize>,
 }
 
@@ -72,7 +76,25 @@ impl Network {
                 ribbons[i].next = Some(j);
             }
         }
-        // Chains only (one successor each): walking `next` must terminate.
+        // Junctions add the ribbons inside them and the branch tables.
+        let mut junctions = Vec::new();
+        for (k, js) in spec.junctions.iter().enumerate() {
+            if spec.junctions[..k].iter().any(|o| o.id == js.id) {
+                return Err(NetError::Junction(js.id.clone(), "duplicate id".into()));
+            }
+            junctions.push(junction::build(js, k, &mut ribbons, &mut by_id)?);
+        }
+        for r in 0..ribbons.len() {
+            let mut succ: Vec<usize> = ribbons[r].branch.iter().flatten().copied().collect();
+            succ.extend(ribbons[r].next);
+            succ.sort_unstable();
+            succ.dedup();
+            for n in succ {
+                ribbons[n].preds += 1;
+            }
+        }
+        // `next` chains (every vehicle goes the same way) must terminate;
+        // a ring is closed only through branch tables.
         for start in 0..ribbons.len() {
             let mut at = start;
             for _ in 0..=ribbons.len() {
@@ -85,7 +107,23 @@ impl Network {
                 }
             }
         }
-        Ok(Self { ribbons, by_id })
+        for start in 0..ribbons.len() {
+            let mut at = start;
+            ribbons[start].ahead = loop {
+                if let (Some(j), Some(a)) = (ribbons[at].junction, ribbons[at].arm_in) {
+                    break Some((j, a));
+                }
+                match ribbons[at].next {
+                    Some(n) => at = n,
+                    None => break None,
+                }
+            };
+        }
+        Ok(Self {
+            ribbons,
+            junctions,
+            by_id,
+        })
     }
 
     /// Index of a ribbon by id.
@@ -106,6 +144,13 @@ impl Network {
 
     pub fn is_empty(&self) -> bool {
         self.ribbons.is_empty()
+    }
+
+    /// The ribbons that lead onto `r`, in index order.
+    pub fn predecessors(&self, r: usize) -> impl Iterator<Item = usize> + '_ {
+        (0..self.ribbons.len()).filter(move |&q| {
+            self.ribbons[q].next == Some(r) || self.ribbons[q].branch.contains(&Some(r))
+        })
     }
 }
 
@@ -141,6 +186,7 @@ mod tests {
             surfaces: vec![],
             waterlogging: vec![],
             pedestrian_crossings: vec![],
+            junctions: vec![],
         })
         .unwrap();
         assert_eq!(ok.ribbon(0).next, Some(1));
@@ -157,6 +203,7 @@ mod tests {
             surfaces: vec![],
             waterlogging: vec![],
             pedestrian_crossings: vec![],
+            junctions: vec![],
         });
         assert!(matches!(cyc, Err(NetError::Cycle(_))));
         let unk = Network::build(&NetworkSpec {
@@ -171,6 +218,7 @@ mod tests {
             surfaces: vec![],
             waterlogging: vec![],
             pedestrian_crossings: vec![],
+            junctions: vec![],
         });
         assert!(matches!(unk, Err(NetError::UnknownNext { .. })));
         let mut bad = r("a", None);
@@ -188,6 +236,7 @@ mod tests {
                 surfaces: vec![],
                 waterlogging: vec![],
                 pedestrian_crossings: vec![],
+                junctions: vec![],
             }),
             Err(NetError::BadWidth(_))
         ));

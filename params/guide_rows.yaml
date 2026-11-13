@@ -100,3 +100,4 @@ rows:
   - {id: core/numerics, covered_by: register}
   - {id: core/observers, covered_by: register}
   - {id: core/experiment_switches, covered_by: register}
+  - {id: p7/junctions, covered_by: register}

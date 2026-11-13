@@ -95,6 +95,40 @@ pub struct EffectiveWidthRecord {
     pub mean_speed: f64,
 }
 
+/// One arm of a signalised junction over one cycle: from the start of its
+/// green to the start of its next green (plan/04 §2, P7.3).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SignalCycleRecord {
+    pub junction: String,
+    pub arm: String,
+    /// The arriving ribbon; its end is the stop line.
+    pub ribbon: String,
+    pub cycle: u32,
+    /// Index of the stage that gives this arm green.
+    pub phase: u32,
+    pub t_green: f64,
+    pub green_s: f64,
+    pub amber_s: f64,
+    /// From the end of amber to the next green (to the end of the run for
+    /// the last cycle).
+    pub red_s: f64,
+    /// Vehicles standing on the arriving ribbon when green began.
+    pub queue_at_green: u32,
+    /// Vehicles that crossed the stop line in the cycle, and those of them
+    /// that had stood in the queue.
+    pub discharged: u32,
+    pub discharged_from_queue: u32,
+    /// Saturation flow over the whole width of the approach: queued
+    /// vehicles after the third, over the time from the third's crossing
+    /// to the last one's. NaN with fewer than eight queued vehicles.
+    pub saturation_vehicles: u32,
+    pub saturation_headway: f64,
+    /// veh/h, and veh/h per metre of approach width (the road is lane-free).
+    pub saturation_flow: f64,
+    pub approach_width: f64,
+    pub saturation_flow_per_m: f64,
+}
+
 /// Aggregates for one detector, interval and vehicle type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DetectorRecord {
@@ -196,6 +230,7 @@ pub struct RunOutputs {
     pub events: Vec<EventRecord>,
     pub conflicts: Vec<ConflictRecord>,
     pub effective_width: Vec<EffectiveWidthRecord>,
+    pub signal_cycles: Vec<SignalCycleRecord>,
     /// Headline KPIs as `(name, value)`, in a fixed order.
     pub kpis: Vec<(&'static str, f64)>,
     /// Ribbon ids by index (for decoding `TrajectoryChunk::ribbon`).
