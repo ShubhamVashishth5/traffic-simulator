@@ -60,3 +60,13 @@ entries:
     register_row: core/numerics
     range: [1.0, 10000.0]
     notes: "Waiting arrivals tried per entry per step; caps the cost of an oversaturated entry. Arrivals that cannot enter wait in a virtual queue (spawn delay is recorded)."
+  six_lane_carriageway_width:
+    value: 10.5
+    unit: "m"
+    grade: C
+    role: fix
+    source: "Definition: three notional lanes of 3.5 m (the guide's U-turn rule speaks of four- and six-lane divided roads, G§6.7)"
+    guide: "§6.7"
+    register_row: core/numerics
+    range: [7.0, 15.0]
+    notes: "A receiving carriageway at least this wide uses the six-lane U-turn path distribution."

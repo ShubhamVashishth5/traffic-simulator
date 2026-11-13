@@ -1,0 +1,121 @@
+name: signal_crossing
+description: >
+  A four-arm crossing of two 7 m dual carriageways under a two-stage fixed-time signal (70 s cycle). Right turns filter through the opposing stream on a gap (P7.3, P7.4).
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: e_in
+      polyline: [[314.0, -4.0], [14.0, -4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: e_out
+      polyline: [[14.0, 4.0], [314.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: n_in
+      polyline: [[4.0, 314.0], [4.0, 14.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: n_out
+      polyline: [[-4.0, 14.0], [-4.0, 314.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: w_in
+      polyline: [[-314.0, 4.0], [-14.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: w_out
+      polyline: [[-14.0, -4.0], [-314.0, -4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: s_in
+      polyline: [[-4.0, -314.0], [-4.0, -14.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: s_out
+      polyline: [[4.0, -14.0], [4.0, -314.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+  junctions:
+    - id: crossing
+      arms:
+        - {id: e, in: e_in, out: e_out}
+        - {id: n, in: n_in, out: n_out}
+        - {id: w, in: w_in, out: w_out}
+        - {id: s, in: s_in, out: s_out}
+      turns:
+        e: {w: 0.6, s: 0.2, n: 0.2}
+        n: {s: 0.6, e: 0.2, w: 0.2}
+        w: {e: 0.6, n: 0.2, s: 0.2}
+        s: {n: 0.6, w: 0.2, e: 0.2}
+      control:
+        kind: signal
+        countdown: working
+        phases:
+          - {arms: [e, w], green_s: 35, amber_s: 3, all_red_s: 2}
+          - {arms: [n, s], green_s: 25, amber_s: 3, all_red_s: 2}
+demand:
+  entries:
+    - id: e
+      ribbon: e_in
+      flow: [{from_s: 0, veh_per_h: 700}]
+      composition:
+        motorcycle: 0.26
+        scooter: 0.14
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.24
+        sedan: 0.08
+        suv: 0.05
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+    - id: n
+      ribbon: n_in
+      flow: [{from_s: 0, veh_per_h: 700}]
+      composition:
+        motorcycle: 0.26
+        scooter: 0.14
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.24
+        sedan: 0.08
+        suv: 0.05
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+    - id: w
+      ribbon: w_in
+      flow: [{from_s: 0, veh_per_h: 700}]
+      composition:
+        motorcycle: 0.26
+        scooter: 0.14
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.24
+        sedan: 0.08
+        suv: 0.05
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+    - id: s
+      ribbon: s_in
+      flow: [{from_s: 0, veh_per_h: 700}]
+      composition:
+        motorcycle: 0.26
+        scooter: 0.14
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.24
+        sedan: 0.08
+        suv: 0.05
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+detectors:
+  - {kind: screenline, id: out_e, ribbon: e_out, s: 100, interval_s: 300}
+  - {kind: screenline, id: in_e, ribbon: e_in, s: 150, interval_s: 300}
+  - {kind: screenline, id: out_n, ribbon: n_out, s: 100, interval_s: 300}
+  - {kind: screenline, id: in_n, ribbon: n_in, s: 150, interval_s: 300}
+  - {kind: screenline, id: out_w, ribbon: w_out, s: 100, interval_s: 300}
+  - {kind: screenline, id: in_w, ribbon: w_in, s: 150, interval_s: 300}
+  - {kind: screenline, id: out_s, ribbon: s_out, s: 100, interval_s: 300}
+  - {kind: screenline, id: in_s, ribbon: s_in, s: 150, interval_s: 300}
+overrides:
+  road.junction.turn_lateral_acceleration: 2.0   # placeholder: not in the guide
+  road.split.route_weight: 1.0                   # placeholder: G§6.7 gives no number
+  road.split.urgency_clearance_link: 0.5         # placeholder

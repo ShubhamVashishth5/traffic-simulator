@@ -381,6 +381,59 @@ pub fn effective_width_batch(
     RecordBatch::try_new(Arc::new(Schema::new(fields)), cols)
 }
 
+/// `signal_cycles.parquet`: one row per arm of a signalised junction and cycle.
+pub fn signal_cycles_batch(
+    rows: &[marg_core::SignalCycleRecord],
+) -> Result<RecordBatch, arrow::error::ArrowError> {
+    let mut fields = vec![
+        Field::new("junction", DataType::Utf8, false),
+        Field::new("arm", DataType::Utf8, false),
+        Field::new("ribbon", DataType::Utf8, false),
+    ];
+    let mut cols: Vec<ArrayRef> = vec![
+        strs(rows, |r| &r.junction),
+        strs(rows, |r| &r.arm),
+        strs(rows, |r| &r.ribbon),
+    ];
+    type GetU = fn(&marg_core::SignalCycleRecord) -> u32;
+    let counts: [(&str, GetU); 6] = [
+        ("cycle", |r| r.cycle),
+        ("phase", |r| r.phase),
+        ("queue_at_green", |r| r.queue_at_green),
+        ("discharged", |r| r.discharged),
+        ("discharged_from_queue", |r| r.discharged_from_queue),
+        ("saturation_vehicles", |r| r.saturation_vehicles),
+    ];
+    for (name, get) in counts {
+        fields.push(Field::new(name, DataType::UInt32, false));
+        cols.push(Arc::new(UInt32Array::from_iter_values(
+            rows.iter().map(get),
+        )));
+    }
+    type Get = fn(&marg_core::SignalCycleRecord) -> f64;
+    let columns: [(&str, bool, Get); 8] = [
+        ("t_green", false, |r| r.t_green),
+        ("green_s", false, |r| r.green_s),
+        ("amber_s", false, |r| r.amber_s),
+        ("red_s", false, |r| r.red_s),
+        ("saturation_headway", true, |r| r.saturation_headway),
+        ("saturation_flow", true, |r| r.saturation_flow),
+        ("approach_width", false, |r| r.approach_width),
+        ("saturation_flow_per_m", true, |r| r.saturation_flow_per_m),
+    ];
+    for (name, nullable, get) in columns {
+        fields.push(Field::new(name, DataType::Float64, nullable));
+        cols.push(if nullable {
+            Arc::new(Float64Array::from(
+                rows.iter().map(|r| opt(get(r))).collect::<Vec<_>>(),
+            ))
+        } else {
+            f64s(rows, get)
+        });
+    }
+    RecordBatch::try_new(Arc::new(Schema::new(fields)), cols)
+}
+
 /// Write every non-streamed output table of a run into `dir`.
 pub fn write_outputs(
     dir: &Path,
@@ -404,6 +457,12 @@ pub fn write_outputs(
             &effective_width_batch(&out.effective_width)?,
         )?;
     }
+    if !out.signal_cycles.is_empty() {
+        write_batch(
+            &dir.join("signal_cycles.parquet"),
+            &signal_cycles_batch(&out.signal_cycles)?,
+        )?;
+    }
     write_batch(
         &dir.join("kpis.parquet"),
         &kpis_batch(&out.kpis, run_hash, seed)?,
@@ -418,7 +477,7 @@ type TableDoc = (&'static str, &'static str, &'static [Column]);
 
 /// The data dictionary in Markdown: every output table, column, type and meaning.
 pub fn data_dictionary() -> String {
-    let tables: [TableDoc; 10] = [
+    let tables: [TableDoc; 11] = [
         (
             "manifest.json",
             "Run identity and provenance (JSON, not Parquet).",
@@ -645,8 +704,9 @@ pub fn data_dictionary() -> String {
                     "s",
                     "kinds so far: collision_guard, lateral_move, object_added, object_removed, \
                      parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, \
-                     bus_standing, pothole_crossed, pedestrian_crossing (agent_id is 2⁶⁴ − 1 \
-                     for the object, parking and pedestrian events)",
+                     bus_standing, pothole_crossed, pedestrian_crossing, signal_state, \
+                     stop_line_crossed, gap_accepted, split_decision, missed_branch, u_turn \
+                     (agent_id is 2⁶⁴ − 1 for the object, parking, pedestrian and signal events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
@@ -672,6 +732,22 @@ pub fn data_dictionary() -> String {
                      unseen under water), speed (m/s), diameter_m, depth_m. \
                      pedestrian_crossing (when it ends): zone, group, from (left or right), \
                      accepted_gap_s, waited_at_edge_s, waited_on_road_s, duration_s. \
+                     signal_state (a signal changes, P7.3): junction, phase, state (green, \
+                     amber, all_red), lasts_s. stop_line_crossed (signalised junctions): \
+                     junction, arm, to, queued (it had stood at the closed line), waited_s, \
+                     speed, light (1 green, 2 amber, 3 red). gap_accepted (a vehicle that \
+                     gives way takes a gap, G§2.4): junction, gap_s (time from its own \
+                     arrival at the line to the arrival of the conflicting vehicle that \
+                     leaves least to spare; null if none was coming), critical_gap_s (what it \
+                     needed against that vehicle), largest_rejected_s and rejected (the gaps \
+                     it turned down at this line), waited_s, against_class, speed. \
+                     split_decision (at the deadline before a split or a U-turn, not on the \
+                     side it needs, G§6.7): junction, decision (stop_and_wait or give_up), \
+                     stop_and_wait_probability, urgency (0–1), needed_move_m, late_realiser, \
+                     speed. missed_branch (it reached a split outside its branch's part of \
+                     the road and took the branch it was in): junction, wanted, took, aware, \
+                     gave_up, late_realiser. u_turn (it starts a U-turn): junction, \
+                     path_from_median_m (drawn), joins_at_y, receiving_width_m. \
                      lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",
@@ -740,6 +816,76 @@ pub fn data_dictionary() -> String {
                     "time vehicles spent beside an object, and in the bin",
                 ),
                 ("mean_speed", "f64?", "m/s", "space-mean speed in the bin"),
+            ],
+        ),
+        (
+            "signal_cycles.parquet",
+            "One row per arm of a signalised junction and cycle, from the start of the arm's \
+             green to the start of its next green (P7.3). Written only when a scenario has a \
+             signal. Saturation flow is measured, never set: queued vehicles after the third, \
+             over the time from the third's crossing of the stop line to the last one's.",
+            &[
+                (
+                    "junction, arm, ribbon",
+                    "utf8",
+                    "",
+                    "the arriving ribbon ends at the stop line",
+                ),
+                (
+                    "cycle, phase",
+                    "u32",
+                    "",
+                    "cycle number of the arm; stage that gives it green",
+                ),
+                (
+                    "queue_at_green",
+                    "u32",
+                    "veh",
+                    "vehicles that had stood at the closed line when green began",
+                ),
+                (
+                    "discharged, discharged_from_queue",
+                    "u32",
+                    "veh",
+                    "vehicles that crossed the stop line in the cycle; those that had stood in the queue",
+                ),
+                (
+                    "saturation_vehicles",
+                    "u32",
+                    "veh",
+                    "queued vehicles the saturation flow is measured over (0: fewer than eight queued)",
+                ),
+                ("t_green", "f64", "s", "start of green"),
+                (
+                    "green_s, amber_s, red_s",
+                    "f64",
+                    "s",
+                    "red runs from the end of amber to the next green (to the end of the run for the last cycle)",
+                ),
+                (
+                    "saturation_headway",
+                    "f64?",
+                    "s",
+                    "mean time between queued vehicles, whole approach",
+                ),
+                (
+                    "saturation_flow",
+                    "f64?",
+                    "veh/h",
+                    "3600 / saturation_headway",
+                ),
+                (
+                    "approach_width",
+                    "f64",
+                    "m",
+                    "width of the arriving ribbon at the stop line",
+                ),
+                (
+                    "saturation_flow_per_m",
+                    "f64?",
+                    "veh/h/m",
+                    "per metre of approach width (the road is lane-free)",
+                ),
             ],
         ),
         (

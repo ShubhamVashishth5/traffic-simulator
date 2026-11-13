@@ -30,6 +30,9 @@ pub enum StreamKind {
     Objects = 5,
     /// Pedestrian and animal agents. Entity = agent id.
     Pedestrians = 6,
+    /// Where each agent goes at each junction. Entity = agent id; the
+    /// counter is the junction and the arm arrived by.
+    Routes = 7,
 }
 
 const PHILOX_M0: u32 = 0xD251_1F53;

@@ -72,6 +72,15 @@ of these mechanisms.
 - **Done when:** headways downstream show platoon structure (bimodal) instead of a shifted
   exponential.
 
+### P7.8 Roundabouts (added at the P7.0 gate, ADR-0009 option 1)
+- **Do:** a ring of arc ribbons with connectors on and off; entries wait for a gap in the
+  circulating stream (a share of entrants do not); speed from radius.
+- **Done when:**
+  - a four-arm roundabout builds and renders;
+  - circulating traffic is never blocked by entrants who comply;
+  - raising entry flow on one arm lowers entry capacity on the next arm downstream, with no
+    collision-guard events.
+
 ## Milestone check
 **The split experiment.** Sweep the late-realiser share × the two-wheeler share on a corridor with a
 split. Report throughput, the stop-and-wait count and gridlock onset with CIs. This addresses a gap

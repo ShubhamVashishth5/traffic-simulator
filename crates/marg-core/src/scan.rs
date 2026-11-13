@@ -9,12 +9,14 @@
 use crate::agents::{
     AgentStore, NO_AGENT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
 };
+use crate::junction_scan::{JunctionOut, Route};
+use crate::junctions::{Junctions, onward};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Approach, Body, time_to_contact};
 use crate::model::lateral::{
     Choice, ChoiceParams, FollowerTerm, LeaderTerm, Neighbours, SideTerm, Subject, SwingOut, Wall,
-    body_half_width, body_stretch, choose_target, edge_gap, leader_weight, steering_speed,
-    swing_out, track,
+    body_half_width, body_stretch, choose_target, choose_towards, edge_gap, leader_weight,
+    steering_speed, swing_out, track,
 };
 use crate::model::longitudinal::Idm;
 use crate::objects::{EDGE_LEADER, EdgeAhead, Narrowings, Objects};
@@ -101,6 +103,8 @@ pub struct MoveOut {
     /// The lateral decision, if one was due this step.
     pub choice: Option<Choice>,
     pub conflict: Option<Conflict>,
+    /// What the stop line ahead led to (a gap looked at, a split decided).
+    pub junction: JunctionOut,
 }
 
 /// A stop line and whether it is closed this step.
@@ -149,6 +153,9 @@ pub struct MoveCtx<'a> {
     pub c_min_cap: f64,
     /// Highest speed in the network.
     pub v_max: f64,
+    /// Signals, the vehicles near each junction, speed caps of curves.
+    pub junctions: &'a Junctions,
+    pub seed: u64,
 }
 
 /// Limits and steering response collected from side neighbours.
@@ -255,7 +262,7 @@ impl Sides {
 /// `b_kin`. He does not accelerate beyond the speed from which comfortable
 /// braking still gets there, `√(speed² + 2·b·gap)`.
 #[inline]
-fn approach(idm: &Idm, v: f64, speed: f64, gap: f64) -> f64 {
+pub(crate) fn approach(idm: &Idm, v: f64, speed: f64, gap: f64) -> f64 {
     let gap = gap.max(0.0);
     let allowed = (speed * speed + 2.0 * idm.comfortable_decel * gap).sqrt();
     let free = Idm {
@@ -418,6 +425,7 @@ impl MoveCtx<'_> {
         // nearest vehicle in the way (it hides a pothole beyond it).
         let mut seen_to = f64::INFINITY;
         let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
+        let mut turn = (a.turn_junction[i], a.turn_out[i]);
         'scan: loop {
             let order = &self.orders[ribbon];
             while pos < order.len() {
@@ -560,9 +568,12 @@ impl MoveCtx<'_> {
                     }
                 }
             }
-            match self.net.ribbon(ribbon).next {
+            match onward(self.net, self.seed, a.id[i], ribbon, &mut turn) {
                 Some(n) => {
                     offset += self.net.ribbon(ribbon).length();
+                    if offset - s > horizon {
+                        break;
+                    }
                     ribbon = n;
                     pos = 0;
                 }
@@ -638,7 +649,7 @@ impl MoveCtx<'_> {
                     p.steering_scale,
                 );
             }
-            match self.prev[ribbon] {
+            match self.back(i, r, ribbon) {
                 Some(q) => {
                     offset += self.net.ribbon(q).length();
                     ribbon = q;
@@ -924,6 +935,30 @@ impl MoveCtx<'_> {
                     cap.min((free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel));
             }
         }
+        // Junctions: the stop line ahead, curves, vehicles on other ribbons.
+        let mut junction = JunctionOut::NONE;
+        let (mut route, mut land) = (None, None);
+        if self.junctions.enabled {
+            let view = self.line_ahead(i, r, &idm, free, lead.1, &mut acc);
+            cap = cap.min(view.cap);
+            junction = view.out;
+            route = view.route;
+            land = view.track;
+            self.foreign(
+                i,
+                r,
+                &idm,
+                free,
+                no_cut_in_ahead.max(l),
+                &mut acc,
+                &mut lead,
+                |left, gy, excess, push| {
+                    sides.repulsion += if left { -push } else { push };
+                    let _ = excess;
+                    sides.limit(left, y, gy);
+                },
+            );
+        }
         acc = acc.min(cap);
         // A vehicle that is stopping to pick up or set down (ADR-0014)
         // brakes for its stop point as for something standing there, and
@@ -941,6 +976,7 @@ impl MoveCtx<'_> {
                 leader: lead.1,
                 choice: None,
                 conflict,
+                junction,
             };
         }
         if stop != STOP_NONE {
@@ -958,8 +994,11 @@ impl MoveCtx<'_> {
             (tracking, None)
         } else if stop == STOP_IN_PLACE {
             (a.y_target[i], None)
-        } else if due {
-            let c = NEIGHBOURS.with_borrow_mut(|nb| self.decide_with(r, k, i, &idm, cap, nb));
+        } else if let Some(land) = land {
+            (land, None)
+        } else if due || route.is_some_and(|_| !a.aware[i]) {
+            let c =
+                NEIGHBOURS.with_borrow_mut(|nb| self.decide_with(r, k, i, &idm, cap, route, nb));
             (c.target, Some(c))
         } else {
             (a.y_target[i], None)
@@ -982,6 +1021,7 @@ impl MoveCtx<'_> {
             leader: lead.1,
             choice,
             conflict,
+            junction,
         }
     }
 
@@ -1159,10 +1199,11 @@ impl MoveCtx<'_> {
     /// Gather the neighbours that matter to agent `i`'s lateral choice and
     /// choose its target (ADR-0010 §3).
     pub fn decide(&self, r: usize, k: usize, i: usize, idm: &Idm, cap: f64) -> Choice {
-        self.decide_with(r, k, i, idm, cap, &mut Neighbours::default())
+        self.decide_with(r, k, i, idm, cap, None, &mut Neighbours::default())
     }
 
     /// [`Self::decide`] with a neighbour list to fill (emptied first).
+    #[allow(clippy::too_many_arguments)]
     fn decide_with(
         &self,
         r: usize,
@@ -1170,6 +1211,7 @@ impl MoveCtx<'_> {
         i: usize,
         idm: &Idm,
         cap: f64,
+        route: Option<Route>,
         nb: &mut Neighbours,
     ) -> Choice {
         nb.clear();
@@ -1178,7 +1220,8 @@ impl MoveCtx<'_> {
         let (v, y, l, s) = (a.v[i], a.y[i], a.length[i], a.s[i]);
         let hw = 0.5 * a.width[i];
         let scale = a.clearance_scale[i];
-        let squeeze = p.squeeze_scale.unwrap_or(scale);
+        // Urgency before a split lowers the clearance it squeezes with (ADR-0017).
+        let squeeze = p.squeeze_scale.unwrap_or(scale) * route.map_or(1.0, |r| r.squeeze);
         let free = idm.free_accel(v);
         let range = p.candidate_range;
         // Limits from side neighbours (the squeezing rule).
@@ -1206,6 +1249,7 @@ impl MoveCtx<'_> {
         let mut cov = Coverage::new(y - range - hw, y + range + hw);
         let mut horizon = p.lookahead;
         let (mut ribbon, mut pos, mut offset) = (r, k + 1, 0.0);
+        let mut turn = (a.turn_junction[i], a.turn_out[i]);
         'ahead: loop {
             let order = &self.orders[ribbon];
             while pos < order.len() {
@@ -1272,9 +1316,12 @@ impl MoveCtx<'_> {
                     }
                 }
             }
-            match self.net.ribbon(ribbon).next {
+            match onward(self.net, self.seed, a.id[i], ribbon, &mut turn) {
                 Some(n) => {
                     offset += self.net.ribbon(ribbon).length();
+                    if offset - s > horizon {
+                        break;
+                    }
                     ribbon = n;
                     pos = 0;
                 }
@@ -1337,7 +1384,7 @@ impl MoveCtx<'_> {
                     }
                 }
             }
-            match self.prev[ribbon] {
+            match self.back(i, r, ribbon) {
                 Some(q) => {
                     offset += self.net.ribbon(q).length();
                     ribbon = q;
@@ -1474,6 +1521,11 @@ impl MoveCtx<'_> {
                 reach: p.lookahead,
             }),
         };
+        if let Some(route) = route
+            && let Some(c) = choose_towards(&self.choice, &me, nb, route.lo, route.hi, route.weight)
+        {
+            return c;
+        }
         choose_target(&self.choice, &me, nb)
     }
 }

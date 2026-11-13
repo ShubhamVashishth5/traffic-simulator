@@ -7,6 +7,8 @@
 
 pub mod agents;
 pub mod demand;
+pub mod junction_scan;
+pub mod junctions;
 pub mod model;
 pub mod objects;
 pub mod observe;
@@ -23,7 +25,7 @@ pub mod width;
 
 pub use output::{
     AgentRecord, ConflictRecord, DetectorRecord, EffectiveWidthRecord, EventRecord, RunOutputs,
-    TrajectoryChunk, TrajectorySink,
+    SignalCycleRecord, TrajectoryChunk, TrajectorySink,
 };
 pub use params::CoreParams;
 pub use sim::{RunSummary, SimError, Simulation};

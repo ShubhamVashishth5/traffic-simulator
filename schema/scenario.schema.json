@@ -77,6 +77,33 @@
     "demand"
   ],
   "$defs": {
+    "ArmSpec": {
+      "description": "One arm of a junction.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "in": {
+          "description": "The ribbon that arrives here; its end is the stop line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "out": {
+          "description": "The ribbon that leaves from here.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ]
+    },
     "AttractorSpec": {
       "description": "A stretch of a ribbon along which the stop-anywhere rate of every class\n(`road.stop_anywhere.rate.*`) is multiplied. It changes an incentive and\nnothing else (ADR-0005).",
       "type": "object",
@@ -209,6 +236,74 @@
       "required": [
         "from_s",
         "to_s"
+      ]
+    },
+    "ControlSpec": {
+      "description": "Who goes first at a junction.",
+      "oneOf": [
+        {
+          "description": "No signal. Movements from `major` arms have priority over the\nothers; lower-priority movements wait for a gap (G§2.4). With no\nmajor arm every movement has the same priority and nobody waits for\na gap: vehicles sort it out inside the junction.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "uncontrolled"
+            },
+            "major": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "A fixed-time signal (G§6.6, normal state).",
+          "type": "object",
+          "properties": {
+            "countdown": {
+              "description": "The countdown display. It changes nothing while every driver\ncomplies (P7); violations read it from P8 on.",
+              "$ref": "#/$defs/CountdownState",
+              "default": "none"
+            },
+            "kind": {
+              "type": "string",
+              "const": "signal"
+            },
+            "offset_s": {
+              "description": "Time into the cycle at simulated time 0 (s).",
+              "type": "number",
+              "format": "double",
+              "default": 0.0
+            },
+            "phases": {
+              "description": "Stages in order; the cycle is the sum of their times.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/PhaseSpec"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "phases"
+          ]
+        }
+      ]
+    },
+    "CountdownState": {
+      "description": "A signal's countdown display.",
+      "type": "string",
+      "enum": [
+        "none",
+        "working",
+        "broken"
       ]
     },
     "DemandSpec": {
@@ -750,6 +845,17 @@
           "type": "number",
           "format": "double",
           "default": 0.0
+        },
+        "upstream_signal": {
+          "description": "Feed the entry from a signal upstream instead of letting arrivals\nin as they come (G§7.3).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UpstreamSignalSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -822,6 +928,105 @@
         "length"
       ]
     },
+    "JunctionKind": {
+      "description": "How a junction is built.",
+      "type": "string",
+      "enum": [
+        "box",
+        "split",
+        "roundabout"
+      ]
+    },
+    "JunctionSpec": {
+      "description": "A junction: arms (a ribbon arriving, a ribbon leaving, or both), the\nshare of each arriving stream that leaves by each arm, and who goes\nfirst. The builder makes the ribbons inside it.\n\n- `box`: one wide, lane-free movement ribbon from each arriving arm to\n  each arm its traffic leaves by, and the areas where two of them overlap.\n  A median opening is a box with two opposite carriageways as arms and\n  U-turn shares.\n- `split`: the arriving ribbon hands over directly to the leaving\n  ribbons, which must start where it ends and share its frame (each\n  takes part of its width). A vehicle must be inside its branch's part of\n  the width when it gets there (G§6.7).\n- `roundabout`: a ring of arc ribbons round `centre`, with a connector\n  from each arriving arm onto the ring and one off it to each leaving\n  arm (ADR-0009). Traffic circulates clockwise (left-hand traffic).",
+      "type": "object",
+      "properties": {
+        "arms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArmSpec"
+          }
+        },
+        "centre": {
+          "description": "Roundabout: centre of the island (world metres), radius of the\nmiddle of the circulating carriageway and its width (m).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "control": {
+          "description": "Who goes first.",
+          "$ref": "#/$defs/ControlSpec",
+          "default": {
+            "kind": "uncontrolled",
+            "major": []
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/JunctionKind",
+          "default": "box"
+        },
+        "ring_radius": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "ring_width": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "sign_visibility_distance": {
+          "description": "Split: how far before the split its sign can be read (m); omit for\nthe register's `split.sign_visibility_distance`.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "turns": {
+          "description": "Turning shares: arriving arm → leaving arm → share (normalised per\narriving arm; count them at the site, G§7.5). A pair that is absent\nor zero gets no movement.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        "u_turn_path": {
+          "description": "U-turns (a movement back out by the arm it came in by, or whose\nleaving ribbon runs against the arriving one): how far from the\nmedian edge of the receiving carriageway a U-turning vehicle joins\nit (m). Omit for the register's `gap_acceptance.u_turn.path.*`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Dist"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "arms",
+        "turns"
+      ]
+    },
     "KpiSpec": {
       "description": "Headline KPI settings.",
       "type": "object",
@@ -885,6 +1090,13 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/HumpSpec"
+          }
+        },
+        "junctions": {
+          "description": "Junctions: places where ribbons meet and vehicles choose where to\ngo (G§2.4, §6.6, §6.7; ADR-0009, ADR-0016).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JunctionSpec"
           }
         },
         "objects": {
@@ -1320,6 +1532,42 @@
         "from_left_share"
       ]
     },
+    "PhaseSpec": {
+      "description": "One stage of a fixed-time plan: green for every movement from `arms`\n(and for the listed `movements`, written `from>to`), then amber, then\nred for all.",
+      "type": "object",
+      "properties": {
+        "all_red_s": {
+          "type": "number",
+          "format": "double",
+          "default": 0.0
+        },
+        "amber_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "arms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "green_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "movements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "green_s",
+        "amber_s"
+      ]
+    },
     "PotholeFieldSpec": {
       "description": "A stretch with potholes, placed at random at the start of the run.",
       "type": "object",
@@ -1501,6 +1749,31 @@
       "additionalProperties": false,
       "required": [
         "every_s"
+      ]
+    },
+    "UpstreamSignalSpec": {
+      "description": "A signal upstream of an entry, not otherwise simulated: arrivals wait\nin the entry's queue while it is red and are let in while it is green,\nso they enter in platoons (G§7.3).",
+      "type": "object",
+      "properties": {
+        "cycle_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "green_s": {
+          "type": "number",
+          "format": "double"
+        },
+        "offset_s": {
+          "description": "Time into the cycle at simulated time 0 (s); green comes first.",
+          "type": "number",
+          "format": "double",
+          "default": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "cycle_s",
+        "green_s"
       ]
     },
     "VehicleClass": {

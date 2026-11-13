@@ -93,9 +93,49 @@ pub struct AgentStore {
     pub conflict_kind: Vec<u8>,
     pub conflict_s: Vec<f64>,
     pub conflict_y: Vec<f64>,
+    /// The ribbon it was on before this one ([`NO_RIBBON`] at its entry).
+    pub came_from: Vec<u32>,
+    /// The junction it is at or will reach next ([`NO_RIBBON`]: none), and
+    /// the arm it leaves that junction by.
+    pub turn_junction: Vec<u32>,
+    pub turn_out: Vec<u8>,
+    /// It may pass the stop line ahead whatever the line shows: it took a
+    /// gap, or could not stop when the signal changed.
+    pub gate_open: Vec<bool>,
+    /// When it began to wait at the stop line ahead (NaN: not waiting).
+    pub wait_since: Vec<f64>,
+    /// The conflicting vehicle that ends the gap it is looking at.
+    pub gap_ref: Vec<u64>,
+    /// Largest gap it turned down at this stop line (s; NaN: none) and how many.
+    pub gap_rejected: Vec<f64>,
+    pub gap_rejects: Vec<u32>,
+    /// Its critical gap (s) and its factor against heavy vehicles.
+    pub critical_gap: Vec<f64>,
+    pub heavy_factor: Vec<f64>,
+    /// How far before a split it learns which branch it needs (m), whether
+    /// it is a late realiser, and whether it knows now.
+    pub aware_distance: Vec<f64>,
+    pub late_realiser: Vec<bool>,
+    pub aware: Vec<bool>,
+    /// At a split: one of the `SPLIT_*` values.
+    pub split_state: Vec<u8>,
+    /// Lateral position it makes for on the ribbon it is on (NaN: none).
+    pub land_y: Vec<f64>,
+    /// It stood at a closed signal on this approach, and when it moved off.
+    pub queued: Vec<bool>,
+    pub moved_off: Vec<f64>,
     /// Set during the step when the agent leaves the network.
     pub exited: Vec<bool>,
 }
+
+/// Marker for "no ribbon" / "no junction".
+pub const NO_RIBBON: u32 = u32::MAX;
+/// Split states: not decided; it is in its branch's part of the road or
+/// still moving there; it stopped to wait for room; it gave up.
+pub const SPLIT_NONE: u8 = 0;
+pub const SPLIT_WAIT: u8 = 1;
+pub const SPLIT_GAVE_UP: u8 = 2;
+pub const SPLIT_DECIDED: u8 = 3;
 
 /// Everything needed to add one agent.
 #[derive(Debug, Clone, Copy)]
@@ -123,6 +163,10 @@ pub struct NewAgent {
     pub hump_speed: f64,
     pub t_arrival: f64,
     pub t_entry: f64,
+    pub critical_gap: f64,
+    pub heavy_factor: f64,
+    pub aware_distance: f64,
+    pub late_realiser: bool,
 }
 
 /// Stop-anywhere states: driving; braking for a stop while making for the
@@ -191,6 +235,23 @@ macro_rules! each_column {
         $m!($s.conflict_kind);
         $m!($s.conflict_s);
         $m!($s.conflict_y);
+        $m!($s.came_from);
+        $m!($s.turn_junction);
+        $m!($s.turn_out);
+        $m!($s.gate_open);
+        $m!($s.wait_since);
+        $m!($s.gap_ref);
+        $m!($s.gap_rejected);
+        $m!($s.gap_rejects);
+        $m!($s.critical_gap);
+        $m!($s.heavy_factor);
+        $m!($s.aware_distance);
+        $m!($s.late_realiser);
+        $m!($s.aware);
+        $m!($s.split_state);
+        $m!($s.land_y);
+        $m!($s.queued);
+        $m!($s.moved_off);
         $m!($s.exited);
     };
 }
@@ -265,6 +326,23 @@ impl AgentStore {
         self.conflict_kind.push(0);
         self.conflict_s.push(0.0);
         self.conflict_y.push(0.0);
+        self.came_from.push(NO_RIBBON);
+        self.turn_junction.push(NO_RIBBON);
+        self.turn_out.push(0);
+        self.gate_open.push(false);
+        self.wait_since.push(f64::NAN);
+        self.gap_ref.push(NO_AGENT);
+        self.gap_rejected.push(f64::NAN);
+        self.gap_rejects.push(0);
+        self.critical_gap.push(a.critical_gap);
+        self.heavy_factor.push(a.heavy_factor);
+        self.aware_distance.push(a.aware_distance);
+        self.late_realiser.push(a.late_realiser);
+        self.aware.push(false);
+        self.split_state.push(SPLIT_NONE);
+        self.land_y.push(f64::NAN);
+        self.queued.push(false);
+        self.moved_off.push(f64::NAN);
         self.exited.push(false);
         i
     }
@@ -337,6 +415,10 @@ mod tests {
             hump_speed: 5.0,
             t_arrival: 0.0,
             t_entry: 0.0,
+            critical_gap: 5.0,
+            heavy_factor: 1.0,
+            aware_distance: f64::INFINITY,
+            late_realiser: false,
         }
     }
 

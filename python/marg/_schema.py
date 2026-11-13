@@ -9,6 +9,19 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import TypeAliasType
 
 
+class ArmSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: str
+    in_: str | None = Field(
+        None,
+        alias='in',
+        description='The ribbon that arrives here; its end is the stop line.',
+    )
+    out: str | None = Field(None, description='The ribbon that leaves from here.')
+
+
 class AttractorSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -50,6 +63,20 @@ class ClosedInterval(BaseModel):
     )
     from_s: float
     to_s: float
+
+
+class ControlSpec1(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    kind: Literal['uncontrolled']
+    major: list[str] | None = []
+
+
+class CountdownState(StrEnum):
+    none = 'none'
+    working = 'working'
+    broken = 'broken'
 
 
 class DetectorSpec1(BaseModel):
@@ -250,6 +277,12 @@ class HumpSpec(BaseModel):
     y_to: float | None = None
 
 
+class JunctionKind(StrEnum):
+    box = 'box'
+    split = 'split'
+    roundabout = 'roundabout'
+
+
 class KpiSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -306,6 +339,17 @@ class PedestrianCrossingSpec(BaseModel):
     ribbon: str
     s_from: float
     s_to: float
+
+
+class PhaseSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    all_red_s: float | None = 0.0
+    amber_s: float
+    arms: list[str] | None = None
+    green_s: float
+    movements: list[str] | None = None
 
 
 class PotholeFieldSpec(BaseModel):
@@ -370,6 +414,18 @@ class TrajectorySpec(BaseModel):
     s_to: float | None = None
 
 
+class UpstreamSignalSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    cycle_s: float
+    green_s: float
+    offset_s: float | None = Field(
+        0.0,
+        description='Time into the cycle at simulated time 0 (s); green comes first.',
+    )
+
+
 class VehicleClass(StrEnum):
     bicycle = 'bicycle'
     cycle_rickshaw = 'cycle_rickshaw'
@@ -424,6 +480,29 @@ class BarrierSpec(BaseModel):
     s: float = Field(..., description='Station of the stop line on the ribbon.')
 
 
+class ControlSpec2(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    countdown: CountdownState | None = Field(
+        'none',
+        description='The countdown display. It changes nothing while every driver\ncomplies (P7); violations read it from P8 on.',
+    )
+    kind: Literal['signal']
+    offset_s: float | None = Field(
+        0.0, description='Time into the cycle at simulated time 0 (s).'
+    )
+    phases: list[PhaseSpec] = Field(
+        ..., description='Stages in order; the cycle is the sum of their times.'
+    )
+
+
+class ControlSpec(RootModel[ControlSpec1 | ControlSpec2]):
+    root: ControlSpec1 | ControlSpec2 = Field(
+        ..., description='Who goes first at a junction.'
+    )
+
+
 class EntrySpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -439,6 +518,10 @@ class EntrySpec(BaseModel):
     id: str
     ribbon: str
     s: float | None = Field(0.0, description='Station of the entry on the ribbon.')
+    upstream_signal: UpstreamSignalSpec | None = Field(
+        None,
+        description='Feed the entry from a signal upstream instead of letting arrivals\nin as they come (G§7.3).',
+    )
 
 
 class ObjectSpec(BaseModel):
@@ -554,6 +637,40 @@ class Dist13(BaseModel):
     dist: Literal['mixture']
 
 
+class JunctionSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    arms: list[ArmSpec]
+    centre: list[float] | None = Field(
+        None,
+        description='Roundabout: centre of the island (world metres), radius of the\nmiddle of the circulating carriageway and its width (m).',
+        max_length=2,
+        min_length=2,
+    )
+    control: ControlSpec | None = Field(
+        {'kind': 'uncontrolled', 'major': []},
+        description='Who goes first.',
+        validate_default=True,
+    )
+    id: str
+    kind: JunctionKind | None = 'box'
+    ring_radius: float | None = None
+    ring_width: float | None = None
+    sign_visibility_distance: float | None = Field(
+        None,
+        description="Split: how far before the split its sign can be read (m); omit for\nthe register's `split.sign_visibility_distance`.",
+    )
+    turns: dict[str, dict[str, float]] = Field(
+        ...,
+        description='Turning shares: arriving arm → leaving arm → share (normalised per\narriving arm; count them at the site, G§7.5). A pair that is absent\nor zero gets no movement.',
+    )
+    u_turn_path: Dist | None = Field(
+        None,
+        description="U-turns (a movement back out by the arm it came in by, or whose\nleaving ribbon runs against the arriving one): how far from the\nmedian edge of the receiving carriageway a U-turning vehicle joins\nit (m). Omit for the register's `gap_acceptance.u_turn.path.*`.",
+    )
+
+
 class MixtureComponent(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -578,6 +695,10 @@ class NetworkSpec(BaseModel):
         None, description='Kerbside bus stops (G§6.3).'
     )
     humps: list[HumpSpec] | None = Field(None, description='Speed humps (G§6.8).')
+    junctions: list[JunctionSpec] | None = Field(
+        None,
+        description='Junctions: places where ribbons meet and vehicles choose where to\ngo (G§2.4, §6.6, §6.7; ADR-0009, ADR-0016).',
+    )
     objects: list[ObjectSpec] | None = Field(
         None,
         description='Road objects: things with a position and a footprint that vehicles\nreact to (G§6, plan/03-model-design.md §10). They act only through\nusable width, speed caps, gap supply and incentives; there is no\ncapacity or flow factor to set (ADR-0005).',
@@ -681,6 +802,7 @@ class ParamValue(RootModel[float | Dist]):
 
 Scenario.model_rebuild()
 Dist13.model_rebuild()
+JunctionSpec.model_rebuild()
 MixtureComponent.model_rebuild()
 NetworkSpec.model_rebuild()
 ParkingSpec.model_rebuild()
