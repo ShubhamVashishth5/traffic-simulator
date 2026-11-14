@@ -124,6 +124,13 @@ pub struct AgentStore {
     /// It stood at a closed signal on this approach, and when it moved off.
     pub queued: Vec<bool>,
     pub moved_off: Vec<f64>,
+    /// A closed stop line ahead held it at the last step (a signal, a gap
+    /// it waits for, keep-clear): it is not about to enter the junction.
+    pub line_held: Vec<bool>,
+    /// When it committed to the junction it is in (s; NaN: not yet): it
+    /// crossed its stop line, or, waiting inside for a gap, took the gap.
+    /// Inside a junction the earlier ticket goes first (ADR-0016).
+    pub box_ticket: Vec<f64>,
     /// Set during the step when the agent leaves the network.
     pub exited: Vec<bool>,
 }
@@ -252,6 +259,8 @@ macro_rules! each_column {
         $m!($s.land_y);
         $m!($s.queued);
         $m!($s.moved_off);
+        $m!($s.line_held);
+        $m!($s.box_ticket);
         $m!($s.exited);
     };
 }
@@ -343,6 +352,8 @@ impl AgentStore {
         self.land_y.push(f64::NAN);
         self.queued.push(false);
         self.moved_off.push(f64::NAN);
+        self.line_held.push(false);
+        self.box_ticket.push(f64::NAN);
         self.exited.push(false);
         i
     }

@@ -14,7 +14,7 @@ use crate::agents::{
     STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
 };
 use crate::demand::{Arrival, Demand, Draws, draw_one};
-use crate::junctions::{Junctions, draw_turn, onward};
+use crate::junctions::{Junctions, chord_pose, draw_turn, onward};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
 use crate::model::lateral::{ChoiceParams, body_half_width, body_stretch, edge_gap};
@@ -55,6 +55,9 @@ const METRES_PER_KM: f64 = 1000.0;
 /// How often a lateral step that does not fit beside a neighbour is halved
 /// before it is dropped.
 const LATERAL_HALVINGS: u32 = 5;
+/// Ribbons ahead on a vehicle's route that the guard between ribbons looks
+/// along (an approach, a movement, its leaving ribbon, one more).
+const ROUTE_STEPS: usize = 4;
 
 /// Errors raised while building or running a simulation.
 #[derive(Debug, thiserror::Error)]
@@ -614,6 +617,20 @@ impl Simulation {
         out
     }
 
+    /// The move agent `i` would make now: its acceleration, its most
+    /// constraining leader and what the stop line ahead means for it.
+    pub fn move_out(&self, i: usize) -> Option<MoveOut> {
+        let r = self.agents.ribbon[i] as usize;
+        let k = self.orders[r].iter().position(|&x| x as usize == i)?;
+        Some(self.move_ctx().agent(r, k, i))
+    }
+
+    /// Run-time state of the junctions: signals, the vehicles near each and
+    /// who gives way to whom this step.
+    pub fn junctions(&self) -> &Junctions {
+        &self.junctions
+    }
+
     /// The lateral choice agent `i` would make now (ADR-0010 §3), whether or
     /// not a decision is due: its target and the utility terms.
     pub fn lateral_choice(&self, i: usize) -> Option<crate::model::lateral::Choice> {
@@ -828,8 +845,15 @@ impl Simulation {
                 ),
             });
         });
-        self.junctions
-            .step(t, &mut self.agents, &self.orders, net, &self.p, |ch| {
+        self.junctions.step(
+            t,
+            &mut self.agents,
+            &self.orders,
+            net,
+            &self.p,
+            self.seed,
+            &self.prev,
+            |ch| {
                 let j = &net.junctions[ch.junction];
                 events.push(EventRecord {
                     t,
@@ -846,7 +870,8 @@ impl Simulation {
                         ch.lasts
                     ),
                 });
-            });
+            },
+        );
         let mut buf = std::mem::take(&mut self.move_buf);
         {
             let ctx = self.move_ctx();
@@ -963,17 +988,33 @@ impl Simulation {
             }
         }
         let a = &mut self.agents;
+        a.line_held[i] = jo.held;
         if jo.held && a.v[i] < self.p.stop_speed_below {
             if a.wait_since[i].is_nan() {
                 a.wait_since[i] = t;
             }
             a.queued[i] = true;
         }
+        // Waiting inside the junction for a gap: its wait counts from when
+        // it stood, but it is in no queue at a stop line.
+        if jo.waiting && a.v[i] < self.p.stop_speed_below && a.wait_since[i].is_nan() {
+            a.wait_since[i] = t;
+        }
+        // Inside the junction with nothing left to give way to (the stream
+        // it waited for was stopped by the signal): committed from now.
+        if !jo.waiting && a.box_ticket[i].is_nan() && self.net.ribbon(a.ribbon[i] as usize).internal
+        {
+            a.box_ticket[i] = t;
+        }
         if jo.gap.is_nan() {
             return;
         }
         if jo.accepted {
             a.gate_open[i] = true;
+            // Waiting inside the junction, it commits to it now.
+            if self.net.ribbon(a.ribbon[i] as usize).internal && a.box_ticket[i].is_nan() {
+                a.box_ticket[i] = t;
+            }
             self.gaps_accepted += 1;
             let waited = if a.wait_since[i].is_nan() {
                 0.0
@@ -1556,26 +1597,23 @@ impl Simulation {
         }
     }
 
-    /// The body of agent `i` in world coordinates, now or before the step.
+    /// The body of agent `i` in world coordinates, now or before the step,
+    /// as vehicles on other ribbons see it ([`chord_pose`]).
     fn world_body(&self, i: usize, before: bool) -> Body {
         let a = &self.agents;
-        let rib = self.net.ribbon(a.ribbon[i] as usize);
         let (s, y, tan) = if before {
             (a.s_prev[i], a.y_prev[i], a.heading_tan_prev[i])
         } else {
             (a.s[i], a.y[i], a.heading_tan[i])
         };
-        let (x, yw, _) = rib.to_world(s, y);
-        let d = rib.direction(s);
-        let cos_t = 1.0 / (1.0 + tan * tan).sqrt();
-        let sin_t = tan * cos_t;
+        let (x, yw, hx, hy) = chord_pose(&self.net, self.seed, &self.prev, a, i, s, y, tan);
         Body {
             s: x,
             y: yw,
             half_length: 0.5 * a.length[i],
-            half_width: 0.5 * a.width[i],
-            cos: d[0] * cos_t - d[1] * sin_t,
-            sin: d[1] * cos_t + d[0] * sin_t,
+            half_width: body_half_width(a.width[i], a.length[i], tan),
+            cos: hx,
+            sin: hy,
         }
     }
 
@@ -1602,6 +1640,12 @@ impl Simulation {
                     let (mx, mz) = (self.junctions.members[g][x], self.junctions.members[g][z]);
                     let (rx, rz) = (mx.ribbon as usize, mz.ribbon as usize);
                     if rx == rz || !self.junctions.related(rx, rz) {
+                        continue;
+                    }
+                    // One ahead of the other on its own route: the guard in
+                    // the coordinates of that route has them.
+                    let (ix, iz) = (mx.i as usize, mz.i as usize);
+                    if self.on_route(ix, rz) || self.on_route(iz, rx) {
                         continue;
                     }
                     let (bx, bz) = (bodies[x], bodies[z]);
@@ -1641,6 +1685,22 @@ impl Simulation {
                 }
             }
         }
+    }
+
+    /// Whether ribbon `q` lies on agent `i`'s route ahead: within the few
+    /// ribbons the path through a junction can take.
+    fn on_route(&self, i: usize, q: usize) -> bool {
+        let a = &self.agents;
+        let mut turn = (a.turn_junction[i], a.turn_out[i]);
+        let mut r = a.ribbon[i] as usize;
+        for _ in 0..ROUTE_STEPS {
+            match onward(&self.net, self.seed, a.id[i], r, &mut turn) {
+                Some(n) if n == q => return true,
+                Some(n) => r = n,
+                None => return false,
+            }
+        }
+        false
     }
 
     /// Put agent `i` back where it was before this step, because it
@@ -1871,20 +1931,39 @@ impl Simulation {
             }
             let a = &mut self.agents;
             a.land_y[i] = land;
-            a.gate_open[i] = false;
+            // A gap taken for a wait inside the junction (under a signal)
+            // still holds there; the stop line's own gate is used up.
+            let signal = self.junctions.light[n] != crate::junctions::LIGHT_NONE;
+            if !(signal && a.gate_open[i]) {
+                a.gate_open[i] = false;
+            }
+            // Committed to the junction from now, unless it is a permitted
+            // movement that will wait inside for its gap.
+            let waits = signal && !a.gate_open[i] && self.net.ribbon(n).rank > 1;
+            a.box_ticket[i] = if waits { f64::NAN } else { t_cross };
             a.wait_since[i] = f64::NAN;
             a.gap_ref[i] = NO_AGENT;
             a.gap_rejected[i] = f64::NAN;
             a.gap_rejects[i] = 0;
             a.queued[i] = false;
+            a.line_held[i] = false;
             a.aware[i] = false;
             a.split_state[i] = SPLIT_NONE;
             a.decision_leader[i] = crate::agents::UNDECIDED;
         }
         if !nrib.internal {
-            // Out of the junction: the next one ahead, if any.
+            // Out of the junction: a gap taken inside it, a wait, the queue
+            // it stood in are over; the next junction ahead, if any.
             let a = &mut self.agents;
             a.land_y[i] = f64::NAN;
+            a.gate_open[i] = false;
+            a.wait_since[i] = f64::NAN;
+            a.queued[i] = false;
+            a.line_held[i] = false;
+            a.box_ticket[i] = f64::NAN;
+            a.gap_ref[i] = NO_AGENT;
+            a.gap_rejected[i] = f64::NAN;
+            a.gap_rejects[i] = 0;
             match nrib.ahead {
                 Some((j2, arm2)) => {
                     a.turn_junction[i] = j2 as u32;

@@ -183,13 +183,9 @@ pub fn run_spec(
     let start = Instant::now();
     let mut sim = Simulation::new(spec, opts.seed, opts.threads)?;
     if spec.scenario.outputs.trajectories.is_some() {
-        let ribbons = spec
-            .scenario
-            .network
-            .ribbons
-            .iter()
-            .map(|r| r.id.clone())
-            .collect();
+        // The built network's ribbons: a junction adds its own after the
+        // scenario's.
+        let ribbons = sim.network().ribbons.iter().map(|r| r.id.clone()).collect();
         sim.set_trajectory_sink(Box::new(ParquetTrajectorySink::new(
             out.join("trajectories.parquet"),
             ribbons,

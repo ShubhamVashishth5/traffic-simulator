@@ -542,9 +542,11 @@ pub fn replay(
         )));
     }
     if write_outputs_too && run.scenario().outputs.trajectories.is_some() {
+        // The built network's ribbons: a junction adds its own after the
+        // scenario's.
         let ribbons = run
-            .scenario()
-            .network
+            .sim()
+            .network()
             .ribbons
             .iter()
             .map(|r| r.id.clone())

@@ -38,7 +38,23 @@ uv run python scripts/p5_stage3_recovery.py    # P5.8 stage-3 screen + synthetic
 uv run python scripts/p5_milestone.py          # regenerate reports/phases/P5.md (reads P5_stage3.json)
 node web/e2e/p5_seepage.cjs                    # P5 viewer recording (needs playwright + marg serve)
 uv run python scripts/p6_milestone.py          # regenerate reports/phases/P6.md (93 runs, ~8 min)
+uv run python scripts/p7_signal_check.py       # P7.3: saturation flow and discharge acceleration (~10 s) -> reports/phases/P7_signal.json
 ```
+
+## Builds are expensive: batch them
+
+A release build of the workspace takes minutes and every rebuild rewrites a cold cache.
+
+- Design the whole change for a task (all files, tests, the measurement script) before editing,
+  then write it in one pass. Don't rebuild after each small edit.
+- Catch compile errors with `cargo check`; build in release once per batch, then run the tests
+  once.
+- Run sweeps (flows × seeds, the guard property test, benchmarks) once per batch, not after each
+  tweak.
+- Diagnose from the outputs of finished runs (events, trajectories) where you can. A diagnostic
+  harness reads what to inspect from its arguments or environment, so it is compiled once, not
+  once per hypothesis.
+- Build another revision (a base commit for comparison) only when a comparison needs it.
 
 ## Rules
 
