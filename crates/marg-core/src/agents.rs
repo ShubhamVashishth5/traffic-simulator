@@ -119,6 +119,13 @@ pub struct AgentStore {
     pub aware: Vec<bool>,
     /// At a split: one of the `SPLIT_*` values.
     pub split_state: Vec<u8>,
+    /// It takes a branch at this junction that it did not want (gave up,
+    /// never knew, or drifted out of its branch's part of the road): it
+    /// makes for the next median opening to turn back (G§6.7).
+    pub missed: Vec<bool>,
+    /// The vehicle physically in its way at the last step (its leader
+    /// before junction arbitration's give-way constraints), or `NO_AGENT`.
+    pub blocker: Vec<u64>,
     /// Lateral position it makes for on the ribbon it is on (NaN: none).
     pub land_y: Vec<f64>,
     /// It stood at a closed signal on this approach, and when it moved off.
@@ -138,11 +145,14 @@ pub struct AgentStore {
 /// Marker for "no ribbon" / "no junction".
 pub const NO_RIBBON: u32 = u32::MAX;
 /// Split states: not decided; it is in its branch's part of the road or
-/// still moving there; it stopped to wait for room; it gave up.
+/// still moving there; it stopped to wait for room; it gave up; it reached
+/// the point where it could last stop before the line without knowing which
+/// branch it needs (it takes the one it is in).
 pub const SPLIT_NONE: u8 = 0;
 pub const SPLIT_WAIT: u8 = 1;
 pub const SPLIT_GAVE_UP: u8 = 2;
 pub const SPLIT_DECIDED: u8 = 3;
+pub const SPLIT_UNAWARE: u8 = 4;
 
 /// Everything needed to add one agent.
 #[derive(Debug, Clone, Copy)]
@@ -256,6 +266,8 @@ macro_rules! each_column {
         $m!($s.late_realiser);
         $m!($s.aware);
         $m!($s.split_state);
+        $m!($s.missed);
+        $m!($s.blocker);
         $m!($s.land_y);
         $m!($s.queued);
         $m!($s.moved_off);
@@ -349,6 +361,8 @@ impl AgentStore {
         self.late_realiser.push(a.late_realiser);
         self.aware.push(false);
         self.split_state.push(SPLIT_NONE);
+        self.missed.push(false);
+        self.blocker.push(NO_AGENT);
         self.land_y.push(f64::NAN);
         self.queued.push(false);
         self.moved_off.push(f64::NAN);

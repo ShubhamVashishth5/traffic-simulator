@@ -705,8 +705,9 @@ pub fn data_dictionary() -> String {
                     "kinds so far: collision_guard, lateral_move, object_added, object_removed, \
                      parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, \
                      bus_standing, pothole_crossed, pedestrian_crossing, signal_state, \
-                     stop_line_crossed, gap_accepted, split_decision, missed_branch, u_turn \
-                     (agent_id is 2⁶⁴ − 1 for the object, parking, pedestrian and signal events)",
+                     stop_line_crossed, gap_accepted, gap_rejected, split_decision, \
+                     missed_branch, reroute, u_turn, gridlock (agent_id is 2⁶⁴ − 1 for the \
+                     object, parking, pedestrian, signal and gridlock events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
@@ -741,13 +742,22 @@ pub fn data_dictionary() -> String {
                      leaves least to spare; null if none was coming), critical_gap_s (what it \
                      needed against that vehicle), largest_rejected_s and rejected (the gaps \
                      it turned down at this line), waited_s, against_class, speed. \
+                     gap_rejected (it turns a gap down, logged when the gap is first offered): \
+                     junction, gap_s, critical_gap_s, rejected (how many so far), waited_s, \
+                     against_class, speed. \
                      split_decision (at the deadline before a split or a U-turn, not on the \
                      side it needs, G§6.7): junction, decision (stop_and_wait or give_up), \
                      stop_and_wait_probability, urgency (0–1), needed_move_m, late_realiser, \
-                     speed. missed_branch (it reached a split outside its branch's part of \
-                     the road and took the branch it was in): junction, wanted, took, aware, \
-                     gave_up, late_realiser. u_turn (it starts a U-turn): junction, \
-                     path_from_median_m (drawn), joins_at_y, receiving_width_m. \
+                     speed. missed_branch (outside its branch's part of the road, it takes \
+                     the branch it is in: at its deadline if it gave up or never knew, at \
+                     the line if it drifted out after deciding): junction, wanted, took, \
+                     aware, gave_up, late_realiser. reroute (having taken a branch it did \
+                     not want, it will turn back at the next median opening): missed_at, \
+                     via (that opening), u_turn_arm. u_turn (it starts a U-turn): junction, \
+                     path_from_median_m (drawn), joins_at_y, receiving_width_m. gridlock (an \
+                     area detector becomes gridlocked: its space-mean speed has stayed below \
+                     `observers.gridlock.speed` for `observers.gridlock.duration`): area, \
+                     slow_since (s), with the area's start in ribbon, s. \
                      lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",
@@ -943,7 +953,11 @@ pub fn data_dictionary() -> String {
                     "kpis: run_hash, seed, throughput_veh_h, delay_mean_s, delay_p95_s, …",
                     "f64",
                     "",
-                    "see `Simulation::kpis`; measured window excludes warm-up",
+                    "see `Simulation::kpis`; measured window excludes warm-up. Junctions and \
+                     splits: gaps_accepted, gaps_rejected, split_stop_and_wait, split_give_up, \
+                     missed_branches, reroutes. gridlock_share: share of the measured window in \
+                     which some area detector was gridlocked; gridlock_onset_s: start of the \
+                     first slow spell that became a gridlock (NaN: none)",
                 ),
                 (
                     "trajectories: t, agent_id, ribbon, s, y",

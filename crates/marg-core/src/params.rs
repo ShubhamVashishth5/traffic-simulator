@@ -149,6 +149,10 @@ pub struct CoreParams {
     pub stop_speed_below: f64,
     pub stop_rearm_above: f64,
     pub lateral_histogram_bin: f64,
+    /// Space-mean speed below which a monitored area is slow (m/s), and how
+    /// long it must stay slow to count as gridlocked (s).
+    pub gridlock_speed: f64,
+    pub gridlock_duration: f64,
     /// Which register path every per-agent draw of every type reads (for
     /// the live viewer's "resample existing agents").
     pub draw_sources: Vec<DrawSource>,
@@ -568,6 +572,8 @@ impl CoreParams {
             stop_speed_below: spec.scalar_si("observers.stop.speed_below")?,
             stop_rearm_above: spec.scalar_si("observers.stop.rearm_above")?,
             lateral_histogram_bin: spec.scalar_si("observers.lateral_histogram_bin")?,
+            gridlock_speed: spec.scalar_si("observers.gridlock.speed")?,
+            gridlock_duration: spec.scalar_si("observers.gridlock.duration")?,
         })
     }
 

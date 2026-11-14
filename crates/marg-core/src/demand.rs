@@ -12,7 +12,7 @@
 
 use crate::params::{CoreParams, Drawn, N_CLASSES};
 use crate::rng::{StreamKind, StreamRng};
-use marg_params::spec::{EntrySpec, FlowInterval};
+use marg_params::spec::{EntrySpec, FlowInterval, UpstreamSignalSpec};
 use marg_params::{VehicleClass, VehicleType};
 use std::collections::VecDeque;
 
@@ -155,6 +155,9 @@ pub struct EntryState {
     pub s: f64,
     flow: Vec<FlowInterval>,
     pub pending: VecDeque<Arrival>,
+    /// A signal upstream that is not simulated: arrivals wait unless it
+    /// shows green (G§7.3).
+    pub gate: Option<UpstreamSignalSpec>,
 }
 
 /// All entries and their arrival processes.
@@ -254,12 +257,26 @@ impl Demand {
                 p.next_t = p.headway_from(0.0, &e.flow, &mut 0);
                 processes.push(p);
             }
+            if let Some(sig) = &e.upstream_signal {
+                let timing_ok = sig.cycle_s > 0.0
+                    && sig.green_s > 0.0
+                    && sig.amber_s >= 0.0
+                    && sig.green_s + sig.amber_s < sig.cycle_s
+                    && sig.offset_s.is_finite();
+                if !timing_ok {
+                    return Err(format!(
+                        "entry `{}`: upstream_signal needs cycle_s > green_s + amber_s, green_s > 0, amber_s >= 0",
+                        e.id
+                    ));
+                }
+            }
             states.push(EntryState {
                 id: e.id.clone(),
                 ribbon,
                 s: e.s,
                 flow: e.flow.clone(),
                 pending: VecDeque::new(),
+                gate: e.upstream_signal.filter(|s| s.stop_line_s.is_none()),
             });
         }
         Ok(Self {

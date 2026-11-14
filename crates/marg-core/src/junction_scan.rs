@@ -7,7 +7,9 @@
 //! nothing; what it decides is returned and applied afterwards in a fixed
 //! order.
 
-use crate::agents::{NO_AGENT, NO_RIBBON, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_WAIT};
+use crate::agents::{
+    NO_AGENT, NO_RIBBON, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_UNAWARE, SPLIT_WAIT,
+};
 use crate::junctions::{LIGHT_AMBER, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, chord_pose, onward};
 use crate::model::lateral::{edge_gap, leader_weight, steering_speed};
 use crate::model::longitudinal::Idm;
@@ -247,6 +249,10 @@ impl MoveCtx<'_> {
                         SPLIT_GAVE_UP
                     };
                     view.out.split_p = p_wait;
+                } else {
+                    // It does not know it is on the wrong side: it takes
+                    // the branch it is in (ADR-0017).
+                    view.out.split = SPLIT_UNAWARE;
                 }
             }
             let waiting = state == SPLIT_WAIT || view.out.split == SPLIT_WAIT;
@@ -584,6 +590,14 @@ impl MoveCtx<'_> {
         let scale = a.clearance_scale[i];
         let radius = idm.desired_gap(v, v, 1.0, 1.0) + l + self.l_max;
         let strength = p.steering_sensitivity * p.emergency_decel;
+        // On a ring (ADR-0009, under review) a vehicle that gives way to
+        // this one is in its way only if their bodies overlap across the
+        // path; in a box the clearance is kept to it as before.
+        let on_ring = self
+            .junctions
+            .arbiter
+            .scope_of(i)
+            .is_some_and(|j| net.junctions[j].kind == JunctionKind::Roundabout);
         for g in groups {
             for m in &self.junctions.members[g] {
                 let k = m.i as usize;
@@ -661,11 +675,9 @@ impl MoveCtx<'_> {
                 {
                     *turn_room = turn_room.min(end_gap - theirs);
                 }
-                let keep = if arbitrated && self.junctions.arbiter.gives_way_to(a.id[k], a.id[i]) {
-                    0.0
-                } else {
-                    c_min
-                };
+                let yields_to_me =
+                    arbitrated && self.junctions.arbiter.gives_way_to(a.id[k], a.id[i]);
+                let keep = if yields_to_me { 0.0 } else { c_min };
                 if across
                     && let Some(gap) = body_ahead(
                         (ds, yk),
@@ -718,13 +730,17 @@ impl MoveCtx<'_> {
                 if excess <= 0.0 {
                     // In the way now (rule 1): followed. A body turned
                     // across the path was measured by its outline above.
-                    if !across {
+                    // On a ring, one that gives way to this vehicle is in
+                    // its way only if their bodies overlap across the path:
+                    // as with a body turned across it, only its body must be
+                    // missed.
+                    if !across && !(on_ring && yields_to_me && gy > 0.0) {
                         follow(gap_s, 1.0, acc, lead);
                     }
                     continue;
                 }
                 if arbitrated {
-                    if cos > 0.0 && excess <= self.cut && !across {
+                    if !(on_ring && yields_to_me) && cos > 0.0 && excess <= self.cut && !across {
                         follow(gap_s, leader_weight(excess, p.braking_scale), acc, lead);
                     }
                     continue;

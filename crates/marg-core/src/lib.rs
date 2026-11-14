@@ -8,6 +8,7 @@
 pub mod agents;
 pub mod arbitration;
 pub mod demand;
+pub mod gridlock;
 pub mod junction_scan;
 pub mod junctions;
 pub mod model;

@@ -229,17 +229,35 @@ pub struct PhaseSpec {
     pub all_red_s: f64,
 }
 
-/// A signal upstream of an entry, not otherwise simulated: arrivals wait
-/// in the entry's queue while it is red and are let in while it is green,
-/// so they enter in platoons (G§7.3).
+/// A fixed-time signal upstream of an entry, so that traffic arrives in
+/// the platoons green releases rather than as a renewal process (G§7.3).
+/// With `stop_line_s`, the signal is simulated: arrivals enter at the
+/// entry, meet the signal's stop line that far along the ribbon, queue at
+/// it on red (and on amber, if they can still stop at the safe braking
+/// limit) and discharge as the model's own queues do. Without it, arrivals
+/// wait in the entry's queue unless the signal shows green.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpstreamSignalSpec {
     pub cycle_s: f64,
     pub green_s: f64,
+    /// Amber after green (s); red fills the rest of the cycle.
+    #[serde(default)]
+    pub amber_s: f64,
     /// Time into the cycle at simulated time 0 (s); green comes first.
     #[serde(default)]
     pub offset_s: f64,
+    /// Station of the signal's stop line on the entry's ribbon (m), beyond
+    /// the entry's own station.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_line_s: Option<f64>,
+}
+
+impl UpstreamSignalSpec {
+    /// Whether the signal shows green at time `t`.
+    pub fn green_at(&self, t: f64) -> bool {
+        (t + self.offset_s).rem_euclid(self.cycle_s) < self.green_s
+    }
 }
 
 /// A kerbside bus stop at the left edge. Buses that serve it pull in, stand

@@ -1,0 +1,84 @@
+name: median_opening
+description: >
+  A median opening on a four-lane divided road (7 m per carriageway): from each direction 20% of
+  vehicles U-turn through the opening, from the median-side notional lane, and wait for a gap in
+  the opposing stream they join (G§6.7, P7.5). Where a U-turner joins the receiving carriageway is
+  drawn from a path distribution; the guide's source (Mohapatra, Dey & Chandra 2016: a gamma on
+  four-lane roads, a mixture on six-lane roads) was not available, so the shapes below and the
+  U-turn critical-gap factor are placeholders.
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: e_in
+      polyline: [[400.0, -4.0], [6.0, -4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: e_out
+      polyline: [[6.0, 4.0], [400.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: w_in
+      polyline: [[-400.0, 4.0], [-6.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: w_out
+      polyline: [[-6.0, -4.0], [-400.0, -4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+  junctions:
+    - id: opening
+      arms:
+        - {id: e, in: e_in, out: e_out}
+        - {id: w, in: w_in, out: w_out}
+      turns:
+        e: {w: 0.8, e: 0.2}
+        w: {e: 0.8, w: 0.2}
+      control: {kind: uncontrolled, major: [e, w]}
+demand:
+  entries:
+    - id: e
+      ribbon: e_in
+      flow: [{from_s: 0, veh_per_h: 900}]
+      composition:
+        motorcycle: 0.26
+        scooter: 0.14
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.24
+        sedan: 0.08
+        suv: 0.05
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+    - id: w
+      ribbon: w_in
+      flow: [{from_s: 0, veh_per_h: 900}]
+      composition:
+        motorcycle: 0.26
+        scooter: 0.14
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.24
+        sedan: 0.08
+        suv: 0.05
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+detectors:
+  - {kind: screenline, id: out_e, ribbon: e_out, s: 200, interval_s: 300}
+  - {kind: screenline, id: out_w, ribbon: w_out, s: 200, interval_s: 300}
+  - {kind: area, id: approach_e, ribbon: e_in, s_from: 100, s_to: 394, interval_s: 300}
+  - {kind: area, id: approach_w, ribbon: w_in, s_from: 100, s_to: 394, interval_s: 300}
+overrides:
+  road.junction.turn_lateral_acceleration: 2.0   # placeholder: not in the guide
+  # Placeholders: Mohapatra, Dey & Chandra 2016 not read (P7.5).
+  interaction.gap_acceptance.u_turn.critical_gap_factor: 0.8
+  interaction.gap_acceptance.u_turn.path.four_lane: {dist: gamma, shape: 2.5, scale: 0.8}
+  interaction.gap_acceptance.u_turn.path.six_lane:
+    dist: mixture
+    components:
+      - {weight: 0.6, dist: {dist: gamma, shape: 4.0, scale: 0.3}}
+      - {weight: 0.4, dist: {dist: normal, mean: 5.5, sd: 0.8}}
+  # The U-turn is made from the median-side lane (a binding window, ADR-0017).
+  road.split.stop_and_wait_probability: 0.5
+  road.split.route_weight: 1.0
+  road.split.urgency_clearance_link: 0.5
+  road.split.awareness_distance: {dist: uniform, min: 800, max: 3000}

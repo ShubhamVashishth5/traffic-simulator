@@ -1752,9 +1752,15 @@
       ]
     },
     "UpstreamSignalSpec": {
-      "description": "A signal upstream of an entry, not otherwise simulated: arrivals wait\nin the entry's queue while it is red and are let in while it is green,\nso they enter in platoons (G§7.3).",
+      "description": "A fixed-time signal upstream of an entry, so that traffic arrives in\nthe platoons green releases rather than as a renewal process (G§7.3).\nWith `stop_line_s`, the signal is simulated: arrivals enter at the\nentry, meet the signal's stop line that far along the ribbon, queue at\nit on red (and on amber, if they can still stop at the safe braking\nlimit) and discharge as the model's own queues do. Without it, arrivals\nwait in the entry's queue unless the signal shows green.",
       "type": "object",
       "properties": {
+        "amber_s": {
+          "description": "Amber after green (s); red fills the rest of the cycle.",
+          "type": "number",
+          "format": "double",
+          "default": 0.0
+        },
         "cycle_s": {
           "type": "number",
           "format": "double"
@@ -1768,6 +1774,14 @@
           "type": "number",
           "format": "double",
           "default": 0.0
+        },
+        "stop_line_s": {
+          "description": "Station of the signal's stop line on the entry's ribbon (m), beyond\nthe entry's own station.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
         }
       },
       "additionalProperties": false,

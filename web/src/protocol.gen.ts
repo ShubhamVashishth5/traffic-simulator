@@ -588,17 +588,30 @@ export interface FlowInterval {
   veh_per_h: number;
 }
 /**
- * A signal upstream of an entry, not otherwise simulated: arrivals wait
- * in the entry's queue while it is red and are let in while it is green,
- * so they enter in platoons (G§7.3).
+ * A fixed-time signal upstream of an entry, so that traffic arrives in
+ * the platoons green releases rather than as a renewal process (G§7.3).
+ * With `stop_line_s`, the signal is simulated: arrivals enter at the
+ * entry, meet the signal's stop line that far along the ribbon, queue at
+ * it on red (and on amber, if they can still stop at the safe braking
+ * limit) and discharge as the model's own queues do. Without it, arrivals
+ * wait in the entry's queue unless the signal shows green.
  */
 export interface UpstreamSignalSpec {
+  /**
+   * Amber after green (s); red fills the rest of the cycle.
+   */
+  amber_s?: number;
   cycle_s: number;
   green_s: number;
   /**
    * Time into the cycle at simulated time 0 (s); green comes first.
    */
   offset_s?: number;
+  /**
+   * Station of the signal's stop line on the entry's ribbon (m), beyond
+   * the entry's own station.
+   */
+  stop_line_s?: number | null;
 }
 /**
  * Which detectors the headline KPIs use.

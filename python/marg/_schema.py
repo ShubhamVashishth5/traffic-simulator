@@ -418,11 +418,18 @@ class UpstreamSignalSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
+    amber_s: float | None = Field(
+        0.0, description='Amber after green (s); red fills the rest of the cycle.'
+    )
     cycle_s: float
     green_s: float
     offset_s: float | None = Field(
         0.0,
         description='Time into the cycle at simulated time 0 (s); green comes first.',
+    )
+    stop_line_s: float | None = Field(
+        None,
+        description="Station of the signal's stop line on the entry's ribbon (m), beyond\nthe entry's own station.",
     )
 
 

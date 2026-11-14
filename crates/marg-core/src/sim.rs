@@ -10,10 +10,11 @@
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
 use crate::agents::{
-    AgentStore, NO_AGENT, NO_RIBBON, NewAgent, REMOVED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_WAIT,
-    STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
+    AgentStore, NO_AGENT, NO_RIBBON, NewAgent, REMOVED, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE,
+    SPLIT_UNAWARE, SPLIT_WAIT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
 };
 use crate::demand::{Arrival, Demand, Draws, draw_one};
+use crate::gridlock::Gridlock;
 use crate::junctions::{Junctions, chord_pose, draw_turn, onward};
 use crate::model::coverage::Coverage;
 use crate::model::geometry::{Body, overlap, penetration};
@@ -30,7 +31,7 @@ use crate::parking::Parking;
 use crate::pedestrians::Pedestrians;
 use crate::rng::{StreamKind, StreamRng};
 pub use crate::scan::Interaction;
-use crate::scan::{Barrier, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
+use crate::scan::{Barrier, FixedTime, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use crate::stopping::Stopping;
 use crate::surface::Surface;
 use crate::width::WidthObservers;
@@ -149,7 +150,11 @@ pub struct Simulation {
     split_waits: u64,
     split_give_ups: u64,
     missed_branches: u64,
+    reroutes: u64,
     gaps_accepted: u64,
+    gaps_rejected: u64,
+    /// The gridlock indicator over the area detectors.
+    gridlock: Gridlock,
     /// Agents the kerb stopped this step: index, and how far each was cut back.
     edge_stops: Vec<(u32, f64)>,
     /// Steps between an agent's scheduled lateral decisions.
@@ -273,7 +278,42 @@ impl Simulation {
                 ribbon,
                 s: b.s,
                 closed: b.closed.iter().map(|c| (c.from_s, c.to_s)).collect(),
+                signal: None,
                 is_closed: false,
+                amber: false,
+            });
+        }
+        // Entries fed through a simulated signal upstream (G§7.3): its stop
+        // line is a barrier that the signal closes.
+        for e in &scenario.demand.entries {
+            let (Some(sig), Some(line)) = (
+                e.upstream_signal,
+                e.upstream_signal.and_then(|s| s.stop_line_s),
+            ) else {
+                continue;
+            };
+            let ribbon = ribbon_of(&e.ribbon).ok_or_else(|| {
+                SimError::InvalidScenario(format!("entry `{}`: unknown ribbon", e.id))
+            })?;
+            if !(line > e.s && line < net.ribbon(ribbon).length()) {
+                return Err(SimError::InvalidScenario(format!(
+                    "entry `{}`: upstream_signal.stop_line_s must lie on its ribbon beyond the entry",
+                    e.id
+                )));
+            }
+            barriers.push(Barrier {
+                id: format!("{}:upstream_signal", e.id),
+                ribbon,
+                s: line,
+                closed: Vec::new(),
+                signal: Some(FixedTime {
+                    cycle: sig.cycle_s,
+                    green: sig.green_s,
+                    amber: sig.amber_s,
+                    offset: sig.offset_s,
+                }),
+                is_closed: false,
+                amber: false,
             });
         }
         let mut objects = Objects::new(n_ribbons);
@@ -294,6 +334,13 @@ impl Simulation {
             .map_err(SimError::InvalidScenario)?;
         let narrow = Narrowings::new(&net);
         let junctions = Junctions::new(&net, &p).map_err(SimError::InvalidScenario)?;
+        let gridlock = Gridlock::new(
+            &scenario.detectors,
+            ribbon_of,
+            p.gridlock_speed,
+            p.gridlock_duration,
+            scenario.warmup_s,
+        );
         let decision_steps = decision_steps(&p, scenario.dt_s);
         Ok(Self {
             dt: scenario.dt_s,
@@ -328,7 +375,10 @@ impl Simulation {
             split_waits: 0,
             split_give_ups: 0,
             missed_branches: 0,
+            reroutes: 0,
             gaps_accepted: 0,
+            gaps_rejected: 0,
+            gridlock,
             edge_stops: Vec::new(),
             decision_steps,
             conflicts: Vec::new(),
@@ -394,6 +444,23 @@ impl Simulation {
         self.collision_guard(t0 + self.dt);
         self.detectors
             .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
+        let (events, net) = (&mut self.events, &self.net);
+        self.gridlock
+            .observe(&self.agents, &self.orders, t0, self.dt, |o| {
+                events.push(EventRecord {
+                    t: t0 + self.dt,
+                    kind: "gridlock",
+                    agent_id: NO_AGENT,
+                    ribbon: net.ribbon(o.ribbon).id.clone(),
+                    s: o.s_from,
+                    y: 0.0,
+                    attrs: format!(
+                        "{{\"area\":{},\"slow_since\":{}}}",
+                        json_string(o.area),
+                        o.since
+                    ),
+                });
+            });
         if let Some(live) = &mut self.live {
             live.det
                 .observe(&self.agents, &self.orders, t0, self.dt, self.max_step);
@@ -763,7 +830,7 @@ impl Simulation {
         }
         let t = self.t;
         for b in &mut self.barriers {
-            b.is_closed = b.closed.iter().any(|&(from, to)| t >= from && t < to);
+            b.update(t);
         }
         let (events, net) = (&mut self.events, &self.net);
         if !self.pedestrians.is_empty() {
@@ -904,6 +971,7 @@ impl Simulation {
             let (r, k) = self.work[n];
             let i = self.orders[r as usize][k as usize] as usize;
             self.agents.acc[i] = out.acc;
+            self.agents.blocker[i] = out.blocker;
             self.agents.vy[i] = out.vy;
             self.y_limits[i] = (out.y_lo, out.y_hi);
             self.kerb_limits[i] = (out.kerb_lo, out.kerb_hi);
@@ -940,8 +1008,21 @@ impl Simulation {
         self.move_buf = buf;
     }
 
-    /// Record what agent `i` decided at the stop line ahead this step.
+    /// Record what agent `i` decided at the stop line ahead this step. Past
+    /// its deadline at a split, a vehicle that gave up or never knew which
+    /// branch it needs takes the branch it is in at once; one that decided
+    /// and has since left its branch's part of the road takes the one it is
+    /// in as it reaches the line (ADR-0017).
     fn apply_junction(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        self.record_junction(i, jo, t);
+        match self.agents.split_state[i] {
+            SPLIT_GAVE_UP | SPLIT_UNAWARE => self.take_branch_in(i, t, false),
+            SPLIT_DECIDED => self.take_branch_in(i, t, true),
+            _ => {}
+        }
+    }
+
+    fn record_junction(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
         let a = &mut self.agents;
         let junction_id = |a: &AgentStore| {
             self.net
@@ -1049,10 +1130,32 @@ impl Simulation {
             );
             self.events.push(ev);
         } else if jo.gap_ref != a.gap_ref[i] {
-            // A new gap, turned down.
+            // A new gap, turned down: logged with its features (rule 9), as
+            // the rejected gaps of a gap-acceptance survey.
             a.gap_ref[i] = jo.gap_ref;
             a.gap_rejects[i] += 1;
             a.gap_rejected[i] = a.gap_rejected[i].max(jo.gap);
+            self.gaps_rejected += 1;
+            let waited = if a.wait_since[i].is_nan() {
+                0.0
+            } else {
+                t - a.wait_since[i]
+            };
+            let ev = event(
+                a,
+                "gap_rejected",
+                format!(
+                    "{{\"junction\":{},\"gap_s\":{},\"critical_gap_s\":{},\"rejected\":{},\"waited_s\":{},\"against_class\":\"{}\",\"speed\":{}}}",
+                    json_string(&junction_id(a)),
+                    jo.gap,
+                    jo.needed,
+                    a.gap_rejects[i],
+                    waited,
+                    VehicleClass::ALL[usize::from(jo.gap_class)].key(),
+                    a.v[i]
+                ),
+            );
+            self.events.push(ev);
         }
     }
 
@@ -1803,6 +1906,31 @@ impl Simulation {
     /// Agent `i` reaches the end of ribbon `r`. At a split it takes the
     /// branch it is in, whatever it wanted (G§6.7).
     fn before_line(&mut self, i: usize, r: usize, t: f64) {
+        self.switch_branch(i, r, t);
+    }
+
+    /// Agent `i`, past its deadline at the split ahead, takes the branch it
+    /// is in if it is outside the part of the road its own branch is made
+    /// from; with `at_line`, only once its front is about to reach the line.
+    fn take_branch_in(&mut self, i: usize, t: f64, at_line: bool) {
+        let a = &self.agents;
+        let r = a.ribbon[i] as usize;
+        let rib = self.net.ribbon(r);
+        if rib.internal || rib.arm_in.is_none() {
+            return;
+        }
+        if at_line {
+            let gap = rib.length() - a.s[i] - 0.5 * a.length[i];
+            if gap > a.v[i] * self.dt + a.standstill_gap[i] {
+                return;
+            }
+        }
+        self.switch_branch(i, r, t);
+    }
+
+    /// The vehicle on arriving ribbon `r` takes the movement whose part of
+    /// the road it is in, if it is outside its own movement's binding one.
+    fn switch_branch(&mut self, i: usize, r: usize, t: f64) {
         let rib = self.net.ribbon(r);
         let (Some(j), Some(arm)) = (rib.junction, rib.arm_in) else {
             return;
@@ -1845,6 +1973,7 @@ impl Simulation {
             ),
         });
         self.agents.turn_out[i] = mv.to as u8;
+        self.agents.missed[i] = true;
     }
 
     /// Agent `i` moved from ribbon `r` onto `n`.
@@ -1968,9 +2097,37 @@ impl Simulation {
                 Some((j2, arm2)) => {
                     a.turn_junction[i] = j2 as u32;
                     a.turn_out[i] = draw_turn(self.seed, a.id[i], &self.net, j2, arm2);
+                    // It took a branch it did not want: it turns back at
+                    // the next median opening (G§6.7).
+                    let next = &self.net.junctions[j2];
+                    if a.missed[i]
+                        && next.kind == marg_params::spec::JunctionKind::Box
+                        && next.movement_of[arm2][arm2].is_some()
+                    {
+                        a.turn_out[i] = arm2 as u8;
+                        self.reroutes += 1;
+                        let missed_at = rib
+                            .junction
+                            .map_or(String::new(), |j| self.net.junctions[j].id.clone());
+                        self.events.push(EventRecord {
+                            t,
+                            kind: "reroute",
+                            agent_id: a.id[i],
+                            ribbon: nrib.id.clone(),
+                            s: a.s[i],
+                            y: a.y[i],
+                            attrs: format!(
+                                "{{\"missed_at\":{},\"via\":{},\"u_turn_arm\":{}}}",
+                                json_string(&missed_at),
+                                json_string(&next.id),
+                                json_string(&next.arms[arm2].id)
+                            ),
+                        });
+                    }
                 }
                 None => a.turn_junction[i] = NO_RIBBON,
             }
+            a.missed[i] = false;
         }
     }
 
@@ -2098,6 +2255,13 @@ impl Simulation {
     fn phase_demand(&mut self) {
         self.demand.generate(self.t);
         for e in 0..self.demand.entries.len() {
+            // A signal upstream that is not simulated holds arrivals back
+            // unless it shows green.
+            if let Some(gate) = self.demand.entries[e].gate
+                && !gate.green_at(self.t)
+            {
+                continue;
+            }
             let mut idx = 0;
             let mut attempts = 0;
             while idx < self.demand.entries[e].pending.len()
@@ -2462,6 +2626,10 @@ impl Simulation {
             ("split_stop_and_wait", self.split_waits as f64),
             ("split_give_up", self.split_give_ups as f64),
             ("missed_branches", self.missed_branches as f64),
+            ("reroutes", self.reroutes as f64),
+            ("gaps_rejected", self.gaps_rejected as f64),
+            ("gridlock_share", self.gridlock.share(self.t)),
+            ("gridlock_onset_s", self.gridlock.onset()),
         ]
     }
 }

@@ -156,6 +156,34 @@ the vehicle arriving later at a crossing point follows.
    corridor). The arbitration pass is quadratic in the vehicles at a junction and samples paths
    every 0.5 m. Corridor scenarios are unaffected (the junction code is not entered).
 
+### 5. Added while running P7.4–P7.8 (2026-11-14) *(mine, please review)*
+- **U-turn geometry.** A movement ribbon is a cubic Hermite curve whose end tangents were as
+  long as the chord. For a half turn that makes a hairpin of about a sixth of the chord at both
+  ends (1.3 m for carriageways 8 m apart), and a vehicle on the inside of the turn is then beyond
+  the centre of curvature: the ribbon folds over and its world position jumps (10,414 guard
+  events at the median opening). A U-turn's tangents are now `4 r tan(θ/4)` over the chord
+  (twice it for a half turn), which follows a circular arc; other movements keep chord-long
+  tangents, so box scenarios are unchanged.
+- **Paths that share a ribbon** (`arbitration.rs`, contact). A pair was never arbitrated if
+  their paths had any ribbon in common ("one follows the other"). That holds when one is already
+  on a ribbon the other will drive; two that come together onto it from different ribbons (a
+  merge onto a ring) meet before it, and are now compared up to it. Box paths never share a
+  ribbon beyond their first, so their decisions are unchanged.
+- **The rejected gaps are logged** (`gap_rejected`, when a gap is first offered), with the gap,
+  the critical gap it was compared with and the class it was against (rule 9): a simulated run
+  is then a gap-acceptance survey (P7.4, `marg.gaps`).
+- **Entries fed through a signal (P7.7).** `upstream_signal` on an entry. With `stop_line_s`
+  the signal is simulated: a barrier at that station that a fixed-time plan closes (green,
+  amber, red). At amber it is closed only to a vehicle that can still stop before it at the
+  safe braking limit, decided step by step (the junction's own stop line decides once, at the
+  start of amber). Without `stop_line_s`, arrivals wait in the entry's queue unless the signal
+  shows green (the form the schema already described; the arrivals behind are still a renewal
+  process). The first lets the model's own queue discharge make the platoons; the second
+  releases them at the insertion rate.
+- **Roundabouts only** (ADR-0009 addendum): tickets ordered along shared arcs, no ticket order
+  far from the contact, the yielder rule of part 4 applied to bodies ahead at a shallow angle,
+  and "blocked" read from the move phase too. Boxes keep their behaviour (same output hashes).
+
 ## Consequences
 - Scenario schema, Python and TypeScript types and the data dictionary changed
   (`signal_cycles.parquet`, six new event kinds, four new KPIs). Decision D adds no output

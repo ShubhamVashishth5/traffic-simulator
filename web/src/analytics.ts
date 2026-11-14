@@ -134,5 +134,5 @@ export const KPI_TILES: { key: string; label: string; unit: string; scale?: numb
   { key: "network_mean_speed_m_s", label: "Mean speed", unit: "km/h", scale: 3.6 },
   { key: "violations", label: "Violations", unit: "", note: "not modelled before P8" },
   { key: "conflicts", label: "Conflicts", unit: "" },
-  { key: "gridlock", label: "Gridlock", unit: "", note: "not modelled before P7" },
+  { key: "gridlock_share", label: "Gridlock", unit: "%", scale: 100, note: "needs an area detector" },
 ];
