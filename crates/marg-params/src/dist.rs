@@ -338,6 +338,9 @@ impl Dist {
         match self.canonical() {
             Dist::Constant { value } => Some(value),
             Dist::Normal { mean, sd } => Some(mean + sd * norm_ppf(p)),
+            Dist::TruncNormal { mean, sd, min, max } => {
+                Some(trunc_normal_ppf(mean, sd, min, max, p))
+            }
             Dist::LogNormal { mu, sigma } => Some(libm::exp(mu + sigma * norm_ppf(p))),
             Dist::Exponential { mean } => Some(-mean * libm::log1p(-p)),
             Dist::ShiftedExponential { shift, mean } => {
@@ -347,6 +350,75 @@ impl Dist {
             Dist::Empirical { points } => Some(empirical_ppf(&points, p)),
             _ => None,
         }
+    }
+}
+
+impl Dist {
+    /// `F⁻¹(Φ(w))`: the value at normal score `w`, so a standard normal `w`
+    /// gives a draw from this distribution (a Gaussian copula's marginal,
+    /// ADR-0018 part 5). Exact without the round trip through `Φ` for normal
+    /// and lognormal forms; `None` where there is no closed-form quantile.
+    pub fn from_normal_score(&self, w: f64) -> Option<f64> {
+        match self.canonical() {
+            Dist::Normal { mean, sd } => Some(mean + sd * w),
+            Dist::LogNormal { mu, sigma } => Some(libm::exp(mu + sigma * w)),
+            Dist::TruncNormal { mean, sd, min, max } => {
+                if sd == 0.0 {
+                    return Some(mean.clamp(min, max));
+                }
+                let (lo, hi) = (norm_cdf((min - mean) / sd), norm_cdf((max - mean) / sd));
+                Some(trunc_normal_ppf_bounds(
+                    mean,
+                    sd,
+                    min,
+                    max,
+                    lo,
+                    hi,
+                    norm_cdf(w),
+                ))
+            }
+            d => {
+                let u = norm_cdf(w);
+                if u <= 0.0 || u >= 1.0 {
+                    let edge = if u <= 0.0 {
+                        f64::MIN_POSITIVE
+                    } else {
+                        1.0 - f64::EPSILON
+                    };
+                    d.quantile(edge)
+                } else {
+                    d.quantile(u)
+                }
+            }
+        }
+    }
+}
+
+/// Quantile of a normal truncated to `[min, max]`.
+fn trunc_normal_ppf(mean: f64, sd: f64, min: f64, max: f64, p: f64) -> f64 {
+    if sd == 0.0 {
+        return mean.clamp(min, max);
+    }
+    let (lo, hi) = (norm_cdf((min - mean) / sd), norm_cdf((max - mean) / sd));
+    trunc_normal_ppf_bounds(mean, sd, min, max, lo, hi, p)
+}
+
+fn trunc_normal_ppf_bounds(
+    mean: f64,
+    sd: f64,
+    min: f64,
+    max: f64,
+    lo: f64,
+    hi: f64,
+    p: f64,
+) -> f64 {
+    let q = lo + p * (hi - lo);
+    if q <= 0.0 {
+        min
+    } else if q >= 1.0 {
+        max
+    } else {
+        (mean + sd * norm_ppf(q)).clamp(min, max)
     }
 }
 
@@ -696,5 +768,68 @@ mod tests {
                 proptest::prop_assert!(x >= lo && x <= lo + width);
             }
         }
+    }
+
+    #[test]
+    fn normal_scores_map_onto_each_marginal() {
+        // A standard normal score gives this distribution: compare quantiles.
+        let cases = [
+            Dist::Normal {
+                mean: 10.0,
+                sd: 2.0,
+            },
+            Dist::TruncNormal {
+                mean: 12.0,
+                sd: 3.0,
+                min: 8.0,
+                max: 20.0,
+            },
+            Dist::LogNormalMedian {
+                median: 1.5,
+                sigma: 0.4,
+            },
+            Dist::Uniform {
+                min: -1.0,
+                max: 3.0,
+            },
+        ];
+        for d in &cases {
+            for p in [0.01, 0.1, 0.5, 0.9, 0.99] {
+                let x = d.from_normal_score(norm_ppf(p)).unwrap();
+                let q = d.quantile(p).unwrap();
+                assert!(
+                    (x - q).abs() < 1e-9 * q.abs().max(1.0),
+                    "{d:?} p {p}: {x} vs {q}"
+                );
+            }
+            // Far tails stay finite and inside the support.
+            for w in [-40.0, 40.0] {
+                assert!(d.from_normal_score(w).unwrap().is_finite());
+            }
+        }
+        let t = Dist::TruncNormal {
+            mean: 12.0,
+            sd: 3.0,
+            min: 8.0,
+            max: 20.0,
+        };
+        assert!((t.from_normal_score(-40.0).unwrap() - 8.0).abs() < 1e-9);
+        assert!((t.from_normal_score(40.0).unwrap() - 20.0).abs() < 1e-9);
+        // The quantile matches rejection sampling.
+        let mut rng = TestRng(7);
+        let mut xs: Vec<f64> = (0..20_000).map(|_| t.sample(&mut rng)).collect();
+        xs.sort_by(f64::total_cmp);
+        for p in [0.1, 0.5, 0.9] {
+            let emp = xs[(p * xs.len() as f64) as usize];
+            assert!((emp - t.quantile(p).unwrap()).abs() < 0.1, "p {p}: {emp}");
+        }
+        assert!(
+            Dist::Gamma {
+                shape: 2.0,
+                scale: 1.0
+            }
+            .from_normal_score(0.0)
+            .is_none()
+        );
     }
 }

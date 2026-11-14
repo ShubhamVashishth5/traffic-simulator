@@ -174,6 +174,12 @@ impl HazardClock {
         self.fired()
     }
 
+    /// Let time pass without hazard (the agent is not reading its trigger,
+    /// e.g. while distracted): the next reading integrates from `t`.
+    pub fn skip_to(&mut self, t: f64) {
+        self.t_last = t;
+    }
+
     /// Whether the integrated hazard has reached the threshold.
     pub fn fired(&self) -> bool {
         self.integrated >= self.threshold

@@ -22,7 +22,7 @@ entries:
     guide: "§3.1"
     register_row: 9.3/aggressiveness
     range: [0.0, 3.0]
-    notes: "How kappa spread combines with per-class parameter spreads is decided in the P8.1 ADR."
+    notes: "kappa is linked to the per-class parameter spreads through a Gaussian copula (ADR-0018 part 5, K2): the register's per-class distributions stay the marginals for a population with this kappa distribution."
   links.clearance:
     value: 0.2
     unit: "1"
@@ -113,7 +113,7 @@ entries:
     guide: "§3.1"
     register_row: 9.3/skill_distraction
     range: [0.0, 1.0]
-    notes: "Bernoulli share of agents with phone-use episodes, by persona."
+    notes: "Share of the population that uses a phone while driving: an agent is a phone user if its distraction trait is in the top share of the population distribution, so personas with a higher distraction mean have more phone users (ADR-0018 part 6). Unset: nobody has distraction episodes."
   traits.within_trip.reversion_rate:
     value: null
     unit: "1/h"
@@ -124,8 +124,8 @@ entries:
     guide: "§3.1"
     register_row: 9.3/within_trip_kappa
     range: [0.0, 1000.0]
-    notes: "Ornstein-Uhlenbeck reversion of kappa towards the agent's own mean."
-  traits.within_trip.volatility:
+    notes: "Ornstein-Uhlenbeck reversion of kappa towards the agent's own mean (theta). Updated at each of the agent's decision ticks with the exact OU transition, so the process does not depend on the decision interval."
+  traits.within_trip.sd:
     value: null
     unit: "1"
     grade: B
@@ -134,8 +134,8 @@ entries:
     source: "Kesting & Treiber 2008; RSS 2022 (naturalistic data)"
     guide: "§3.1"
     register_row: 9.3/within_trip_kappa
-    range: [0.0, 1000.0]
-    notes: "OU noise per sqrt(hour)."
+    range: [0.0, 3.0]
+    notes: "Stationary SD of an agent's kappa about its own mean under the Ornstein-Uhlenbeck process (ADR-0018 part 5); the noise is sd * sqrt(2 * reversion_rate). Unset (or reversion_rate unset): kappa stays at its value at entry."
   traits.within_trip.delay_jump:
     value: null
     unit: "1"
@@ -146,7 +146,7 @@ entries:
     guide: "§3.1"
     register_row: 9.3/within_trip_kappa
     range: [0.0, 1000.0]
-    notes: "Jump in kappa when accumulated delay passes the threshold."
+    notes: "Jump in kappa, once per trip, when the agent's accumulated delay (time so far minus free-flow time so far) first passes the threshold; it then reverts like any other deviation. Unset: no jump."
   traits.within_trip.delay_threshold:
     value: null
     unit: "s"
@@ -283,10 +283,826 @@ entries:
     value: 0.0
     unit: "1"
     grade: C
-    role: sweep
-    source: "Guide §3.1 and plan/03-model-design.md §6 name the link (t_c scaled by exp(-gamma_g kappa)), not its size"
+    role: fit
+    stage: 6
+    source: "Guide §3.1 and Dutta & Ahmed 2018 (younger, more aggressive drivers accept smaller gaps) name the link, not its size"
     guide: "§3.1"
     register_row: 9.3/aggressiveness
-    range: [0.0, 1.0]
+    range: [-1.0, 1.0]
     live: true
-    notes: "gamma_g: an agent's critical gaps are scaled by exp(-gamma_g * kappa). 0 until personas are fitted (P8): the per-agent lognormal already spreads critical gaps."
+    notes: "r: normal-score correlation of an agent's critical gap with its kappa (a Gaussian copula, ADR-0018 part 5, K2): the gap's marginal stays the register's. Negative = aggressive drivers accept shorter gaps. 0 = independent (until fitted)."
+  links.free_flow_speed:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §3.1 names the link (kappa scales v0), not its size"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-1.0, 1.0]
+    notes: "r: normal-score correlation of an agent's desired speed v0 with its kappa (a Gaussian copula, ADR-0018 part 5, K2). The register's per-class distribution stays the marginal for a population with the register's kappa; positive = aggressive drivers want to go faster. 0 = independent (until fitted)."
+  links.time_gap:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §3.1 names the link (kappa scales T), not its size"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-1.0, 1.0]
+    notes: "r: normal-score correlation of an agent's IDM time gap T with its kappa (a Gaussian copula, ADR-0018 part 5, K2). The register's per-class distribution stays the marginal for a population with the register's kappa; negative = aggressive drivers follow closer. 0 = independent (until fitted)."
+  links.standstill_gap:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §3.1 names the link (kappa scales s0), not its size"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-1.0, 1.0]
+    notes: "r: normal-score correlation of an agent's IDM standstill gap s0 with its kappa (a Gaussian copula, ADR-0018 part 5, K2). The register's per-class distribution stays the marginal for a population with the register's kappa; negative = aggressive drivers stop closer. 0 = independent (until fitted)."
+  links.max_accel:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §3.1 names the link (kappa scales a), not its size"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-1.0, 1.0]
+    notes: "r: normal-score correlation of an agent's IDM maximum acceleration a with its kappa (a Gaussian copula, ADR-0018 part 5, K2). The register's per-class distribution stays the marginal for a population with the register's kappa; positive = aggressive drivers accelerate harder. 0 = independent (until fitted)."
+  links.comfortable_decel:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §3.1 names the link (kappa scales b), not its size"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-1.0, 1.0]
+    notes: "r: normal-score correlation of an agent's IDM comfortable deceleration b with its kappa (a Gaussian copula, ADR-0018 part 5, K2). The register's per-class distribution stays the marginal for a population with the register's kappa; positive = aggressive drivers brake later and harder. 0 = independent (until fitted)."
+  links.time_pressure:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Assumed (ADR-0018 part 2): one SD of the trait scales a coefficient by exp(0.5) = 1.65. Guide §3.1 says what the trait acts on, not how much"
+    guide: "§3.1, §4.1"
+    register_row: 9.3/time_pressure
+    range: [0.0, 2.0]
+    notes: "gamma: an agent's time pressure scales the time-saved and waiting-time coefficients of its violation rule by exp(+gamma * pi) (a random-coefficient logit)."
+  links.risk_tolerance:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Assumed (ADR-0018 part 2): one SD of the trait scales a coefficient by exp(0.5) = 1.65. Guide §3.1 says what the trait acts on, not how much"
+    guide: "§3.1, §4.1"
+    register_row: 9.3/risk_conformity_norm
+    range: [0.0, 2.0]
+    notes: "gamma: an agent's risk tolerance scales the perceived-risk coefficient of its violation rule by exp(-gamma * rho) (a random-coefficient logit)."
+  links.conformity:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Assumed (ADR-0018 part 2): one SD of the trait scales a coefficient by exp(0.5) = 1.65. Guide §3.1 says what the trait acts on, not how much"
+    guide: "§3.1, §4.1"
+    register_row: 9.3/risk_conformity_norm
+    range: [0.0, 2.0]
+    notes: "gamma: an agent's conformity scales the imitation coefficient for violators in view of its violation rule by exp(+gamma * c) (a random-coefficient logit)."
+  links.norm_sensitivity:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Assumed (ADR-0018 part 2): one SD of the trait scales a coefficient by exp(0.5) = 1.65. Guide §3.1 says what the trait acts on, not how much"
+    guide: "§3.1, §4.1"
+    register_row: 9.3/risk_conformity_norm
+    range: [0.0, 2.0]
+    notes: "gamma: an agent's norm sensitivity scales the enforcement coefficient and the imitation coefficient for compliers in view of its violation rule by exp(+gamma * eta) (a random-coefficient logit)."
+  distraction.episode_rate:
+    value: null
+    unit: "1/h"
+    grade: C
+    role: sweep
+    source: "Guide §3.1 (delivery riders use phones far more); no rate found"
+    guide: "§3.1, §4.2"
+    register_row: 9.3/skill_distraction
+    range: [0.0, 3600.0]
+    notes: "Distraction episodes per hour of driving for a phone user (Poisson). Required when traits.phone_use_share is set."
+  distraction.episode_duration:
+    value: null
+    unit: "s"
+    grade: C
+    role: sweep
+    source: "Guide §3.1; no duration found"
+    guide: "§3.1, §4.2"
+    register_row: 9.3/skill_distraction
+    range: [0.0, 600.0]
+    notes: "How long an episode lasts. While distracted a driver keeps its lateral target and does not re-read violation triggers (the user's decision, ADR-0018 part 6). Required when traits.phone_use_share is set."
+  shift.average_commuter.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; aggressiveness: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.average_commuter.time_pressure:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; time pressure: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.average_commuter.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.average_commuter.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.average_commuter.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.average_commuter.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.average_commuter.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the average commuter, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'All traits at population mean'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.aggressiveness:
+    value: 1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; aggressiveness: 'high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.time_pressure:
+    value: 1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; time pressure: 'high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.rushed_driver.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the rushed driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ and time pressure'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; aggressiveness: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.time_pressure:
+    value: 1.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; time pressure: 'very high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.delivery_rider.distraction:
+    value: 1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the delivery rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Very high time pressure, high distraction'; distraction: 'high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; aggressiveness: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.time_pressure:
+    value: 1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; time pressure: 'high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.risk_tolerance:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; risk tolerance: 'moderate'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bike_taxi_rider.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the bike taxi rider, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High time pressure, moderate risk (carries a passenger)'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; aggressiveness: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.time_pressure:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; time pressure: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.skill:
+    value: -1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; skill: 'low'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.e_rickshaw_driver.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the e rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, low skill, high stop propensity'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.aggressiveness:
+    value: 1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; aggressiveness: 'high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.time_pressure:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; time pressure: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.auto_rickshaw_driver.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the auto rickshaw driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'High κ, fare-seeking'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.aggressiveness:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; aggressiveness: 'moderate'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.time_pressure:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; time pressure: 'moderate'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.bus_driver.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the bus driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Moderate κ, schedule pressure'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; aggressiveness: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.time_pressure:
+    value: 0.5
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; time pressure: 'moderate'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.truck_lcv_driver.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the truck lcv driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low acceleration, schedule pressure'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.aggressiveness:
+    value: -1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; aggressiveness: 'low'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.time_pressure:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; time pressure: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.norm_sensitivity:
+    value: 1.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; norm sensitivity: 'high'. Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cautious_driver.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the cautious driver, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low κ, high norm sensitivity'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    notes: "Mean shift of aggressiveness for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; aggressiveness: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.time_pressure:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/time_pressure
+    range: [-3.0, 3.0]
+    notes: "Mean shift of time pressure for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; time pressure: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.risk_tolerance:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of risk tolerance for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; risk tolerance: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.conformity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of conformity for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; conformity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.norm_sensitivity:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/risk_conformity_norm
+    range: [-3.0, 3.0]
+    notes: "Mean shift of norm sensitivity for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; norm sensitivity: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.skill:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of skill for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; skill: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."
+  shift.cyclist.distraction:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Guide §3.2 (starter personas), words translated by ADR-0018 part 6"
+    guide: "§3.2"
+    register_row: 9.3/skill_distraction
+    range: [-3.0, 3.0]
+    notes: "Mean shift of distraction for the cyclist, in SDs of the trait (personas are mean shifts, G§3.2). Guide: 'Low speed, high wrong-way propensity (shorter detours matter more)'; distraction: not named (at the mean). Word map (ADR-0018 part 6): at mean 0, low -1, moderate or unqualified +0.5, high +1, very high +1.5."

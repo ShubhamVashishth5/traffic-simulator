@@ -1,7 +1,8 @@
 /**
- * Agent inspector (plan P4.4): the agent's row as `agents.parquet` would hold it (exact values,
- * SI units), its current state, and every neighbour its leader scan considers with the terms
- * of the following model. Persona and decision explanations arrive with P8.
+ * Agent inspector (plan P4.4, P8.3): the agent's row as `agents.parquet` would hold it (exact
+ * values, SI units), its persona and traits, its current state, every neighbour its leader scan
+ * considers with the terms of the following model, and the logit breakdown of each open
+ * violation decision (ADR-0018).
  */
 import { KMH_PER_MS, exact, fmt } from "../format";
 import type { Inspector as Ins } from "../protocol.gen";
@@ -27,6 +28,75 @@ const RECORD: [keyof NonNullable<Ins["record"]>, string][] = [
   ["delay", "s"],
   ["stops", ""],
 ];
+
+const TRAITS: [keyof NonNullable<Ins["record"]>, string][] = [
+  ["kappa", "κ at entry"],
+  ["kappa_now", "κ now"],
+  ["time_pressure", "π"],
+  ["risk_tolerance", "ρ"],
+  ["conformity", "c"],
+  ["norm_sensitivity", "η"],
+  ["skill", ""],
+  ["distraction", "δ"],
+  ["phone_user", ""],
+  ["distraction_episodes", ""],
+  ["violations", ""],
+];
+
+type Decision = Ins["decisions"][number];
+
+function DecisionTable({ d }: { d: Decision }) {
+  const value = (list: Decision["features"], name: string) => list.find((x) => x.name === name)?.value;
+  // Which feature each term multiplies (imitation terms take ln(1 + count)).
+  const feature: Record<string, string> = {
+    aggressiveness: "kappa",
+    time_saved: "time_saved",
+    waiting_time: "waiting_time",
+    imitation_violators: "n_violating",
+    imitation_compliers: "n_complying",
+    enforcement: "enforcement",
+    risk: "risk",
+  };
+  return (
+    <div data-testid={`decision-${d.kind}`}>
+      <p className="small">
+        <strong>{d.kind}</strong> · episode {d.episode} since {fmt(d.t_start, 1)} s ·{" "}
+        {d.acted ? "acted" : "deciding"} · read at {fmt(d.t_read, 1)} s
+      </p>
+      <table className="grid small">
+        <thead>
+          <tr>
+            <th>term</th>
+            <th>coefficient</th>
+            <th>feature</th>
+            <th>term</th>
+          </tr>
+        </thead>
+        <tbody>
+          {d.terms.map((t) => (
+            <tr key={t.name}>
+              <th>{t.name}</th>
+              <td>{fmt(value(d.coefficients, t.name) ?? NaN, 3)}</td>
+              <td>{feature[t.name] ? fmt(value(d.features, feature[t.name]) ?? NaN, 3) : "—"}</td>
+              <td data-term={t.name}>{fmt(t.value, 3)}</td>
+            </tr>
+          ))}
+          <tr>
+            <th>η (sum)</th>
+            <td />
+            <td />
+            <td data-term="eta">{fmt(d.eta, 3)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="small">
+        {d.hazard === null || d.hazard === undefined
+          ? `P = σ(η) = ${fmt(d.probability, 3)}`
+          : `λ = ${fmt(d.hazard, 4)} /s · Λ = ${fmt(d.integrated ?? NaN, 4)} of E = ${fmt(d.threshold ?? NaN, 4)} · P(acted by now) = ${fmt(d.probability, 3)}`}
+      </p>
+    </div>
+  );
+}
 
 function ById({ onSelect }: { onSelect: (id: string) => void }) {
   return (
@@ -81,6 +151,18 @@ export function Inspector({ ins, onClose, onSelect }: { ins?: Ins; onClose: () =
                 {unit}
                 {k === "v0" ? ` (${fmt((r.v0 as number) * KMH_PER_MS)} km/h)` : ""}
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h4>Persona and traits{r.persona ? `: ${r.persona}` : " (personas off)"}</h4>
+      <table className="kv" data-testid="inspector-traits">
+        <tbody>
+          {TRAITS.map(([k, label]) => (
+            <tr key={k}>
+              <th>{k}</th>
+              <td data-field={k}>{typeof r[k] === "number" ? fmt(r[k] as number, 3) : String(r[k])}</td>
+              <td className="muted">{label}</td>
             </tr>
           ))}
         </tbody>
@@ -142,6 +224,12 @@ export function Inspector({ ins, onClose, onSelect }: { ins?: Ins; onClose: () =
             ))}
           </tbody>
         </table>
+      )}
+      <h4>Violation decisions ({ins.decisions.length})</h4>
+      {ins.decisions.length === 0 ? (
+        <p className="muted small">No open violation episode: the agent is not at a trigger.</p>
+      ) : (
+        ins.decisions.map((d) => <DecisionTable key={`${d.kind}-${d.episode}`} d={d} />)
       )}
       <p className="muted small">{ins.note}</p>
     </div>

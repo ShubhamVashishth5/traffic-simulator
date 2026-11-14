@@ -20,7 +20,7 @@ use std::sync::mpsc;
 use std::thread::JoinHandle;
 
 /// Schema version of the output tables; bump on any column change.
-pub const OUTPUT_SCHEMA_VERSION: u32 = 2;
+pub const OUTPUT_SCHEMA_VERSION: u32 = 3;
 
 fn f64s<T>(rows: &[T], f: impl Fn(&T) -> f64) -> ArrayRef {
     Arc::new(Float64Array::from_iter_values(rows.iter().map(f)))
@@ -55,6 +55,18 @@ pub fn agents_batch(rows: &[AgentRecord]) -> Result<RecordBatch, arrow::error::A
         Field::new("max_accel", DataType::Float64, false),
         Field::new("comfortable_decel", DataType::Float64, false),
         Field::new("kappa", DataType::Float64, false),
+        Field::new("kappa_end", DataType::Float64, false),
+        Field::new("persona", DataType::Utf8, true),
+        Field::new("time_pressure", DataType::Float64, false),
+        Field::new("risk_tolerance", DataType::Float64, false),
+        Field::new("conformity", DataType::Float64, false),
+        Field::new("norm_sensitivity", DataType::Float64, false),
+        Field::new("skill", DataType::Float64, false),
+        Field::new("distraction", DataType::Float64, false),
+        Field::new("phone_user", DataType::Boolean, false),
+        Field::new("distraction_episodes", DataType::UInt32, false),
+        Field::new("distracted_time", DataType::Float64, false),
+        Field::new("violations", DataType::UInt32, false),
         Field::new("lateral_distance", DataType::Float64, false),
         Field::new("lateral_moves", DataType::UInt32, false),
     ]);
@@ -88,6 +100,26 @@ pub fn agents_batch(rows: &[AgentRecord]) -> Result<RecordBatch, arrow::error::A
         f64s(rows, |r| r.max_accel),
         f64s(rows, |r| r.comfortable_decel),
         f64s(rows, |r| r.kappa),
+        f64s(rows, |r| r.kappa_end),
+        Arc::new(StringArray::from(
+            rows.iter().map(|r| r.persona).collect::<Vec<_>>(),
+        )),
+        f64s(rows, |r| r.traits[1]),
+        f64s(rows, |r| r.traits[2]),
+        f64s(rows, |r| r.traits[3]),
+        f64s(rows, |r| r.traits[4]),
+        f64s(rows, |r| r.traits[5]),
+        f64s(rows, |r| r.traits[6]),
+        Arc::new(BooleanArray::from(
+            rows.iter().map(|r| r.phone_user).collect::<Vec<_>>(),
+        )),
+        Arc::new(UInt32Array::from_iter_values(
+            rows.iter().map(|r| r.distraction_episodes),
+        )),
+        f64s(rows, |r| r.distracted_time),
+        Arc::new(UInt32Array::from_iter_values(
+            rows.iter().map(|r| r.violations),
+        )),
         f64s(rows, |r| r.lateral_distance),
         Arc::new(UInt32Array::from_iter_values(
             rows.iter().map(|r| r.lateral_moves),
@@ -621,7 +653,43 @@ pub fn data_dictionary() -> String {
                     "kappa",
                     "f64",
                     "",
-                    "aggressiveness κ; scales lateral clearances by exp(−γ_c κ)",
+                    "aggressiveness κ at entry (persona shift included); scales lateral clearances by exp(−γ_c κ); the mean its within-trip κ reverts to (ADR-0018)",
+                ),
+                (
+                    "kappa_end",
+                    "f64",
+                    "",
+                    "κ at exit or at the end of the run; differs from kappa only with the OU process or the jump on delay",
+                ),
+                (
+                    "persona",
+                    "utf8?",
+                    "",
+                    "persona key (G§3.2); null when no persona shares are set",
+                ),
+                (
+                    "time_pressure, risk_tolerance, conformity, norm_sensitivity, skill, distraction",
+                    "f64",
+                    "",
+                    "the other traits at entry (G§3.1), persona shift included",
+                ),
+                (
+                    "phone_user",
+                    "bool",
+                    "",
+                    "has distraction episodes (its distraction trait is in the top `personas.traits.phone_use_share`)",
+                ),
+                (
+                    "distraction_episodes, distracted_time",
+                    "u32, f64",
+                    ", s",
+                    "episodes started and time spent distracted (it keeps its lateral target meanwhile)",
+                ),
+                (
+                    "violations",
+                    "u32",
+                    "",
+                    "violations committed, every type (`violation` events give each with its terms)",
                 ),
                 (
                     "lateral_distance",
@@ -706,7 +774,8 @@ pub fn data_dictionary() -> String {
                      parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, \
                      bus_standing, pothole_crossed, pedestrian_crossing, signal_state, \
                      stop_line_crossed, gap_accepted, gap_rejected, split_decision, \
-                     missed_branch, reroute, u_turn, gridlock (agent_id is 2⁶⁴ − 1 for the \
+                     missed_branch, reroute, u_turn, gridlock, violation, complied (agent_id \
+                     is 2⁶⁴ − 1 for the \
                      object, parking, pedestrian, signal and gridlock events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
@@ -758,6 +827,14 @@ pub fn data_dictionary() -> String {
                      area detector becomes gridlocked: its space-mean speed has stayed below \
                      `observers.gridlock.speed` for `observers.gridlock.duration`): area, \
                      slow_since (s), with the area's start in ribbon, s. \
+                     violation (an agent acts on a violation episode, ADR-0018) and complied \
+                     (the episode's trigger ended first): type, junction, episode, t_start, \
+                     reason (acted, gap_accepted, trigger_ended, left), features (kappa, \
+                     time_saved, waiting_time, n_violating, n_complying, enforcement, risk), \
+                     coefficients (the agent's own, traits applied), terms (each coefficient \
+                     times its feature; they add up to eta), eta, and for continuous types \
+                     hazard (1/s), max_rate, integrated (Λ), threshold (E) and probability \
+                     (1 − exp(−Λ)); for one-shot types probability (σ(η)) and draw. \
                      lateral_move \
                      (only with `observers.lateral.log_decisions = 1`): target and the utility \
                      terms utility, own, polite, comfort, cost (m/s²)",

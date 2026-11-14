@@ -10,3 +10,4 @@ pub mod decision;
 pub mod geometry;
 pub mod lateral;
 pub mod longitudinal;
+pub mod traits;

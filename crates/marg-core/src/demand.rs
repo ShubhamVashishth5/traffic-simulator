@@ -10,8 +10,11 @@
 //! and therefore all of its random draws — does not depend on anything else
 //! in the scenario (common random numbers across twin arms).
 
+use crate::model::traits::{linked_score, phone_user};
 use crate::params::{CoreParams, Drawn, N_CLASSES};
+use crate::personas::{DISTRACTION, KAPPA, Linked, N_TRAITS, NO_PERSONA};
 use crate::rng::{StreamKind, StreamRng};
+use marg_params::Dist;
 use marg_params::spec::{EntrySpec, FlowInterval, UpstreamSignalSpec};
 use marg_params::{VehicleClass, VehicleType};
 use std::collections::VecDeque;
@@ -43,8 +46,14 @@ pub struct Draws {
     /// Entry lateral position as a fraction of the free width, median side = 0.
     pub lateral_fraction: f64,
     pub median_band_bonus: f64,
-    /// Aggressiveness κ ~ N(mean, sd) (placeholder until personas, P8).
+    /// Aggressiveness κ at entry: `mean + sd · (z + persona shift)`.
     pub kappa: f64,
+    /// The persona (index into `Persona::ALL`), or `NO_PERSONA`.
+    pub persona: u8,
+    /// The trait vector `(κ, π, ρ, c, η, skill, δ)` at entry (G§3.1).
+    pub traits: [f64; N_TRAITS],
+    /// Whether the driver uses a phone (has distraction episodes).
+    pub phone_user: bool,
     /// Uniform in [0, 1): the vehicle looks for a parking space along a
     /// stretch whose cruising share is above this (G§6.2).
     pub cruising: f64,
@@ -73,26 +82,66 @@ fn positive(x: f64, mean: f64) -> f64 {
 /// (common random numbers, ADR-0003).
 const DRAW_BLOCK: u64 = 1 << 32;
 
+/// Counter block of the persona draw; the traits after κ use the next six.
+const PERSONA_BLOCK: u64 = 16;
+const TRAIT_BLOCK: u64 = 17;
+
 /// The stream of an agent's `k`-th draw.
 fn draw_rng(seed: u64, id: u64, k: u64) -> StreamRng {
     StreamRng::at(seed, StreamKind::AgentDraws, id, k * DRAW_BLOCK)
 }
 
+/// Draw from `d` with the random numbers of block `k`. With a κ link
+/// (`r ≠ 0`) the agent draws at the normal score `r·z_κ + √(1 − r²)·ε`,
+/// `ε` the block's first normal, so the register's distribution stays the
+/// marginal (ADR-0018 part 5); with none, as before.
+fn draw_linked(d: &Dist, seed: u64, id: u64, k: u64, r: f64, z_kappa: f64) -> f64 {
+    let x = if r == 0.0 {
+        d.sample(&mut draw_rng(seed, id, k))
+    } else {
+        let eps = marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, k));
+        d.from_normal_score(linked_score(r, z_kappa, eps))
+            .expect("a κ link on a distribution without a quantile is refused at start-up")
+    };
+    positive(x, d.mean())
+}
+
 /// One per-agent parameter, drawn from its own counter block. Re-drawing it
 /// after its distribution changed reuses the same random numbers, so the
 /// agent keeps its place in the distribution (common random numbers).
-pub fn draw_one(seed: u64, id: u64, vtype: VehicleType, p: &CoreParams, drawn: Drawn) -> f64 {
+/// `z_kappa` is the agent's κ normal score, read if the draw is κ-linked.
+pub fn draw_one(
+    seed: u64,
+    id: u64,
+    vtype: VehicleType,
+    p: &CoreParams,
+    drawn: Drawn,
+    z_kappa: f64,
+) -> f64 {
     let d = p.draw_dist(drawn, vtype.index());
-    positive(d.sample(&mut draw_rng(seed, id, drawn as u64)), d.mean())
+    let r = drawn.linked().map_or(0.0, |l| p.personas.link[l as usize]);
+    draw_linked(d, seed, id, drawn as u64, r, z_kappa)
 }
 
 impl Draws {
     /// Draw an agent's parameters from its own stream.
     pub fn sample(seed: u64, id: u64, vtype: VehicleType, p: &CoreParams) -> Self {
         let cp = &p.classes[vtype.class().index()];
-        let draw = |drawn| draw_one(seed, id, vtype, p, drawn);
-        let kappa = p.kappa_mean
-            + p.kappa_sd * marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, 9));
+        let pp = &p.personas;
+        let persona = pp.draw(vtype.class(), draw_rng(seed, id, PERSONA_BLOCK).uniform());
+        let mut z = [0.0; N_TRAITS];
+        z[KAPPA] = marg_params::dist::Rng64::standard_normal(&mut draw_rng(seed, id, 9));
+        for (t, zt) in z.iter_mut().enumerate().skip(1) {
+            *zt = marg_params::dist::Rng64::standard_normal(&mut draw_rng(
+                seed,
+                id,
+                TRAIT_BLOCK + t as u64 - 1,
+            ));
+        }
+        let (traits, score) = pp.traits(persona, z);
+        let kappa = traits[KAPPA];
+        let z_kappa = score[KAPPA];
+        let draw = |drawn| draw_one(seed, id, vtype, p, drawn, z_kappa);
         let late_realiser = draw_rng(seed, id, 14).uniform() < p.junction.late_share.unwrap_or(0.0);
         Draws {
             length: draw(Drawn::Length),
@@ -108,15 +157,23 @@ impl Draws {
                 .clamp(0.0, 1.0),
             median_band_bonus: p.median_band_bonus.sample(&mut draw_rng(seed, id, 8)),
             kappa,
+            persona: persona.map_or(NO_PERSONA, |q| q.index() as u8),
+            traits,
+            phone_user: pp
+                .phone_share
+                .is_some_and(|share| phone_user(score[DISTRACTION], share)),
             cruising: draw_rng(seed, id, 10).uniform(),
             hump_speed: p.road.hump_speed.as_ref().map_or(f64::INFINITY, |d| {
                 positive(d.sample(&mut draw_rng(seed, id, 11)), d.mean())
             }),
-            critical_gap: {
-                let d = &p.junction.critical_gap[vtype.class().index()];
-                positive(d.sample(&mut draw_rng(seed, id, 12)), d.mean())
-                    * libm::exp(-p.junction.gap_link * kappa)
-            },
+            critical_gap: draw_linked(
+                &p.junction.critical_gap[vtype.class().index()],
+                seed,
+                id,
+                12,
+                pp.link[Linked::CriticalGap as usize],
+                z_kappa,
+            ),
             heavy_factor: p.junction.heavy_factor.sample(&mut draw_rng(seed, id, 13)),
             late_realiser,
             aware_distance: {

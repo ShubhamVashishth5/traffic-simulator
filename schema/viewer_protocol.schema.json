@@ -30,6 +30,10 @@
           "type": "number",
           "format": "double"
         },
+        "conformity": {
+          "type": "number",
+          "format": "double"
+        },
         "delay": {
           "type": "number",
           "format": "double"
@@ -37,6 +41,15 @@
         "distance": {
           "type": "number",
           "format": "double"
+        },
+        "distraction": {
+          "type": "number",
+          "format": "double"
+        },
+        "distraction_episodes": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
         },
         "entry": {
           "type": "string"
@@ -52,11 +65,42 @@
           "type": "number",
           "format": "double"
         },
+        "kappa": {
+          "type": "number",
+          "format": "double"
+        },
+        "kappa_now": {
+          "description": "κ now (moves within a trip with the OU process or the jump on delay).",
+          "type": "number",
+          "format": "double"
+        },
         "length": {
           "type": "number",
           "format": "double"
         },
         "max_accel": {
+          "type": "number",
+          "format": "double"
+        },
+        "norm_sensitivity": {
+          "type": "number",
+          "format": "double"
+        },
+        "persona": {
+          "description": "Persona key (null: no persona shares set) and traits at entry (G§3).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone_user": {
+          "type": "boolean"
+        },
+        "risk_tolerance": {
+          "type": "number",
+          "format": "double"
+        },
+        "skill": {
           "type": "number",
           "format": "double"
         },
@@ -92,6 +136,10 @@
           "type": "number",
           "format": "double"
         },
+        "time_pressure": {
+          "type": "number",
+          "format": "double"
+        },
         "travel_time": {
           "type": "number",
           "format": "double"
@@ -102,6 +150,11 @@
         },
         "vehicle_type": {
           "type": "string"
+        },
+        "violations": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
         },
         "width": {
           "type": "number",
@@ -129,7 +182,18 @@
         "time_gap",
         "standstill_gap",
         "max_accel",
-        "comfortable_decel"
+        "comfortable_decel",
+        "kappa",
+        "kappa_now",
+        "time_pressure",
+        "risk_tolerance",
+        "conformity",
+        "norm_sensitivity",
+        "skill",
+        "distraction",
+        "phone_user",
+        "distraction_episodes",
+        "violations"
       ]
     },
     "AgentState": {
@@ -895,6 +959,95 @@
         "none",
         "working",
         "broken"
+      ]
+    },
+    "DecisionView": {
+      "description": "An open violation episode of the inspected agent, as its last reading\nleft it (ADR-0018): each term is its coefficient times its feature, and\nthey add up to `eta`.",
+      "type": "object",
+      "properties": {
+        "acted": {
+          "description": "It has acted (a violation under way).",
+          "type": "boolean"
+        },
+        "coefficients": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Named"
+          }
+        },
+        "episode": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "eta": {
+          "type": "number",
+          "format": "double"
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Named"
+          }
+        },
+        "hazard": {
+          "description": "Continuous types: hazard λ = λ_max σ(η) (1/s), the hazard integrated\nso far Λ, and the threshold E it acts at. Null for one-shot types.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "integrated": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "kind": {
+          "description": "Violation type (`forced_entry`, …).",
+          "type": "string"
+        },
+        "probability": {
+          "description": "1 − exp(−Λ) (continuous) or σ(η) (one-shot).",
+          "type": "number",
+          "format": "double"
+        },
+        "t_read": {
+          "description": "When the features were last read.",
+          "type": "number",
+          "format": "double"
+        },
+        "t_start": {
+          "type": "number",
+          "format": "double"
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Named"
+          }
+        },
+        "threshold": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "required": [
+        "kind",
+        "episode",
+        "acted",
+        "t_start",
+        "t_read",
+        "features",
+        "coefficients",
+        "terms",
+        "eta",
+        "probability"
       ]
     },
     "DemandSpec": {
@@ -1854,6 +2007,13 @@
     "Inspector": {
       "type": "object",
       "properties": {
+        "decisions": {
+          "description": "Open violation episodes with their logit breakdown (P8.3).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DecisionView"
+          }
+        },
         "found": {
           "description": "`false` if the agent is not in the network (not entered yet, or exited).",
           "type": "boolean"
@@ -1876,7 +2036,6 @@
           }
         },
         "note": {
-          "description": "Persona, traits and decision explanations arrive with P8.",
           "type": "string"
         },
         "record": {
@@ -1909,6 +2068,7 @@
         "found",
         "t",
         "neighbours",
+        "decisions",
         "note"
       ]
     },
@@ -2126,6 +2286,23 @@
       "required": [
         "weight",
         "dist"
+      ]
+    },
+    "Named": {
+      "description": "A named number (a feature, a coefficient or a term of a decision).",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "name",
+        "value"
       ]
     },
     "Neighbour": {

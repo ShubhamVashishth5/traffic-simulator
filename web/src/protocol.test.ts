@@ -1,6 +1,6 @@
 import { Field, RecordBatch, Schema, Struct, Table, makeData, makeVector, tableToIPC } from "apache-arrow";
 import { describe, expect, it } from "vitest";
-import { decodeFrame } from "./protocol";
+import { PROTOCOL_VERSION, decodeFrame } from "./protocol";
 
 function frame(protocol: string) {
   const n = 3;
@@ -30,7 +30,7 @@ function frame(protocol: string) {
 
 describe("decodeFrame", () => {
   it("reads columns and metadata, keeping 64-bit ids exact", () => {
-    const f = decodeFrame(frame("2"));
+    const f = decodeFrame(frame(String(PROTOCOL_VERSION)));
     expect(f.n).toBe(3);
     expect(f.total).toBe(7);
     expect(f.t).toBe(12.5);
@@ -40,6 +40,6 @@ describe("decodeFrame", () => {
     expect(f.length[2]).toBe(10);
   });
   it("refuses another protocol version", () => {
-    expect(() => decodeFrame(frame("1"))).toThrow(/protocol/);
+    expect(() => decodeFrame(frame(String(PROTOCOL_VERSION - 1)))).toThrow(/protocol/);
   });
 });

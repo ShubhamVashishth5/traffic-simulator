@@ -937,12 +937,86 @@ pub fn agent_row(r: marg_core::AgentRecord) -> AgentRow {
         standstill_gap: r.standstill_gap,
         max_accel: r.max_accel,
         comfortable_decel: r.comfortable_decel,
+        persona: r.persona.map(str::to_string),
+        kappa: r.kappa,
+        kappa_now: r.kappa_end,
+        time_pressure: r.traits[1],
+        risk_tolerance: r.traits[2],
+        conformity: r.traits[3],
+        norm_sensitivity: r.traits[4],
+        skill: r.traits[5],
+        distraction: r.traits[6],
+        phone_user: r.phone_user,
+        distraction_episodes: r.distraction_episodes,
+        violations: r.violations,
+    }
+}
+
+/// The inspector's view of one open violation episode.
+fn decision_view(e: &marg_core::violations::Episode) -> DecisionView {
+    let named = |pairs: &[(&str, f64)]| {
+        pairs
+            .iter()
+            .map(|&(name, value)| Named {
+                name: name.to_string(),
+                value,
+            })
+            .collect::<Vec<_>>()
+    };
+    let (f, c) = (&e.last.features, &e.last.coefficients);
+    let continuous = e.kind.continuous();
+    DecisionView {
+        kind: e.kind.key().to_string(),
+        episode: e.serial,
+        acted: e.acted,
+        t_start: e.t_start,
+        t_read: e.last.t,
+        features: named(&[
+            ("kappa", f.kappa),
+            ("time_saved", f.time_saved),
+            ("waiting_time", f.waiting_time),
+            ("n_violating", f64::from(f.n_violating)),
+            ("n_complying", f64::from(f.n_complying)),
+            ("enforcement", f.enforcement),
+            ("risk", f.risk),
+        ]),
+        coefficients: named(&[
+            ("intercept", c.intercept),
+            ("aggressiveness", c.aggressiveness),
+            ("time_saved", c.time_saved),
+            ("waiting_time", c.waiting_time),
+            ("imitation_violators", c.imitation_violators),
+            ("imitation_compliers", c.imitation_compliers),
+            ("enforcement", c.enforcement),
+            ("risk", c.risk),
+        ]),
+        terms: e
+            .last
+            .terms
+            .named()
+            .map(|(name, value)| Named {
+                name: name.to_string(),
+                value,
+            })
+            .collect(),
+        eta: e.last.terms.eta(),
+        hazard: continuous.then_some(e.last.rate),
+        integrated: continuous.then(|| e.clock.integrated()),
+        threshold: continuous.then(|| e.clock.threshold()),
+        probability: if continuous {
+            e.clock.probability()
+        } else {
+            e.last.rate
+        },
     }
 }
 
 /// The inspector panel for agent `id`.
 pub fn inspect(sim: &Simulation, id: u64, origin: [f64; 2]) -> Inspector {
-    let note = "Persona, traits and the logit breakdown of decisions arrive with P8.".to_string();
+    let note = "Decisions: the agent's open violation episodes, as their last reading left them \
+                (ADR-0018). Each term is its coefficient times its feature; the terms add up to η."
+        .to_string();
+    let decisions: Vec<DecisionView> = sim.episodes_of(id).map(decision_view).collect();
     let Some(i) = sim.agent_index(id) else {
         return Inspector {
             id: id.to_string(),
@@ -952,6 +1026,7 @@ pub fn inspect(sim: &Simulation, id: u64, origin: [f64; 2]) -> Inspector {
             state: None,
             neighbours: Vec::new(),
             free_accel: None,
+            decisions,
             note,
         };
     };
@@ -1002,6 +1077,7 @@ pub fn inspect(sim: &Simulation, id: u64, origin: [f64; 2]) -> Inspector {
         }),
         neighbours,
         free_accel: Some(idm.free_accel(a.v[i])),
+        decisions,
         note,
     }
 }

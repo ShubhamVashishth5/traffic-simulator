@@ -1,6 +1,7 @@
 # ADR-0018: The violation decision rule — timing, imitation, field of view, trait links
 
-- **Status:** proposed: **P8.1 review gate, needs your decision** (four choices, below)
+- **Status:** accepted (the user, 2026-11-14, at the P8.1 review gate: **T2, I1, F1, K2**). The
+  parts marked *(mine)* are for your review
 - **Date:** 2026-11-14
 - **Phase / task:** P8.1 (governs P8.2–P8.8; read by P9 for enforcement and the starting
   violation share)
@@ -192,9 +193,19 @@ fitted spreads across drivers. A link from κ to them can work three ways:
    violations). `v0`, `T`, `s0`, `a`, `b` stay independent of κ. Simplest, no double counting,
    but a "rushed driver" persona cannot be faster or follow closer.
 
-**Within-trip κ** *(mine)*: the OU process and the jump on delay move κ(t) in the decision rule,
-the clearance scale, politeness and critical gaps; following parameters keep the values drawn at
-entry (re-mapping them every tick would cost about 10% of a step, over the 5% budget).
+**Within-trip κ** *(mine)*: the OU process and the jump on delay move κ(t) in the decision rule
+and the clearance scale (and politeness, once it has a per-agent link); the copula-linked draws
+(following parameters and the critical gap) keep the values drawn at entry (re-mapping them every
+tick would cost about 10% of a step, over the 5% budget). As built (P8.2):
+
+- κ(t) takes one **exact** OU transition at each of the agent's decision ticks,
+  `κ' = κ̄ + (κ − κ̄)e^{−θΔ} + s·√(1 − e^{−2θΔ})·N(0, 1)`, so its law does not depend on `Δt_dec`.
+  The register gives the reversion rate `θ` and the **stationary SD** `s`
+  (`personas.traits.within_trip.sd`, replacing the unset `…volatility` "per √hour", which had no
+  SI unit); the noise is `s·√(2θ)`.
+- The jump `J` comes **once per trip**, when the accumulated delay (time so far minus free-flow
+  time so far) first passes the threshold, and then reverts like any other deviation.
+- Both off unless set (they are unset `fit` entries, stage 6).
 
 ## Part 6. For P8.2 *(mine, please review)*
 
@@ -207,12 +218,65 @@ entry (re-mapping them every tick would cost about 10% of a step, over the 5% bu
   (every e-rickshaw is an e-rickshaw driver; a motorcycle is an average commuter, rushed driver,
   delivery rider or bike-taxi rider). The e-rickshaw share is then a composition share and the
   delivery-rider share a share within two-wheelers (P8.8).
-- With no persona shares set, every agent is an average commuter with the register's trait
-  distributions: today's behaviour and output hashes.
+- With no persona shares set, every agent has the register's trait distributions and no persona
+  label: today's behaviour and output hashes (10 reference scenarios compared, all identical).
+- **A population is all ten shares or none.** Setting some and not others is refused, naming the
+  missing ones (a share of 0 is allowed): otherwise setting only `delivery_rider` would make every
+  two-wheeler a delivery rider. Within a class whose eligible shares are all 0, agents take the
+  class's first eligible persona (the e-rickshaw driver for an e-rickshaw). Tractors, which G§3.2
+  does not list, take the goods-vehicle driver.
+- Word map as applied: "moderate" and an unqualified mention ("schedule pressure") are +0.5. The
+  ten personas' shifts are 70 register entries (`personas.shift.<persona>.<trait>`); personas
+  whose G§3.2 description names no trait (average commuter, cyclist) have all zeros. Signatures
+  that are not traits (low speed, stop propensity, wrong-way propensity) come from the vehicle
+  class or, in P8.4, from per-persona intercept shifts.
+- **Distraction episodes (the user's decision, 2026-11-14: "stop re-deciding").** A phone user is
+  an agent whose distraction trait is in the top `personas.traits.phone_use_share` of the
+  population, so a persona with a higher distraction mean has more phone users. A phone user
+  alternates between attentive periods (exponential, `personas.distraction.episode_rate` per
+  hour) and episodes (`personas.distraction.episode_duration`); every agent starts attentive. While
+  distracted it keeps its lateral target (no scheduled or leader-change decision) and, from P8.3,
+  does not re-read violation triggers (their clocks pause). Repulsion from neighbours and the
+  collision guard still act. No reaction delay is added (G§2.3). Rate and duration have no guide
+  numbers: unset, and a run with phone users but without them is refused.
+
+## Part 7. Built in P8.3 *(mine, please review)*
+
+- **Engine** (`crates/marg-core/src/violations.rs`). An episode per (agent, type) while the
+  trigger holds; the uniform comes from the agent's `Decisions` stream at
+  `8·2⁴⁰ + type·2³⁶ + episode`. The rule is read at the step the trigger first holds, at the
+  agent's staggered decision ticks, and at the step after anybody acts (the counts in view
+  changed). An episode whose agent no longer sees its trigger ends as `complied` (reason
+  `gap_accepted`, `trigger_ended` or `left`); an act stays open, counted as a violator in view,
+  until the agent has left the junction.
+- **Logged per decision**: the features, the agent's own coefficients (traits applied), every
+  term, `η`, and `λ`, `Λ`, `E`, `1 − exp(−Λ)` (continuous) or `σ(η)` and the draw (one-shot). The
+  coefficients are logged because traits scale them (part 2): without them a term could not be
+  checked against its feature. The delivery rider's intercept shift (stage 6) is added to the
+  intercept term.
+- **Refusals**: a type whose intercept is set needs every shared coefficient (the guide has no
+  numbers; 0 is allowed); a type not built yet is refused rather than silently ignored.
+- **The first type: `forced_entry`** (G§2.4, §4.2). Trigger: standing at the line of an
+  uncontrolled junction (not a roundabout: the ring is not robust yet, ADR-0009) with a gap
+  offered and turned down. Features: κ(t); waiting time since it stood; **risk = the gap's
+  shortfall, `1 − gap / critical gap`** (the critical gap includes the heavy-stream factor, so
+  the size of the conflicting vehicle is in it); time saved 0 (no estimate of the wait to come
+  yet); enforcement 0 (P9); imitation counts from the field of view. Act: it opens its own line,
+  as a gap taken does; inside, the junction's arbitration decides who goes first (ADR-0016 part
+  4), so the major-road vehicle brakes for it. Distracted, it does not re-read (its clock
+  pauses). A driver still held standing at the same line when no gap is read that step (something
+  in the junction holds it first) keeps its episode, its clock paused: ending and restarting the
+  episode each time would draw a new threshold and under-count violations (first built that way:
+  about six times as many episodes, a fifth as many acts per episode).
+- **Viewer**: the inspector shows the persona, the traits and each open episode's coefficients,
+  features, terms, `η`, `λ`, `Λ`, `E` and probability (protocol 3).
 
 ## Decision
 
-Pending. Proposed: **T2 + I1 + F1 + K2**, with the parts marked *(mine)*.
+**T2 + I1 + F1 + K2** (the user, at the gate): continuous triggers run an integrated-hazard
+clock with `λ = λ_max·σ(η)`; imitation is two log counts; the field of view is a sector in world
+coordinates without occlusion; κ links to parameters with measured per-class spreads through a
+Gaussian copula. The parts marked *(mine)* are built as written unless you change them.
 
 ## Parameters (new unless noted)
 
@@ -223,6 +287,8 @@ Pending. Proposed: **T2 + I1 + F1 + K2**, with the parts marked *(mine)*.
 | `R`, `φ` | `violations.imitation.fov_radius`, `.fov_half_angle` (exist, unset) | 30 m, π/2 | C, sweep | assumed (part 4) |
 | any-type switch | `violations.imitation.any_type` | 0 | C, scenario | Keizer et al. 2008 (G§4.3) |
 | `r_X` | `personas.links.free_flow_speed`, `.time_gap`, `.standstill_gap`, `.max_accel`, `.comfortable_decel`; `.critical_gap` (exists, meaning changes) | 0 | C, fit 6 | G§3.1 names the links, not their size |
+| OU, jump | `personas.traits.within_trip.reversion_rate`, `.sd` (renamed from `.volatility`), `.delay_jump`, `.delay_threshold` | unset | B, fit 6 | Kesting & Treiber 2008; RSS 2022 |
+| distraction | `personas.traits.phone_use_share` (exists); `personas.distraction.episode_rate`, `.episode_duration` | unset | C, sweep | G§3.1 (no numbers) |
 | intercept shifts | `violations.<type>.intercept_shift.<class>` | unset | C, fit 6 | G§4.2 "who does it most" |
 | persona shifts | `personas.<persona>.shift.<trait>` | per part 6 | C, sweep | G§3.2 words |
 
@@ -232,8 +298,10 @@ are (unset; a run that enables a type without them is refused, as for P6's unset
 ## Consequences
 
 - `crates/marg-core/src/model/decision.rs` holds the rule (terms, σ, the hazard and one-shot
-  decisions, the clock) with five tests, including the invariance check above; nothing calls it
-  yet, so every output hash is unchanged.
+  decisions, the clock) with five tests, including the invariance check above;
+  `violations.rs` runs it (P8.3). With no persona share, no link, no within-trip process and no
+  intercept set — the shipped register — every output hash is unchanged (10 reference scenarios
+  compared before and after P8.2–P8.3).
 - Cost: only agents in an episode evaluate the rule and query the field of view, at their
   decision ticks; one draw per episode. The corridor (no triggers) should not move.
 - Outputs: `violation` and `complied` events with their terms; violation counts by type in

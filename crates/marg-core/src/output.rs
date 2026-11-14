@@ -27,8 +27,21 @@ pub struct AgentRecord {
     pub standstill_gap: f64,
     pub max_accel: f64,
     pub comfortable_decel: f64,
-    /// Aggressiveness κ.
+    /// Aggressiveness κ at entry (the mean its within-trip κ reverts to).
     pub kappa: f64,
+    /// κ at exit (or at the end): differs from `kappa` only with the OU
+    /// process or the jump on delay.
+    pub kappa_end: f64,
+    /// Persona key; `None` when personas are off.
+    pub persona: Option<&'static str>,
+    /// Trait vector at entry `(κ, π, ρ, c, η, skill, δ)` (G§3.1).
+    pub traits: [f64; crate::personas::N_TRAITS],
+    pub phone_user: bool,
+    pub distraction_episodes: u32,
+    /// Time spent distracted (s).
+    pub distracted_time: f64,
+    /// Violations committed (every type; `violation` events give each).
+    pub violations: u32,
     /// Sum of |lateral displacement| over the trip (m).
     pub lateral_distance: f64,
     /// Number of times the agent took a new lateral target.

@@ -17,9 +17,11 @@ use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::gridlock::Gridlock;
 use crate::junctions::{Junctions, chord_pose, draw_turn, onward};
 use crate::model::coverage::Coverage;
+use crate::model::decision::{Features, HazardClock};
 use crate::model::geometry::{Body, overlap, penetration};
 use crate::model::lateral::{ChoiceParams, body_half_width, body_stretch, edge_gap};
 use crate::model::longitudinal::Idm;
+use crate::model::traits::OuStep;
 use crate::objects::{Narrowings, Objects, RoadObject};
 use crate::observe::Detectors;
 use crate::output::{
@@ -29,13 +31,17 @@ use crate::output::{
 use crate::params::{CoreParams, Drawn};
 use crate::parking::Parking;
 use crate::pedestrians::Pedestrians;
+use crate::personas::{DISTRACTION_BASE, KAPPA, OU_BASE, persona_key};
 use crate::rng::{StreamKind, StreamRng};
 pub use crate::scan::Interaction;
 use crate::scan::{Barrier, FixedTime, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use crate::stopping::Stopping;
 use crate::surface::Surface;
+use crate::violations::{Episode, Episodes, Kind, Pose, counts_in_view, episode_counter, read};
 use crate::width::WidthObservers;
 use marg_net::Network;
+use marg_net::junction::Control;
+use marg_params::spec::JunctionKind;
 use marg_params::spec::ObjectSpec;
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
 use rayon::prelude::*;
@@ -159,6 +165,10 @@ pub struct Simulation {
     edge_stops: Vec<(u32, f64)>,
     /// Steps between an agent's scheduled lateral decisions.
     decision_steps: u64,
+    /// The within-trip OU transition of κ over one decision interval.
+    ou: Option<OuStep>,
+    /// Open violation episodes (ADR-0018).
+    episodes: Episodes,
     conflicts: Vec<ConflictRecord>,
     guard_restored: Vec<bool>,
     remap: Vec<u32>,
@@ -195,6 +205,10 @@ impl Simulation {
             return Err(bad("warmup_s must be in [0, duration_s)"));
         }
         let p = CoreParams::from_spec(spec)?;
+        p.personas
+            .check(|l, t| p.linked_dist(l, t).clone())
+            .map_err(SimError::InvalidScenario)?;
+        p.violations.check().map_err(SimError::InvalidScenario)?;
         let net = Network::build(&scenario.network)?;
         let ribbon_of = |id: &str| net.index(id).ok();
         let demand = Demand::new(&scenario.demand.entries, ribbon_of, &p, seed)
@@ -342,6 +356,7 @@ impl Simulation {
             scenario.warmup_s,
         );
         let decision_steps = decision_steps(&p, scenario.dt_s);
+        let ou = ou_step(&p, decision_steps, scenario.dt_s);
         Ok(Self {
             dt: scenario.dt_s,
             scenario,
@@ -381,6 +396,8 @@ impl Simulation {
             gridlock,
             edge_stops: Vec::new(),
             decision_steps,
+            ou,
+            episodes: Episodes::default(),
             conflicts: Vec::new(),
             guard_restored: Vec::new(),
             remap: Vec::new(),
@@ -480,6 +497,7 @@ impl Simulation {
         self.t = self.step as f64 * self.dt;
         self.phase_transitions();
         self.phase_compact();
+        self.phase_traits();
         self.phase_trajectories();
         self.phase_demand();
         self.phase_hash();
@@ -554,8 +572,14 @@ impl Simulation {
     /// dropped and re-drawn from the same random numbers). Agents already in
     /// the network keep their draws unless [`Self::resample`] is called.
     pub fn update_params(&mut self, spec: &ResolvedSpec) -> Result<(), SimError> {
-        self.p = CoreParams::from_spec(spec)?;
+        let p = CoreParams::from_spec(spec)?;
+        p.personas
+            .check(|l, t| p.linked_dist(l, t).clone())
+            .map_err(SimError::InvalidScenario)?;
+        p.violations.check().map_err(SimError::InvalidScenario)?;
+        self.p = p;
         self.decision_steps = decision_steps(&self.p, self.dt);
+        self.ou = ou_step(&self.p, self.decision_steps, self.dt);
         for i in 0..self.agents.len() {
             self.agents.clearance_scale[i] = self.p.clearance_scale(self.agents.kappa[i]);
         }
@@ -601,7 +625,8 @@ impl Simulation {
             let vt = usize::from(self.agents.vtype[i]);
             for &(drawn, _) in sources.iter().filter(|(_, t)| *t == vt) {
                 let a = &mut self.agents;
-                let x = draw_one(self.seed, a.id[i], VehicleType::ALL[vt], &self.p, drawn);
+                let z = self.p.personas.kappa_score(a.traits[i][KAPPA]);
+                let x = draw_one(self.seed, a.id[i], VehicleType::ALL[vt], &self.p, drawn, z);
                 match drawn {
                     Drawn::V0 => {
                         a.v0[i] += x - a.v0_base[i];
@@ -663,6 +688,11 @@ impl Simulation {
     }
 
     /// Store index of agent `id`, if it is in the network.
+    /// The open violation episodes of agent `id` (ADR-0018).
+    pub fn episodes_of(&self, id: u64) -> impl Iterator<Item = &Episode> + '_ {
+        self.episodes.list.iter().filter(move |e| e.agent == id)
+    }
+
     pub fn agent_index(&self, id: u64) -> Option<usize> {
         self.agents.id.iter().position(|&x| x == id)
     }
@@ -967,6 +997,7 @@ impl Simulation {
         self.y_limits.clear();
         self.y_limits
             .resize(self.agents.len(), (f64::NEG_INFINITY, f64::INFINITY));
+        self.episodes.recount = std::mem::take(&mut self.episodes.recount_next);
         for (n, out) in buf.iter().enumerate() {
             let (r, k) = self.work[n];
             let i = self.orders[r as usize][k as usize] as usize;
@@ -1005,6 +1036,9 @@ impl Simulation {
                 self.apply_junction(i, &out.junction, t);
             }
         }
+        if !self.episodes.is_empty() {
+            self.close_untouched_episodes(t);
+        }
         self.move_buf = buf;
     }
 
@@ -1015,6 +1049,9 @@ impl Simulation {
     /// in as it reaches the line (ADR-0017).
     fn apply_junction(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
         self.record_junction(i, jo, t);
+        if self.p.violations.active(Kind::ForcedEntry) {
+            self.forced_entry(i, jo, t);
+        }
         match self.agents.split_state[i] {
             SPLIT_GAVE_UP | SPLIT_UNAWARE => self.take_branch_in(i, t, false),
             SPLIT_DECIDED => self.take_branch_in(i, t, true),
@@ -2165,7 +2202,14 @@ impl Simulation {
             standstill_gap: a.standstill_gap[i],
             max_accel: a.max_accel[i],
             comfortable_decel: a.comfortable_decel[i],
-            kappa: a.kappa[i],
+            kappa: a.traits[i][KAPPA],
+            kappa_end: a.kappa[i],
+            persona: persona_key(a.persona[i]),
+            traits: a.traits[i],
+            phone_user: a.phone_user[i],
+            distraction_episodes: a.distraction_episodes[i],
+            distracted_time: a.distracted_time[i],
+            violations: a.violations[i],
             lateral_distance: a.lateral_distance[i],
             lateral_moves: a.lateral_moves[i],
         }
@@ -2175,6 +2219,9 @@ impl Simulation {
 
     fn phase_compact(&mut self) {
         let moved = self.agents.compact(&mut self.remap);
+        if moved && !self.episodes.is_empty() {
+            self.episodes.remap(&self.remap, REMOVED);
+        }
         let remap = &self.remap;
         let ribbons = &self.agents.ribbon;
         for (r, order) in self.orders.iter_mut().enumerate() {
@@ -2205,6 +2252,281 @@ impl Simulation {
     }
 
     // -------------------------------------------------------- trajectories
+
+    // ----------------------------------------------------------- violations
+
+    /// The world pose of agent `i` for the field of view.
+    fn pose(&self, i: usize) -> Pose {
+        let a = &self.agents;
+        let (x, y, h) = self
+            .net
+            .ribbon(a.ribbon[i] as usize)
+            .to_world(a.s[i], a.y[i]);
+        Pose {
+            x,
+            y,
+            heading: h + libm::atan(a.heading_tan[i]),
+            half_length: 0.5 * a.length[i],
+            v: a.v[i],
+        }
+    }
+
+    /// Forced entry (G§2.4, §4.2, ADR-0018): standing at the line of an
+    /// uncontrolled junction (not a roundabout) with no acceptable gap, a
+    /// driver may enter anyway. A continuous trigger: its hazard rises with
+    /// waiting time and κ and falls with the gap's shortfall (the risk
+    /// feature, `1 − gap / critical gap`). It enters by opening its own line
+    /// (as a gap taken does); who goes first inside is then the junction's
+    /// arbitration, so the major-road vehicle brakes (ADR-0016 part 4).
+    fn forced_entry(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        let kind = Kind::ForcedEntry;
+        let id = self.agents.id[i];
+        let found = self.episodes.find(id, kind);
+        if let Some(e) = found
+            && self.episodes.list[e].acted
+        {
+            // Under way: a violator in view until it has left the junction.
+            let r = self.agents.ribbon[i];
+            let inside = r == self.episodes.list[e].ribbon || self.net.ribbon(r as usize).internal;
+            if inside {
+                let ep = &mut self.episodes.list[e];
+                ep.touched = self.step;
+                ep.idx = i as u32;
+            } else {
+                self.episodes.list.remove(e);
+            }
+            return;
+        }
+        let j = self.agents.turn_junction[i] as usize;
+        let uncontrolled = self.net.junctions.get(j).is_some_and(|jn| {
+            matches!(jn.control, Control::Uncontrolled) && jn.kind != JunctionKind::Roundabout
+        });
+        let a = &self.agents;
+        // Still waiting at this line; the trigger needs a gap in view too.
+        let waiting = uncontrolled
+            && !jo.accepted
+            && jo.held
+            && a.v[i] < self.p.stop_speed_below
+            && !a.gate_open[i];
+        let trigger = waiting && !jo.gap.is_nan();
+        if !trigger {
+            if let Some(e) = found
+                && waiting
+            {
+                // No gap read this step (something else holds it first):
+                // the episode goes on, its clock paused.
+                let ep = &mut self.episodes.list[e];
+                ep.touched = self.step;
+                ep.idx = i as u32;
+                ep.clock.skip_to(t);
+                return;
+            }
+            if let Some(e) = found {
+                let reason = if jo.accepted {
+                    "gap_accepted"
+                } else {
+                    "trigger_ended"
+                };
+                self.end_episode(e, t, reason);
+            }
+            return;
+        }
+        let due = found.is_none()
+            || self.episodes.recount
+            || self
+                .step
+                .wrapping_add(id)
+                .is_multiple_of(self.decision_steps);
+        if let Some(e) = found {
+            let ep = &mut self.episodes.list[e];
+            ep.touched = self.step;
+            ep.idx = i as u32;
+            if a.distracted[i] {
+                // A distracted driver does not re-read its trigger.
+                ep.clock.skip_to(t);
+                return;
+            }
+            if !due {
+                return;
+            }
+        }
+        let vp = &self.p.violations;
+        let waited = if a.wait_since[i].is_nan() {
+            0.0
+        } else {
+            t - a.wait_since[i]
+        };
+        let (n_violating, n_complying) = counts_in_view(
+            vp,
+            &self.episodes,
+            id,
+            kind,
+            self.pose(i),
+            |k| self.pose(k as usize),
+            self.p.stop_speed_below,
+        );
+        let features = Features {
+            kappa: a.kappa[i],
+            time_saved: 0.0,
+            waiting_time: waited,
+            n_violating,
+            n_complying,
+            enforcement: 0.0,
+            risk: if jo.needed > 0.0 {
+                (1.0 - jo.gap / jo.needed).clamp(0.0, 1.0)
+            } else {
+                0.0
+            },
+        };
+        let c = vp.coefficients(kind, a.persona[i], &a.traits[i], &self.p.personas);
+        let reading = read(kind, t, &c, features, vp.max_rate);
+        let fired = match found {
+            None => {
+                let serial = self.episodes.next_serial(id, kind);
+                let u = StreamRng::at(
+                    self.seed,
+                    StreamKind::Decisions,
+                    id,
+                    episode_counter(kind, serial),
+                )
+                .uniform();
+                self.episodes.list.push(Episode {
+                    agent: id,
+                    idx: i as u32,
+                    kind,
+                    serial,
+                    t_start: t,
+                    clock: HazardClock::start(t, reading.rate, u),
+                    draw: u,
+                    acted: false,
+                    junction: j as u32,
+                    ribbon: self.agents.ribbon[i],
+                    touched: self.step,
+                    last: reading,
+                });
+                false
+            }
+            Some(e) => {
+                let ep = &mut self.episodes.list[e];
+                ep.last = reading;
+                ep.clock.advance(t, reading.rate)
+            }
+        };
+        if fired {
+            let e = found.expect("a new episode never fires at its start");
+            self.act(e, t);
+            self.agents.gate_open[i] = true;
+        }
+    }
+
+    /// Episode `e` acts: count it, log it with its terms, and let everybody
+    /// re-read their features at the next step.
+    fn act(&mut self, e: usize, t: f64) {
+        let ep = &mut self.episodes.list[e];
+        ep.acted = true;
+        let (i, kind) = (ep.idx as usize, ep.kind);
+        self.episodes.acts[kind as usize] += 1;
+        self.episodes.recount_next = true;
+        self.agents.violations[i] += 1;
+        let ev = self.episode_event(e, t, "violation", "acted");
+        self.events.push(ev);
+    }
+
+    /// Episode `e` ends without an act: log it (`complied`) and drop it.
+    fn end_episode(&mut self, e: usize, t: f64, reason: &str) {
+        let ev = self.episode_event(e, t, "complied", reason);
+        self.events.push(ev);
+        self.episodes.list.remove(e);
+    }
+
+    fn episode_event(&self, e: usize, t: f64, kind: &'static str, reason: &str) -> EventRecord {
+        let ep = &self.episodes.list[e];
+        let i = ep.idx as usize;
+        let a = &self.agents;
+        let junction = self
+            .net
+            .junctions
+            .get(ep.junction as usize)
+            .map_or("", |j| j.id.as_str());
+        EventRecord {
+            t,
+            kind,
+            agent_id: ep.agent,
+            ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+            s: a.s[i],
+            y: a.y[i],
+            attrs: crate::violations::attrs(ep, junction, self.p.violations.max_rate, reason),
+        }
+    }
+
+    /// Episodes whose agent did not see its trigger this step: an open one
+    /// ends as `complied`; an act under way is over.
+    fn close_untouched_episodes(&mut self, t: f64) {
+        let mut e = 0;
+        while e < self.episodes.list.len() {
+            if self.episodes.list[e].touched == self.step {
+                e += 1;
+            } else if self.episodes.list[e].acted {
+                self.episodes.list.remove(e);
+            } else {
+                self.end_episode(e, t, "left");
+            }
+        }
+    }
+
+    /// Within-trip trait processes (ADR-0018 parts 5–6), in agent order:
+    /// distraction episodes switch on and off; at each agent's decision tick
+    /// κ takes one exact OU transition towards its entry value and jumps
+    /// once when its delay passes the threshold. Skipped entirely unless one
+    /// of them is on.
+    fn phase_traits(&mut self) {
+        let p = &self.p;
+        let pp = &p.personas;
+        if !pp.within_trip() {
+            return;
+        }
+        let (t, dt, step, every, seed) =
+            (self.t, self.dt, self.step, self.decision_steps, self.seed);
+        let phones = pp.phone_users();
+        let jump = pp.delay_jump.zip(pp.delay_threshold);
+        let a = &mut self.agents;
+        for i in 0..a.len() {
+            if phones && a.phone_user[i] {
+                if a.distracted[i] {
+                    a.distracted_time[i] += dt;
+                }
+                while t >= a.distraction_switch[i] {
+                    let n = u64::from(a.distraction_episodes[i]);
+                    let on = !a.distracted[i];
+                    if on {
+                        a.distraction_episodes[i] += 1;
+                    }
+                    a.distracted[i] = on;
+                    a.distraction_switch[i] += distraction_period(p, seed, a.id[i], n, on, dt);
+                }
+            }
+            if !step.wrapping_add(a.id[i]).is_multiple_of(every) {
+                continue;
+            }
+            let mut k = a.kappa[i];
+            if let Some(ou) = &self.ou {
+                let z = StreamRng::at(seed, StreamKind::Decisions, a.id[i], OU_BASE + step)
+                    .standard_normal();
+                k = ou.step(k, a.traits[i][KAPPA], z);
+            }
+            if let Some((j, threshold)) = jump
+                && !a.delay_jumped[i]
+                && t - a.t_entry[i] - a.free_flow_time[i] > threshold
+            {
+                k += j;
+                a.delay_jumped[i] = true;
+            }
+            if k != a.kappa[i] {
+                a.kappa[i] = k;
+                a.clearance_scale[i] = p.clearance_scale(k);
+            }
+        }
+    }
 
     fn phase_trajectories(&mut self) {
         let Some(cfg) = &self.trajectories else {
@@ -2331,6 +2653,9 @@ impl Simulation {
             max_accel: d.max_accel,
             comfortable_decel: d.comfortable_decel,
             kappa: d.kappa,
+            persona: d.persona,
+            traits: d.traits,
+            phone_user: d.phone_user,
             clearance_scale,
             cruising: d.cruising,
             hump_speed: d.hump_speed,
@@ -2342,6 +2667,10 @@ impl Simulation {
             late_realiser: d.late_realiser,
         };
         let i = self.agents.push(new);
+        if d.phone_user && self.p.personas.phone_users() {
+            let off = distraction_period(&self.p, self.seed, arr.id, 0, false, self.dt);
+            self.agents.distraction_switch[i as usize] = self.t + off;
+        }
         if let Some((j, arm)) = self.net.ribbon(r).ahead {
             self.agents.turn_junction[i as usize] = j as u32;
             self.agents.turn_out[i as usize] = draw_turn(self.seed, arr.id, &self.net, j, arm);
@@ -2628,6 +2957,18 @@ impl Simulation {
             ("missed_branches", self.missed_branches as f64),
             ("reroutes", self.reroutes as f64),
             ("gaps_rejected", self.gaps_rejected as f64),
+            (
+                "violations_per_1000_veh",
+                if self.spawned > 0 {
+                    1000.0 * self.episodes.acts.iter().sum::<u64>() as f64 / self.spawned as f64
+                } else {
+                    f64::NAN
+                },
+            ),
+            (
+                "forced_entries",
+                self.episodes.acts[Kind::ForcedEntry as usize] as f64,
+            ),
             ("gridlock_share", self.gridlock.share(self.t)),
             ("gridlock_onset_s", self.gridlock.onset()),
         ]
@@ -2647,7 +2988,7 @@ enum Against {
 }
 
 /// `text` as a JSON string literal.
-fn json_string(text: &str) -> String {
+pub(crate) fn json_string(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
     for c in text.chars() {
@@ -2729,6 +3070,36 @@ fn sort_nearly_sorted(v: &mut [u32], less: impl Fn(u32, u32) -> bool) {
             return;
         }
     }
+}
+
+/// The OU transition of κ over one decision interval, if the process is on.
+fn ou_step(p: &CoreParams, decision_steps: u64, dt: f64) -> Option<OuStep> {
+    let pp = &p.personas;
+    pp.reversion_rate
+        .zip(pp.within_sd)
+        .map(|(rate, sd)| OuStep::new(rate, sd, decision_steps as f64 * dt))
+}
+
+/// Length of a phone user's distraction period: the time until its next
+/// episode (`episode = false`: exponential at the episode rate) or the
+/// episode itself (its duration distribution). Period `n` of each kind has
+/// its own counter. A period never lasts less than one step.
+fn distraction_period(p: &CoreParams, seed: u64, id: u64, n: u64, episode: bool, dt: f64) -> f64 {
+    let pp = &p.personas;
+    let mut rng = StreamRng::at(
+        seed,
+        StreamKind::Decisions,
+        id,
+        DISTRACTION_BASE + 2 * n + u64::from(episode),
+    );
+    let x = if episode {
+        let d = pp.episode_duration.as_ref().expect("checked at start-up");
+        let x = d.sample(&mut rng);
+        if x > 0.0 { x } else { d.mean() }
+    } else {
+        -libm::log1p(-rng.uniform()) / pp.episode_rate.expect("checked at start-up")
+    };
+    x.max(dt)
 }
 
 /// Steps between an agent's scheduled lateral decisions.

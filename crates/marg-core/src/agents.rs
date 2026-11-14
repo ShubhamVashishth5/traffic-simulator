@@ -47,8 +47,26 @@ pub struct AgentStore {
     pub standstill_gap: Vec<f64>,
     pub max_accel: Vec<f64>,
     pub comfortable_decel: Vec<f64>,
-    /// Aggressiveness κ (placeholder until personas, P8).
+    /// Aggressiveness κ now (it moves within a trip if the OU process or
+    /// the jump on delay is on; ADR-0018 part 5).
     pub kappa: Vec<f64>,
+    /// Persona index (`personas::NO_PERSONA`: personas off).
+    pub persona: Vec<u8>,
+    /// Trait vector at entry `(κ̄, π, ρ, c, η, skill, δ)`; κ̄ is the mean the
+    /// OU process reverts to.
+    pub traits: Vec<[f64; crate::personas::N_TRAITS]>,
+    /// Distraction: whether it uses a phone, whether an episode is on now,
+    /// when the current period ends (s), episodes so far and time
+    /// distracted (s). While distracted it keeps its lateral target.
+    pub phone_user: Vec<bool>,
+    pub distracted: Vec<bool>,
+    pub distraction_switch: Vec<f64>,
+    pub distraction_episodes: Vec<u32>,
+    pub distracted_time: Vec<f64>,
+    /// Its κ jumped when its delay passed the threshold.
+    pub delay_jumped: Vec<bool>,
+    /// Violations it has committed (ADR-0018).
+    pub violations: Vec<u32>,
     /// `exp(−γ_c κ)`: the agent's scale on lateral clearances.
     pub clearance_scale: Vec<f64>,
     /// The agent's cruising draw (see [`crate::demand::Draws::cruising`]).
@@ -175,6 +193,9 @@ pub struct NewAgent {
     pub max_accel: f64,
     pub comfortable_decel: f64,
     pub kappa: f64,
+    pub persona: u8,
+    pub traits: [f64; crate::personas::N_TRAITS],
+    pub phone_user: bool,
     pub clearance_scale: f64,
     pub cruising: f64,
     pub hump_speed: f64,
@@ -226,6 +247,15 @@ macro_rules! each_column {
         $m!($s.max_accel);
         $m!($s.comfortable_decel);
         $m!($s.kappa);
+        $m!($s.persona);
+        $m!($s.traits);
+        $m!($s.phone_user);
+        $m!($s.distracted);
+        $m!($s.distraction_switch);
+        $m!($s.distraction_episodes);
+        $m!($s.distracted_time);
+        $m!($s.delay_jumped);
+        $m!($s.violations);
         $m!($s.clearance_scale);
         $m!($s.cruising);
         $m!($s.stop_state);
@@ -321,6 +351,15 @@ impl AgentStore {
         self.max_accel.push(a.max_accel);
         self.comfortable_decel.push(a.comfortable_decel);
         self.kappa.push(a.kappa);
+        self.persona.push(a.persona);
+        self.traits.push(a.traits);
+        self.phone_user.push(a.phone_user);
+        self.distracted.push(false);
+        self.distraction_switch.push(f64::INFINITY);
+        self.distraction_episodes.push(0);
+        self.distracted_time.push(0.0);
+        self.delay_jumped.push(false);
+        self.violations.push(0);
         self.clearance_scale.push(a.clearance_scale);
         self.cruising.push(a.cruising);
         self.stop_state.push(STOP_NONE);
@@ -435,6 +474,9 @@ mod tests {
             max_accel: 1.0,
             comfortable_decel: 1.0,
             kappa: 0.0,
+            persona: crate::personas::NO_PERSONA,
+            traits: [0.0; crate::personas::N_TRAITS],
+            phone_user: false,
             clearance_scale: 1.0,
             cruising: 0.0,
             hump_speed: 5.0,

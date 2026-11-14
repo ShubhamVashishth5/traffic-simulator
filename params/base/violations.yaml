@@ -207,7 +207,7 @@ entries:
     live: true
     notes: "beta_r: perceived risk. Shared by all violation types unless a per-type entry is added."
   imitation.fov_radius:
-    value: null
+    value: 30.0
     unit: "m"
     grade: C
     role: sweep
@@ -215,9 +215,9 @@ entries:
     guide: "§4.3"
     register_row: 9.4/imitation_coefficient
     range: [0.0, 100.0]
-    notes: "Field-of-view radius for imitation counts."
+    notes: "Radius of the field-of-view sector for imitation counts, from the agent's front centre (ADR-0018 part 4, F1). 30 m is about five rows of a queue: assumed."
   imitation.fov_half_angle:
-    value: null
+    value: 1.5708
     unit: "rad"
     grade: C
     role: sweep
@@ -225,6 +225,27 @@ entries:
     guide: "§4.3"
     register_row: 9.4/imitation_coefficient
     range: [0.0, 3.1416]
+    notes: "Half-angle of the field-of-view sector about the agent's heading. pi/2: everything ahead of the driver's shoulders; mirrors are not modelled (ADR-0018 part 4): assumed."
+  imitation.any_type:
+    value: 0
+    unit: "1"
+    grade: C
+    role: scenario
+    source: "Keizer et al. 2008 (disorder spreads across norms); a US replication largely failed, so a sensitivity case (G§4.3)"
+    guide: "§4.3"
+    register_row: 9.4/imitation_coefficient
+    range: [0.0, 1.0]
+    notes: "0 = a violation's imitation count includes only violators of the same type; 1 = violators of any type (compliers waiting stay same-type). ADR-0018 part 3."
+  hazard.max_rate:
+    value: 3600
+    unit: "1/h"
+    grade: C
+    role: fix
+    source: "About once per perception-reaction time: Wong & Goh's mean 1.02 s (G§2.3). Fixed because at low rates only lambda_max * exp(beta_0) is identifiable (ADR-0018 part 1)"
+    guide: "§2.3, §4.1"
+    register_row: 9.4/intercepts
+    range: [0.0, 36000.0]
+    notes: "lambda_max: a continuous trigger's hazard is lambda_max * sigma(eta) (3600/h = once per second at most). Never fitted: the intercepts are."
   pedestrian_red.intercept:
     value: null
     unit: "1"

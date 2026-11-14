@@ -1197,6 +1197,10 @@ export interface DetectorRow {
 }
 export interface Inspector {
   /**
+   * Open violation episodes with their logit breakdown (P8.3).
+   */
+  decisions: DecisionView[];
+  /**
    * `false` if the agent is not in the network (not entered yet, or exited).
    */
   found: boolean;
@@ -1206,13 +1210,55 @@ export interface Inspector {
   free_accel?: number | null;
   id: string;
   neighbours: Neighbour[];
-  /**
-   * Persona, traits and decision explanations arrive with P8.
-   */
   note: string;
   record?: AgentRow | null;
   state?: AgentState | null;
   t: number;
+  [k: string]: unknown;
+}
+/**
+ * An open violation episode of the inspected agent, as its last reading
+ * left it (ADR-0018): each term is its coefficient times its feature, and
+ * they add up to `eta`.
+ */
+export interface DecisionView {
+  /**
+   * It has acted (a violation under way).
+   */
+  acted: boolean;
+  coefficients: Named[];
+  episode: number;
+  eta: number;
+  features: Named[];
+  /**
+   * Continuous types: hazard λ = λ_max σ(η) (1/s), the hazard integrated
+   * so far Λ, and the threshold E it acts at. Null for one-shot types.
+   */
+  hazard?: number | null;
+  integrated?: number | null;
+  /**
+   * Violation type (`forced_entry`, …).
+   */
+  kind: string;
+  /**
+   * 1 − exp(−Λ) (continuous) or σ(η) (one-shot).
+   */
+  probability: number;
+  /**
+   * When the features were last read.
+   */
+  t_read: number;
+  t_start: number;
+  terms: Named[];
+  threshold?: number | null;
+  [k: string]: unknown;
+}
+/**
+ * A named number (a feature, a coefficient or a term of a decision).
+ */
+export interface Named {
+  name: string;
+  value: number;
   [k: string]: unknown;
 }
 /**
@@ -1246,14 +1292,30 @@ export interface AgentRow {
   agent_id: string;
   class: string;
   comfortable_decel: number;
+  conformity: number;
   delay: number;
   distance: number;
+  distraction: number;
+  distraction_episodes: number;
   entry: string;
   entry_y: number;
   exited: boolean;
   free_flow_time: number;
+  kappa: number;
+  /**
+   * κ now (moves within a trip with the OU process or the jump on delay).
+   */
+  kappa_now: number;
   length: number;
   max_accel: number;
+  norm_sensitivity: number;
+  /**
+   * Persona key (null: no persona shares set) and traits at entry (G§3).
+   */
+  persona?: string | null;
+  phone_user: boolean;
+  risk_tolerance: number;
+  skill: number;
   spawn_delay: number;
   standstill_gap: number;
   stops: number;
@@ -1261,9 +1323,11 @@ export interface AgentRow {
   t_entry: number;
   t_exit?: number | null;
   time_gap: number;
+  time_pressure: number;
   travel_time: number;
   v0: number;
   vehicle_type: string;
+  violations: number;
   width: number;
   [k: string]: unknown;
 }
