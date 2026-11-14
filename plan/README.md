@@ -53,6 +53,7 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Kerbside parking: placement, manoeuvres, cruising, the effective-width observer; survey inputs come from the scenario | proposed (P6.2) | [ADR-0013](decisions/ADR-0013-kerbside-parking.md) |
 | Stop-anywhere: pull over or stop in the stream by a per-class probability; events per vehicle-km, multiplied at attractors | accepted (your choice, P6.3) | [ADR-0014](decisions/ADR-0014-stop-anywhere.md) |
 | Bus stops, potholes, humps, gradients, water and pedestrians: the rules chosen while building them | proposed (P6.4–P6.7), for your review | [ADR-0015](decisions/ADR-0015-bus-stops-surface-pedestrians.md) |
+| The violation decision rule: one-shot decisions and an integrated-hazard clock, imitation counts, field of view, how κ links to per-class spreads | **needs your decision** (P8.1 review gate) | [ADR-0018](decisions/ADR-0018-decision-rule-timing.md) |
 
 ## Folder map
 

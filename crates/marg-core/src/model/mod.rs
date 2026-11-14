@@ -6,6 +6,7 @@
 //! says `allow-literal` with a reason.
 
 pub mod coverage;
+pub mod decision;
 pub mod geometry;
 pub mod lateral;
 pub mod longitudinal;
