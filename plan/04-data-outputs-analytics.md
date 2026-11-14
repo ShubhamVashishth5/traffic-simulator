@@ -82,6 +82,10 @@ cross-check the two implementations.
 - **Gridlock share:** the share of measured time in which any monitored area has space-mean speed
   below `v_grid` (register, e.g. 5 km/h) for at least `τ_grid` with spillback into an upstream
   junction box. The first-onset time is also recorded; it is a key output (G§8.4).
+  *Built in P7 (`marg_core::gridlock`): every area detector is a monitored area, its speed is
+  the mean speed of the vehicles inside it at each step, and the spillback condition is not
+  applied (corridor scenarios have no box upstream of their areas). KPIs `gridlock_share`,
+  `gridlock_onset_s`; a `gridlock` event per onset.*
 - **Social efficiency deficit (`sed`)** ⚑: the relative excess of total delay in an arm over its
   *cooperative twin*. The twin has the same seed, demand and agents, with violation hazards and
   κ-driven squeezing switched to the cooperative setting. It is an optional metric: the formula and

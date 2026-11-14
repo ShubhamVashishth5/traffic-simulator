@@ -1,0 +1,96 @@
+{
+  "scenario": "priority_crossing.yaml, no heavy vehicles",
+  "flows_veh_h": {
+    "e": 300,
+    "w": 300,
+    "n": 150,
+    "s": 150
+  },
+  "seeds": 4,
+  "duration_s": 3600,
+  "gaps_against_heavy": 0,
+  "classes": {
+    "two_wheeler": {
+      "truth_median_s": 4.4,
+      "truth_sigma": 0.2,
+      "drawn_median_s": 4.427,
+      "drawn_sigma": 0.204,
+      "z_median_vs_drawn": -0.6,
+      "drivers": 800,
+      "accepted": 800,
+      "rejected": 1180,
+      "mle_median_s": 4.385,
+      "mle_median_se": 0.07,
+      "mle_sigma": 0.209,
+      "mle_sigma_se": 0.014,
+      "z_median": -0.22,
+      "z_sigma": 0.66,
+      "raff_s": 4.547
+    },
+    "auto_rickshaw": {
+      "truth_median_s": 6.8,
+      "truth_sigma": 0.2,
+      "drawn_median_s": 6.869,
+      "drawn_sigma": 0.209,
+      "z_median_vs_drawn": -2.89,
+      "drivers": 307,
+      "accepted": 307,
+      "rejected": 827,
+      "mle_median_s": 6.333,
+      "mle_median_se": 0.185,
+      "mle_sigma": 0.218,
+      "mle_sigma_se": 0.024,
+      "z_median": -2.52,
+      "z_sigma": 0.74,
+      "raff_s": 6.409
+    },
+    "car": {
+      "truth_median_s": 8.15,
+      "truth_sigma": 0.2,
+      "drawn_median_s": 8.12,
+      "drawn_sigma": 0.194,
+      "z_median_vs_drawn": -0.87,
+      "drivers": 521,
+      "accepted": 521,
+      "rejected": 1593,
+      "mle_median_s": 7.959,
+      "mle_median_se": 0.186,
+      "mle_sigma": 0.167,
+      "mle_sigma_se": 0.021,
+      "z_median": -1.03,
+      "z_sigma": -1.61,
+      "raff_s": 7.753
+    }
+  },
+  "abhigna_2020_table4_s": {
+    "note": "Same data, two methods (intersection-1 / intersection-2)",
+    "clearing_behaviour": {
+      "2w": [
+        4.84,
+        4.03
+      ],
+      "3w": [
+        7.08,
+        6.53
+      ],
+      "4w": [
+        8.59,
+        7.69
+      ]
+    },
+    "raff": {
+      "2w": [
+        2.6,
+        2.75
+      ],
+      "3w": [
+        2.27,
+        4.05
+      ],
+      "4w": [
+        2.8,
+        4.8
+      ]
+    }
+  }
+}

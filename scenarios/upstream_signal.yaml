@@ -1,0 +1,40 @@
+name: upstream_signal
+description: >
+  A 10.5 m carriageway whose entry is fed through a fixed-time signal 200 m downstream of where
+  vehicles appear (G§7.3, P7.7): arrivals come as a renewal process, stop at the signal's line on
+  red and amber, and leave it as platoons released by green. The study section starts beyond the
+  line. Compare with the same entry without the signal (remove `upstream_signal`).
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [1500, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 1000}
+      composition:
+        motorcycle: 0.12
+        scooter: 0.12
+        moped: 0.03
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.02
+        hatchback: 0.30
+        sedan: 0.12
+        suv: 0.08
+        lcv: 0.03
+        bus: 0.02
+        truck: 0.01
+        bicycle: 0.01
+      upstream_signal: {stop_line_s: 200, cycle_s: 90, green_s: 40, amber_s: 3}
+detectors:
+  - {kind: screenline, id: s500, ribbon: main, s: 500, interval_s: 300}
+  - {kind: screenline, id: s1200, ribbon: main, s: 1200, interval_s: 300}
+  - {kind: area, id: study, ribbon: main, s_from: 400, s_to: 1400, interval_s: 300}
+kpi:
+  throughput_detector: s1200

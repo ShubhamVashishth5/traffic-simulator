@@ -35,8 +35,15 @@ def next_job_id() -> int:
 
 
 def finished(exp_dir: str) -> int:
-    """Run folders with a manifest (finished runs) under an experiment folder."""
-    return sum(1 for _ in Path(exp_dir).glob("scenario=*/point=*/arm=*/rep=*/run=*/manifest.json"))
+    """Finished runs under an experiment folder: run folders with a manifest. A run is written
+    to a `run=<hash>.partial-*` sibling (which also matches `run=*`) and renamed into place when
+    complete, so a partial folder already holding its manifest is not finished yet: killing the
+    task then would leave the run partial."""
+    return sum(
+        1
+        for m in Path(exp_dir).glob("scenario=*/point=*/arm=*/rep=*/run=*/manifest.json")
+        if ".partial-" not in m.parent.name
+    )
 
 
 def main(argv: list[str]) -> int:

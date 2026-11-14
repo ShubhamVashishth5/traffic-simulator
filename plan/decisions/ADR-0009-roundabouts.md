@@ -1,8 +1,8 @@
 # ADR-0009: Roundabouts
 
 - **Status:** accepted — **option 1, a ring of ribbons** (the user, 2026-11-13, at the P7.0 gate).
-  The ring is built (`kind: roundabout`, geometry tested in `marg-net`); how vehicles behave on
-  it is **not tested yet** (see ADR-0016, and P7.8 in STATUS)
+  The ring is built and run (P7.8, 2026-11-14): it carries light traffic and **locks at 300–500
+  veh/h per arm**. How vehicles on a ring are arbitrated **needs your decision** (addendum below)
 - **Date:** 2026-11-09
 - **Phase / task:** P7 (review gate P7.0), read by P11
 
@@ -99,3 +99,44 @@ Option 1, as a new task P7.8 after P7.4 and P7.6, because it builds on both. Its
   the ring's width. Both are unset in the register, with `priority_compliance`; a scenario with
   a roundabout must supply them.
 - Speed on the ring comes from `road.junction.turn_lateral_acceleration` and the radius.
+
+## Addendum (2026-11-14): P7.8 run for the first time
+
+**Fixed, with tests** *(mine, please review)*:
+1. The scenario's stop lines lay on the ring (arms ending 14 m from the centre of a ring whose
+   outer edge is at 20 m): circulating vehicles braked for entrants waiting at their lines and
+   the ring locked at once. A ring whose arms end inside its carriageway is now refused, and the
+   scenario's arms end 4 m outside it.
+2. Ways on and off could change order: each was moved along the ring by up to 45°, so with arms
+   ending well outside the ring an arm's way on came after the next arm's way off (the first
+   exit became the last, and connectors of neighbouring arms crossed). The move is now at most
+   40% of the angle to the nearest other arm (`LEAD_SHARE`); a test checks that the left turn
+   takes the first exit.
+3. Two vehicles merging onto the same arc were never compared (ADR-0016 part 5).
+4. Ring-only arbitration rules (ADR-0016 part 5): tickets ordered along shared arcs; first come,
+   first served decides a pair only once one of them is near the contact; the yielder rule of
+   part 4 applied to bodies ahead at a shallow angle; "blocked" read from the move phase too.
+
+**Result** (`reports/phases/P7.md` §5, 30 min, three seeds): 150 veh/h per arm flows on every
+seed (0–15 guard events); 300 veh/h locks on one seed in three; 500 veh/h (the scenario) locks
+within minutes on every seed. The done-when is not met: entry capacity against upstream flow
+cannot be measured on a ring that locks.
+
+**Why.** Decision D (ADR-0016 part 4) was built for a box that vehicles cross in seconds: a
+small area, short paths, an order of tickets. On a ring every vehicle is inside the junction
+for its whole time there and paths run round it, so tickets order vehicles that are far apart,
+and cycles of waiting form through vehicles following one another, which the cycle breaker
+does not see. Long vehicles on a continuous curve also meet open problem 3 of ADR-0016 (the
+inside sweep of a bus) all the time.
+
+**Options for your decision:**
+- R1. *(recommended)* **Each entry its own small junction.** The ring's arcs are ordinary
+  ribbons; each way on is a priority merge (the connector and the arc it joins, ring first,
+  P7.4 gap acceptance at the give-way line) and each way off a diverge. Arbitration then spans
+  one merge area, as a box does, and vehicles on the ring follow one another with the ordinary
+  scan. Roughly a rewrite of `build_ring`'s grouping, not of the arbitration.
+- R2. **One junction, priority instead of tickets.** At a roundabout a ring vehicle always goes
+  before an entrant still on its connector unless physics says otherwise; cycles through
+  following are found and broken too. Smaller change, but keeps long paths in one arbitration.
+- R3. **A plain box** (option 2 above) for small roundabouts only, leaving large rotaries
+  unsupported for now.

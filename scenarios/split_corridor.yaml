@@ -1,0 +1,68 @@
+name: split_corridor
+description: >
+  A 10.5 m divided carriageway (three notional lanes) that splits 700 m downstream into a kerb-side
+  branch (to a service road, 55% of traffic) and a median-side branch (up a flyover, 45%), with the
+  Delhi-arterial composition of the reference corridor (G§6.7, P7.6, the P7 milestone). Vehicles
+  enter at their class's usual lateral position whatever branch they need, so those on the wrong
+  side must cross before the split; late realisers learn their branch only near it, from the sign
+  (hidden behind a bus, truck or tractor) or at their own late-awareness distance. Every split
+  input is a placeholder: the guide has no Indian study of late crossing at splits (G§6.7).
+duration_s: 1800
+warmup_s: 300
+dt_s: 0.1
+network:
+  ribbons:
+    - id: main
+      polyline: [[0, 0], [700, 0]]
+      width: [{s: 0, y_min: -5.25, y_max: 5.25}]
+    - id: service
+      polyline: [[700, 0], [800, 8], [1100, 40]]
+      width: [{s: 0, y_min: 0, y_max: 5.25}]
+    - id: flyover
+      polyline: [[700, 0], [800, -8], [1100, -40]]
+      width: [{s: 0, y_min: -5.25, y_max: 0}]
+  junctions:
+    - id: fork
+      kind: split
+      arms:
+        - {id: main, in: main}
+        - {id: service, out: service}
+        - {id: flyover, out: flyover}
+      turns:
+        main: {service: 0.55, flyover: 0.45}
+demand:
+  entries:
+    - id: west
+      ribbon: main
+      flow:
+        - {from_s: 0, veh_per_h: 2400}
+      composition:
+        motorcycle: 0.12
+        scooter: 0.12
+        moped: 0.03
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.02
+        hatchback: 0.30
+        sedan: 0.12
+        suv: 0.08
+        lcv: 0.03
+        bus: 0.02
+        truck: 0.01
+        bicycle: 0.01
+detectors:
+  - {kind: screenline, id: in_main, ribbon: main, s: 200, interval_s: 300}
+  - {kind: screenline, id: out_service, ribbon: service, s: 250, interval_s: 300}
+  - {kind: screenline, id: out_flyover, ribbon: flyover, s: 250, interval_s: 300}
+  - {kind: area, id: approach, ribbon: main, s_from: 400, s_to: 700, interval_s: 300}
+  - {kind: area, id: upstream, ribbon: main, s_from: 100, s_to: 400, interval_s: 300}
+kpi:
+  throughput_detector: out_service
+overrides:
+  # Placeholders (ADR-0017): no Indian study of late crossing at splits (G§6.7).
+  road.split.awareness_distance: {dist: uniform, min: 800, max: 3000}
+  road.split.late_awareness_distance: {dist: uniform, min: 20, max: 120}
+  road.split.late_realiser_share: 0.1
+  road.split.sign_visibility_distance: 80
+  road.split.stop_and_wait_probability: 0.5
+  road.split.route_weight: 1.0
+  road.split.urgency_clearance_link: 0.5

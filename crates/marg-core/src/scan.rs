@@ -101,6 +101,9 @@ pub struct MoveOut {
     pub turn_room: f64,
     /// Id of the most constraining leader, or `NO_AGENT`.
     pub leader: u64,
+    /// The same before what junction arbitration makes it give way to:
+    /// the vehicle physically in its way (read by the next arbitration).
+    pub blocker: u64,
     /// The lateral decision, if one was due this step.
     pub choice: Option<Choice>,
     pub conflict: Option<Conflict>,
@@ -115,7 +118,39 @@ pub struct Barrier {
     pub ribbon: usize,
     pub s: f64,
     pub closed: Vec<(f64, f64)>,
+    /// A fixed-time signal that closes it instead (an entry fed through a
+    /// signal upstream, G§7.3).
+    pub signal: Option<FixedTime>,
     pub is_closed: bool,
+    /// The signal shows amber: the line is closed only to a vehicle that
+    /// can still stop before it at the safe braking limit.
+    pub amber: bool,
+}
+
+/// A one-stage fixed-time signal: green, then amber, then red.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FixedTime {
+    pub cycle: f64,
+    pub green: f64,
+    pub amber: f64,
+    pub offset: f64,
+}
+
+impl Barrier {
+    /// Bring the barrier to time `t`.
+    pub fn update(&mut self, t: f64) {
+        match self.signal {
+            Some(sig) => {
+                let into = (t + sig.offset).rem_euclid(sig.cycle);
+                self.is_closed = into >= sig.green;
+                self.amber = self.is_closed && into < sig.green + sig.amber;
+            }
+            None => {
+                self.is_closed = self.closed.iter().any(|&(from, to)| t >= from && t < to);
+                self.amber = false;
+            }
+        }
+    }
 }
 
 /// Read-only context for the move phase.
@@ -931,6 +966,10 @@ impl MoveCtx<'_> {
             }
             let off = self.chain_offset[r][b.ribbon];
             let gap = b.s + off - s - 0.5 * l;
+            // At amber, one that cannot stop before the line goes on.
+            if b.amber && v * v > 2.0 * p.safe_decel * gap {
+                continue;
+            }
             if gap > 0.0 && gap <= p.lookahead {
                 cap =
                     cap.min((free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel));
@@ -939,6 +978,7 @@ impl MoveCtx<'_> {
         // Junctions: the stop line ahead, curves, vehicles on other ribbons.
         let mut junction = JunctionOut::NONE;
         let (mut route, mut land) = (None, None);
+        let mut blocker = lead.1;
         if self.junctions.enabled {
             let view = self.line_ahead(i, r, &idm, free, lead.1, &mut acc);
             cap = cap.min(view.cap);
@@ -960,6 +1000,7 @@ impl MoveCtx<'_> {
                     sides.limit(left, y, gy);
                 },
             );
+            blocker = lead.1;
             // Vehicles it gives way to where their paths meet (ADR-0016
             // part 4): it stops short, or follows one that merges ahead.
             for yd in self.junctions.arbiter.yields_of(i) {
@@ -1031,6 +1072,7 @@ impl MoveCtx<'_> {
                 kerb_hi: sides.kerb_hi,
                 turn_room,
                 leader: lead.1,
+                blocker,
                 choice: None,
                 conflict,
                 junction,
@@ -1085,6 +1127,7 @@ impl MoveCtx<'_> {
             kerb_hi: sides.kerb_hi,
             turn_room,
             leader: lead.1,
+            blocker,
             choice,
             conflict,
             junction,

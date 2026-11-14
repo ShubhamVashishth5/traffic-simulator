@@ -29,6 +29,7 @@ use crate::junction_scan::{arrive, body_ahead};
 use crate::junctions::{LIGHT_GREEN, Member, onward};
 use crate::params::CoreParams;
 use marg_net::{ConflictKind, Control, Network};
+use marg_params::spec::JunctionKind;
 
 /// Spacing of the points at which two paths are compared (m). A numerical
 /// resolution, not behaviour: it is finer than any vehicle's width.
@@ -193,6 +194,13 @@ impl Arbiter {
         s != NO_SCOPE && s == self.scope[k]
     }
 
+    /// The junction whose arbitration agent `i` takes part in, if any.
+    #[inline]
+    pub fn scope_of(&self, i: usize) -> Option<usize> {
+        let s = self.scope[i];
+        (s != NO_SCOPE).then_some(s as usize)
+    }
+
     /// Decide who goes first at every junction this step. `members[j]` are
     /// the vehicles near junction `j`, in ribbon and position order.
     pub fn run(
@@ -210,7 +218,7 @@ impl Arbiter {
         self.next.clear();
         for (j, group) in members.iter().enumerate().take(net.junctions.len()) {
             self.gather(j, group, a, net, p, seed, light);
-            self.order_tickets(a);
+            self.order_tickets(a, net.junctions[j].kind == JunctionKind::Roundabout);
             let n = self.active.len();
             for x in 0..n {
                 for z in x + 1..n {
@@ -457,7 +465,7 @@ impl Arbiter {
     /// is in its way: its ticket is no earlier than that one's, and if that
     /// one has not committed, neither has it. Without this, the order of
     /// tickets and the order of a queue could disagree and form a ring.
-    fn order_tickets(&mut self, a: &AgentStore) {
+    fn order_tickets(&mut self, a: &AgentStore, ring: bool) {
         let n = self.active.len();
         // Inside the junction, front to back along each ribbon.
         self.mark.clear();
@@ -492,6 +500,43 @@ impl Arbiter {
                 }
             }
             self.active[ix].ticket = eff;
+        }
+        // On a ring, vehicles from different entries share its arcs: one is
+        // no earlier than any vehicle ahead of it on its path that is in its
+        // way, wherever that one came from (chains: to a fixed point).
+        if ring {
+            let m = self.stack.len();
+            for _ in 0..m {
+                let mut changed = false;
+                for x in 0..m {
+                    let ix = self.stack[x].0;
+                    for z in 0..m {
+                        let iz = self.stack[z].0;
+                        if ix == iz {
+                            continue;
+                        }
+                        let (ax, az) = (&self.active[ix], &self.active[iz]);
+                        let (i, k) = (ax.i as usize, az.i as usize);
+                        let ahead = ax.path[1..ax.n].iter().any(|q| q.0 == az.first)
+                            || (ax.first == az.first && (a.s[k], a.id[k]) > (a.s[i], a.id[i]));
+                        if !ahead || (a.y[i] - a.y[k]).abs() >= ax.body.1 + az.body.1 {
+                            continue;
+                        }
+                        let eff = if ax.ticket.is_nan() || az.ticket.is_nan() {
+                            f64::NAN
+                        } else {
+                            ax.ticket.max(az.ticket)
+                        };
+                        if !(eff == ax.ticket || (eff.is_nan() && ax.ticket.is_nan())) {
+                            self.active[ix].ticket = eff;
+                            changed = true;
+                        }
+                    }
+                }
+                if !changed {
+                    break;
+                }
+            }
         }
     }
 
@@ -564,13 +609,23 @@ impl Arbiter {
     fn contact(&self, x: &Active, z: &Active, r2: f64, net: &Network) -> Option<Contact> {
         let j = x.junction as usize;
         let n = self.size[j];
+        // A ribbon on both paths: if one is already on a ribbon the other
+        // will drive, it is ahead and the other follows it. Otherwise they
+        // come together onto it (a merge onto a ring): only what lies before
+        // it can bring them into contact.
+        let (px, pz) = (&x.path[..x.n], &z.path[..z.n]);
+        let shared = |p: &[(u32, f64, f64, u32, u32)], q: &[(u32, f64, f64, u32, u32)]| {
+            p.iter()
+                .position(|a| q.iter().any(|b| b.0 == a.0))
+                .unwrap_or(p.len())
+        };
+        let (ix, iz) = (shared(px, pz), shared(pz, px));
+        if ix == 0 || iz == 0 {
+            return None;
+        }
         let mut best: Option<Contact> = None;
-        for &(ra, _, _, fa, na) in &x.path[..x.n] {
-            for &(rb, _, _, fb, nb) in &z.path[..z.n] {
-                if ra == rb {
-                    // The same ribbon: one follows the other.
-                    return None;
-                }
+        for &(ra, _, _, fa, na) in &px[..ix] {
+            for &(rb, _, _, fb, nb) in &pz[..iz] {
                 let (la, lb) = (self.local[ra as usize], self.local[rb as usize]);
                 let c = self.table[j][la as usize * n + lb as usize];
                 if c == NO_CONFLICT {
@@ -696,6 +751,13 @@ impl Arbiter {
         // it was decided when the later one could still stop at its line,
         // it never changes, and it cannot run in a circle.
         let (tx, tz) = (ax.ticket, az.ticket);
+        // On a ring every vehicle is inside the junction and paths are long:
+        // the order of tickets decides a pair only once one of them is near
+        // the contact, as two that have not reached their lines are decided.
+        let far = dx > horizon(a, i) && dz > horizon(a, k);
+        if far && net.junctions[ax.junction as usize].kind == JunctionKind::Roundabout {
+            return;
+        }
         let physics = |first: bool| {
             // The one that is to wait can no longer stop short and the
             // other still can: the other waits.
@@ -761,8 +823,13 @@ impl Arbiter {
                 + a.v[n] * a.time_gap[n] * p.mult_time_gap[cn][co]
                 + PATH_STEP
         };
-        let x_blocked = Self::blocks(&az, &ax, reach(i, k));
-        let z_blocked = Self::blocks(&ax, &az, reach(k, i));
+        // Blocked as the move phase saw it at the last step, too: on a
+        // curve the straight view of `blocks` and the move phase's view
+        // along the path can differ, and they must not disagree.
+        // (Built for the ring of ADR-0009; boxes keep the straight view.)
+        let ring = net.junctions[ax.junction as usize].kind == JunctionKind::Roundabout;
+        let x_blocked = Self::blocks(&az, &ax, reach(i, k)) || (ring && a.blocker[i] == az.id);
+        let z_blocked = Self::blocks(&ax, &az, reach(k, i)) || (ring && a.blocker[k] == ax.id);
         if x_goes && x_blocked && !z_blocked {
             x_goes = false;
         } else if !x_goes && z_blocked && !x_blocked {

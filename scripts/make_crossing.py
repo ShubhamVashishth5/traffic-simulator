@@ -54,7 +54,7 @@ def turns(through: float, left: float, right: float) -> str:
 
 
 def scenario(name: str, description: str, junction: str, flows: dict[str, float], overrides: str,
-             duration: int = 1800, extra_outputs: str = "") -> str:
+             duration: int = 1800, extra_outputs: str = "", box: float = 14) -> str:
     entries = ""
     detectors = ""
     for arm, _, _ in ARMS:
@@ -67,7 +67,7 @@ def scenario(name: str, description: str, junction: str, flows: dict[str, float]
     return (
         f"name: {name}\ndescription: >\n  {description}\n"
         f"duration_s: {duration}\nwarmup_s: 300\ndt_s: 0.1\nnetwork:\n  ribbons:\n"
-        f"{ribbons(300, 14, 4.0, 3.5)}  junctions:\n{junction}"
+        f"{ribbons(300, box, 4.0, 3.5)}  junctions:\n{junction}"
         f"demand:\n  entries:\n{entries}detectors:\n{detectors}{extra_outputs}overrides:\n{overrides}"
     )
 
@@ -109,11 +109,13 @@ if __name__ == "__main__":
         PRIORITY, {"e": 500, "w": 500, "n": 250, "s": 250}, TURN))
     (root / "roundabout.yaml").write_text(scenario(
         "roundabout",
-        "The same four arms round a rotary of 16 m radius (ADR-0009, P7.8). The entry gap factor "
-        "and the share of entrants who wait for a gap are placeholders: the guide has no "
+        "The same four arms round a rotary of 16 m radius and 8 m ring width (ADR-0009, P7.8). "
+        "Each arm's stop line is 24 m from the centre, 4 m outside the ring. The entry gap "
+        "factor and the share of entrants who wait for a gap are placeholders: the guide has no "
         "roundabout numbers.",
-        ROUNDABOUT.replace("ring_radius: 16", "ring_radius: 16"), {a: 500 for a, _, _ in ARMS},
+        ROUNDABOUT, {a: 500 for a, _, _ in ARMS},
         TURN
         + "  road.junction.roundabout.entry_critical_gap_factor: 0.6   # placeholder\n"
-        + "  road.junction.roundabout.priority_compliance: 0.8         # placeholder\n"))
+        + "  road.junction.roundabout.priority_compliance: 0.8         # placeholder\n",
+        box=24))
     print("wrote signal_crossing, priority_crossing, roundabout")

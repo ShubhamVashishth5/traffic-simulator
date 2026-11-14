@@ -20,6 +20,9 @@ const MOVEMENT_SEGMENTS: usize = 16;
 const ARC_STEP: f64 = PI / 36.0;
 /// Spacing of the stations at which two ribbons are tested for overlap (m).
 const OVERLAP_STEP: f64 = 0.5;
+/// Largest share of the angle to the nearest other arm by which a way on or
+/// off a ring is moved along it.
+const LEAD_SHARE: f64 = 0.4;
 
 /// One arm of a built junction.
 #[derive(Debug, Clone, PartialEq)]
@@ -169,9 +172,31 @@ fn wrap(a: f64) -> f64 {
     if a > PI { a - TAU } else { a }
 }
 
-/// A cubic Hermite curve from one pose to another, as a polyline.
+/// A cubic Hermite curve from one pose to another, as a polyline, with
+/// tangents as long as the chord.
 fn hermite(p0: (f64, f64, f64), p1: (f64, f64, f64)) -> Vec<[f64; 2]> {
-    let d = (p1.0 - p0.0).hypot(p1.1 - p0.1);
+    hermite_scaled(p0, p1, 1.0)
+}
+
+/// The length of the end tangents, as a multiple of the chord, with which
+/// a cubic Hermite curve follows a circular arc that turns by `turn` rad:
+/// `4 r tan(θ/4)` over the chord `2 r sin(θ/2)`. It is 1.17 for a quarter
+/// turn and 2 for a half turn. Tangents as long as the chord bend a
+/// U-turn into hairpins at both ends (radius about a sixth of the chord):
+/// a vehicle on the inside of the turn is then beyond the centre of
+/// curvature, where the ribbon folds over.
+fn arc_tangent_factor(turn: f64) -> f64 {
+    let half = 0.5 * turn.abs();
+    if half < 1e-6 {
+        1.0
+    } else {
+        2.0 * (0.5 * half).tan() / half.sin()
+    }
+}
+
+/// [`hermite`] with end tangents `scale` times the chord.
+fn hermite_scaled(p0: (f64, f64, f64), p1: (f64, f64, f64), scale: f64) -> Vec<[f64; 2]> {
+    let d = scale * (p1.0 - p0.0).hypot(p1.1 - p0.1);
     let (t0, t1) = (
         [d * p0.2.cos(), d * p0.2.sin()],
         [d * p1.2.cos(), d * p1.2.sin()],
@@ -411,14 +436,21 @@ pub(crate) fn build(
                         ribbons[rin].y_bounds(ribbons[rin].length()),
                         ribbons[rout].y_bounds(0.0),
                     );
+                    let turn = turn_of(p0.2, p1.2, f == t);
+                    // A U-turn follows a half circle; other movements keep
+                    // the chord-long tangents they were built with.
+                    let line = if turn == Turn::UTurn {
+                        hermite_scaled(p0, p1, arc_tangent_factor(wrap(p1.2 - p0.2)))
+                    } else {
+                        hermite(p0, p1)
+                    };
                     let mut m = generated(
                         format!("{id}:{}>{}", j.arms[f].id, j.arms[t].id),
-                        hermite(p0, p1),
+                        line,
                         w0,
                         w1,
                     );
                     m.next = Some(rout);
-                    let turn = turn_of(p0.2, p1.2, f == t);
                     let k = add(ribbons, &mut j, m)?;
                     branch[t] = Some(k);
                     // A U-turn is made from the median side: the strip a
@@ -686,6 +718,26 @@ fn build_ring(
     let n = j.arms.len();
     let half = 0.5 * width;
     let ring_w = (-half, half);
+    // Every stop line and every way out lies outside the ring: a vehicle
+    // that waits to join stands off the circulating carriageway.
+    for a in &j.arms {
+        let ends = [
+            a.inbound.map(|r| ribbons[r].end_pose()),
+            a.outbound.map(|r| ribbons[r].start_pose()),
+        ];
+        for p in ends.into_iter().flatten() {
+            if (p.0 - c[0]).hypot(p.1 - c[1]) <= radius + half {
+                return Err(bad(
+                    id,
+                    format!(
+                        "arm `{}` meets the ring inside its carriageway: its ribbons must end at least ring_radius + ring_width / 2 = {} m from the centre",
+                        a.id,
+                        radius + half
+                    ),
+                ));
+            }
+        }
+    }
     // Where each arm leaves (`true`) and joins (`false`) the ring: the
     // angle of its ribbon's end, moved along the ring by the distance the
     // connector has to cover, so that it meets the ring at about 45°.
@@ -695,13 +747,36 @@ fn build_ring(
         arm: usize,
         exit: bool,
     }
+    // The lead is also kept below a share of the angle to the nearest end of
+    // another arm, so that an arm's way on never moves past the next arm's
+    // way off (the first exit stays the first).
+    let end_angle = |p: (f64, f64, f64)| (p.1 - c[1]).atan2(p.0 - c[0]);
+    let arm_angles: Vec<(usize, f64)> = (0..n)
+        .flat_map(|a| {
+            let ends = [
+                j.arms[a].inbound.map(|r| end_angle(ribbons[r].end_pose())),
+                j.arms[a]
+                    .outbound
+                    .map(|r| end_angle(ribbons[r].start_pose())),
+            ];
+            ends.into_iter().flatten().map(move |x| (a, x))
+        })
+        .collect();
     let mut nodes = Vec::new();
     for a in 0..n {
         let reach = |p: (f64, f64, f64)| {
             let d = (p.0 - c[0]).hypot(p.1 - c[1]);
+            let angle = end_angle(p);
+            let room = arm_angles
+                .iter()
+                .filter(|(b, _)| *b != a)
+                .map(|(_, x)| wrap(angle - x).abs())
+                .fold(PI, f64::min);
             (
-                (p.1 - c[1]).atan2(p.0 - c[0]),
-                ((d - radius).abs() / radius).min(FRAC_PI_4),
+                angle,
+                ((d - radius).abs() / radius)
+                    .min(FRAC_PI_4)
+                    .min(LEAD_SHARE * room),
             )
         };
         if let Some(r) = j.arms[a].inbound {
@@ -830,6 +905,11 @@ mod tests {
     /// A four-arm crossing of two-way roads, 7 m per direction, left-hand
     /// traffic; each arm has a ribbon in and a ribbon out.
     pub(crate) fn four_arm(kind_and_control: &str, turns: &str) -> String {
+        four_arm_at(12.0, kind_and_control, turns)
+    }
+
+    /// [`four_arm`] with the arms' ends `near` m from the centre.
+    pub(crate) fn four_arm_at(near: f64, kind_and_control: &str, turns: &str) -> String {
         let mut ribbons = String::new();
         // Arm axis directions pointing away from the centre.
         for (name, ax, ay) in [
@@ -849,13 +929,13 @@ mod tests {
                 "    - {{id: {name}_in, polyline: [[{}, {}], [{}, {}]], width: [{{s: 0, y_min: -3.5, y_max: 3.5}}]}}\n",
                 ax * 200.0 + ix,
                 ay * 200.0 + iy,
-                ax * 12.0 + ix,
-                ay * 12.0 + iy
+                ax * near + ix,
+                ay * near + iy
             );
             ribbons += &format!(
                 "    - {{id: {name}_out, polyline: [[{}, {}], [{}, {}]], width: [{{s: 0, y_min: -3.5, y_max: 3.5}}]}}\n",
-                ax * 12.0 + ox,
-                ay * 12.0 + oy,
+                ax * near + ox,
+                ay * near + oy,
                 ax * 200.0 + ox,
                 ay * 200.0 + oy
             );
@@ -959,12 +1039,41 @@ mod tests {
         assert!(matches!(err, Err(NetError::Junction(_, m)) if m.contains("never has green")));
     }
 
+    /// A U-turn through a median opening follows a half circle: its
+    /// tightest radius is about half the distance between the carriageway
+    /// centres, not the hairpin a chord-long tangent makes.
+    #[test]
+    fn a_u_turn_is_a_half_circle() {
+        assert!((arc_tangent_factor(PI) - 2.0).abs() < 1e-12);
+        assert!((arc_tangent_factor(0.5 * PI) - 1.171_572_875).abs() < 1e-6);
+        assert!((arc_tangent_factor(1e-9) - 1.0).abs() < 1e-9);
+        let turns = "        e: {w: 1, e: 1}\n        w: {e: 1, w: 1}\n";
+        let yaml = four_arm("", turns)
+            .replace("        - {id: n, in: n_in, out: n_out}\n", "")
+            .replace("        - {id: s, in: s_in, out: s_out}\n", "");
+        let n = net(&yaml);
+        let j = &n.junctions[0];
+        let e = j.arms.iter().position(|a| a.id == "e").unwrap();
+        let m = &j.movements[j.movement_of[e][e].unwrap()];
+        assert_eq!(m.turn, Turn::UTurn);
+        // The carriageway centres are 8 m apart: a half circle of 4 m.
+        let rho = n.ribbon(m.first).min_radius;
+        assert!(rho > 3.5 && rho < 6.0, "U-turn radius {rho}");
+    }
+
     #[test]
     fn roundabout_is_a_ring_closed_only_through_branches() {
-        let n = net(&four_arm(
-            "      kind: roundabout\n      centre: [0, 0]\n      ring_radius: 14\n      ring_width: 7\n",
-            ALL_TURNS,
-        ));
+        let ring = "      kind: roundabout\n      centre: [0, 0]\n      ring_radius: 14\n      ring_width: 7\n";
+        // Arms that end on the ring's carriageway are refused.
+        let err = Network::build(
+            &Scenario::from_yaml(&four_arm(ring, ALL_TURNS))
+                .unwrap()
+                .network,
+        );
+        assert!(
+            matches!(err, Err(NetError::Junction(_, m)) if m.contains("inside its carriageway"))
+        );
+        let n = net(&four_arm_at(26.0, ring, ALL_TURNS));
         let j = &n.junctions[0];
         // Four ways on, four ways off, eight arcs.
         assert_eq!(j.ribbons.len(), 16);
@@ -993,6 +1102,26 @@ mod tests {
                 j.conflicts_of(m.first)
                     .any(|(o, _, _, k)| k == ConflictKind::Merge && n.ribbon(o).rank == 1)
             );
+        }
+        // Clockwise round the ring, an arm's way on comes just before the
+        // next arm's way off: the left turn takes the first exit.
+        for m in j.movements.iter().filter(|m| m.turn != Turn::UTurn) {
+            let (mut at, mut arcs) = (m.first, 0);
+            let target = j.arms[m.to].outbound.unwrap();
+            while at != target {
+                let r = n.ribbon(at);
+                arcs += usize::from(r.id.contains("ring"));
+                at = r.next.or_else(|| r.branch[m.to]).unwrap();
+            }
+            let quarter = (m.to + 4 - m.from) % 4;
+            // e, n, w, s are counter-clockwise: the left (near) turn is
+            // three quarters on, the far turn one quarter.
+            let expected = match quarter {
+                3 => 1,
+                2 => 3,
+                _ => 5,
+            };
+            assert_eq!(arcs, expected, "movement {}>{}", m.from, m.to);
         }
         // No `next` chain cycles.
         for r in &n.ribbons {
