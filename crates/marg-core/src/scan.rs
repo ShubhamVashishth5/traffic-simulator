@@ -1033,6 +1033,7 @@ impl MoveCtx<'_> {
                     continue;
                 }
                 let g = yd.goer as usize;
+                junction.blocked |= yd.box_blocked;
                 let (mt, ms) = if yd.v_lead > 0.0 {
                     let cg = usize::from(a.class[g]);
                     (p.mult_time_gap[ci][cg], p.mult_standstill_gap[ci][cg])

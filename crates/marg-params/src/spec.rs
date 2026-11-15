@@ -41,6 +41,10 @@ pub struct Scenario {
     /// Parameter overrides by register path, in the register entry's unit.
     #[serde(default)]
     pub overrides: IndexMap<String, ParamValue>,
+    /// Hour of day at simulated time 0 (0–24). Needed only by clock-driven
+    /// behaviour, such as a signal on the night blinker schedule (G§6.6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time_h: Option<f64>,
 }
 
 fn default_dt() -> f64 {
@@ -194,7 +198,75 @@ pub enum ControlSpec {
         /// complies (P7); violations read it from P8 on.
         #[serde(default)]
         countdown: CountdownState,
+        /// The controller's state at simulated time 0 (G§6.6).
+        #[serde(default)]
+        state: ControlState,
+        /// Scripted changes of state, in time order (an experiment's
+        /// outage, a twin arm's switch to dark).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        schedule: Vec<ControlChangeSpec>,
+        /// Arms that keep priority while the signal blinks (flashing amber;
+        /// the others flash red). Empty: nobody has priority, as when dark.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        blinker_major: Vec<String>,
+        /// Arms a traffic officer favours (G§6.6). Empty: the arms of the
+        /// stage with the longest green.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        police_major: Vec<String>,
+        /// On the register's night blinker schedule
+        /// (`road.signal.blinker_start` to `blinker_end`); needs the
+        /// scenario's `start_time_h`.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        night_blinker: bool,
     },
+}
+
+/// What a signal controller is doing (G§6.6, plan/03-model-design.md §8).
+/// A broken countdown is a fixed-time signal with `countdown: broken`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlState {
+    /// The fixed-time plan.
+    #[default]
+    Fixed,
+    /// Flashing amber: an uncontrolled junction (priority to
+    /// `blinker_major`, if given).
+    Blinker,
+    /// Failed: an uncontrolled junction where nobody knows who should yield.
+    Dark,
+    /// A traffic officer: long cycles, biased to the major approach.
+    Police,
+}
+
+impl ControlState {
+    pub const ALL: [ControlState; 4] = [
+        ControlState::Fixed,
+        ControlState::Blinker,
+        ControlState::Dark,
+        ControlState::Police,
+    ];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            ControlState::Fixed => "fixed",
+            ControlState::Blinker => "blinker",
+            ControlState::Dark => "dark",
+            ControlState::Police => "police",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|c| c.key() == s)
+    }
+}
+
+/// A scripted change of a signal's state.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ControlChangeSpec {
+    /// Simulated time of the change (s).
+    pub at_s: f64,
+    pub state: ControlState,
 }
 
 impl Default for ControlSpec {
@@ -211,6 +283,16 @@ pub enum CountdownState {
     None,
     Working,
     Broken,
+}
+
+impl CountdownState {
+    pub fn key(self) -> &'static str {
+        match self {
+            CountdownState::None => "none",
+            CountdownState::Working => "working",
+            CountdownState::Broken => "broken",
+        }
+    }
 }
 
 /// One stage of a fixed-time plan: green for every movement from `arms`

@@ -41,6 +41,7 @@ uv run python scripts/p6_milestone.py          # regenerate reports/phases/P6.md
 uv run python scripts/p7_signal_check.py       # P7.3: saturation flow and discharge acceleration (~10 s) -> reports/phases/P7_signal.json
 uv run python scripts/p7_gap_recovery.py       # P7.4: critical gaps back out of the simulation (~5 s) -> reports/phases/P7_gaps.json
 uv run python scripts/p7_milestone.py          # regenerate reports/phases/P7.md (114 runs, ~10 min; --from-json rewrites it only)
+uv run python scripts/p8_milestone.py          # P8.5-P8.8 + dark-signal milestone -> reports/phases/P8.md (~330 runs, ~6 min; --only fit,countdown,...; --from-json)
 cargo run --release -p marg-core --example diag -- <scenario.yaml> <seed> <t> [ids]   # what holds each stalled vehicle
 ```
 

@@ -118,7 +118,12 @@ one arm that start apart meet only if their paths come closer than they start. W
   the other goes. Arbitration and rule 1 then never disagree about who can move.
 - **Rings** *(mine)*: if the decisions at a junction still form a cycle of vehicles waiting for
   one another, one decision is turned round: the yielder that is not blocked, of the movement
-  with priority, with the most room to its contact, then the lower id.
+  with priority, with the most room to its contact, then the lower id. **Fixed in P8
+  (2026-11-15):** a decision is turned round at most once a step. Two rings that share one
+  decision, every other decision in both blocked, turned it back and forth for ever. That hung
+  a P8 persona-sweep run (signal crossing, every violation rule on); it is now a unit test. A
+  ring whose decisions have all been turned round stands until the next step. The 15 shipped
+  scenarios keep their output hashes.
 
 The one that gives way stops short of the contact (paths that cross; one from the same arm that
 has not crossed its line stops at the line) or, where the paths merge, follows the other as if it

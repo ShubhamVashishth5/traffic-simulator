@@ -178,7 +178,7 @@ fn a_rule_without_its_inputs_is_refused() {
     .to_string();
     assert!(err.contains("violations.coefficients"), "{err}");
     let err = Simulation::new(
-        &spec(&yaml, &[("violations.red_light.intercept", "-4")]),
+        &spec(&yaml, &[("violations.footpath.intercept", "-4")]),
         1,
         1,
     )

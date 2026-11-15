@@ -37,7 +37,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Commands that change the simulation (re-applied by [`replay`]).
-pub const STATE_COMMANDS: [&str; 4] = ["set_param", "resample", "add_object", "remove_object"];
+pub const STATE_COMMANDS: [&str; 5] = [
+    "set_param",
+    "resample",
+    "add_object",
+    "remove_object",
+    "toggle_signal_state",
+];
 
 /// One logged command (a row of `commands.parquet`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -267,6 +273,7 @@ impl LiveRun {
             "resample" => (self.apply_resample(args), None),
             "add_object" => (self.apply_add_object(args), None),
             "remove_object" => (self.apply_remove_object(args), None),
+            "toggle_signal_state" => (self.apply_toggle_signal(args), None),
             other => (Err(format!("`{other}` is not a state command")), None),
         };
         let seq = self.push(cmd, args, &result, wall_s);
@@ -339,6 +346,22 @@ impl LiveRun {
             "object `{}` on `{}` at s = {:.1} m, y = {:.2} m ({:.1} × {:.1} m)",
             object.id, object.ribbon, object.s, object.y, object.length, object.width
         ))
+    }
+
+    /// `toggle_signal_state {junction, state}`: the junction's signal is in
+    /// `state` (`fixed`, `blinker`, `dark`, `police`) from the next step on
+    /// (P8.7).
+    fn apply_toggle_signal(&mut self, args: &serde_json::Value) -> Result<String, String> {
+        let field = |k: &str| {
+            args.get(k)
+                .and_then(|p| p.as_str())
+                .ok_or_else(|| format!("missing `{k}`"))
+        };
+        let (junction, state) = (field("junction")?, field("state")?);
+        self.sim
+            .set_control(junction, state)
+            .map_err(|e| e.to_string())?;
+        Ok(format!("signal `{junction}`: {state} from the next step"))
     }
 
     /// `remove_object {id}`: the object is gone from the next step on.

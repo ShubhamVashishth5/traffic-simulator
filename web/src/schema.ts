@@ -20,6 +20,11 @@ export type DetectorSpec =
       s_to: number;
     };
 /**
+ * What a signal controller is doing (G§6.6, plan/03-model-design.md §8).
+ * A broken countdown is a fixed-time signal with `countdown: broken`.
+ */
+export type ControlState = "fixed" | "blinker" | "dark" | "police";
+/**
  * A univariate distribution.
  *
  * Several lognormal forms are accepted for readability in the register; they
@@ -148,6 +153,11 @@ export interface Scenario {
   overrides?: {
     [k: string]: ParamValue;
   };
+  /**
+   * Hour of day at simulated time 0 (0–24). Needed only by clock-driven
+   * behaviour, such as a signal on the night blinker schedule (G§6.6).
+   */
+  start_time_h?: number | null;
   /**
    * Initial period excluded from KPIs and detector summaries, in seconds.
    */
@@ -428,11 +438,22 @@ export interface JunctionSpec {
       }
     | {
         /**
+         * Arms that keep priority while the signal blinks (flashing amber;
+         * the others flash red). Empty: nobody has priority, as when dark.
+         */
+        blinker_major?: string[];
+        /**
          * The countdown display. It changes nothing while every driver
          * complies (P7); violations read it from P8 on.
          */
         countdown?: "none" | "working" | "broken";
         kind: "signal";
+        /**
+         * On the register's night blinker schedule
+         * (`road.signal.blinker_start` to `blinker_end`); needs the
+         * scenario's `start_time_h`.
+         */
+        night_blinker?: boolean;
         /**
          * Time into the cycle at simulated time 0 (s).
          */
@@ -441,6 +462,21 @@ export interface JunctionSpec {
          * Stages in order; the cycle is the sum of their times.
          */
         phases: PhaseSpec[];
+        /**
+         * Arms a traffic officer favours (G§6.6). Empty: the arms of the
+         * stage with the longest green.
+         */
+        police_major?: string[];
+        /**
+         * Scripted changes of state, in time order (an experiment's
+         * outage, a twin arm's switch to dark).
+         */
+        schedule?: ControlChangeSpec[];
+        /**
+         * What a signal controller is doing (G§6.6, plan/03-model-design.md §8).
+         * A broken countdown is a fixed-time signal with `countdown: broken`.
+         */
+        state?: "fixed" | "blinker" | "dark" | "police";
       };
   id: string;
   /**
@@ -497,6 +533,16 @@ export interface PhaseSpec {
   arms?: string[];
   green_s: number;
   movements?: string[];
+}
+/**
+ * A scripted change of a signal's state.
+ */
+export interface ControlChangeSpec {
+  /**
+   * Simulated time of the change (s).
+   */
+  at_s: number;
+  state: ControlState;
 }
 /**
  * One weighted component of a [`Dist::Mixture`].

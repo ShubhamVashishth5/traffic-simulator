@@ -4,6 +4,7 @@
 
 use arrow::array::{Array, Float64Array, StringArray, UInt64Array};
 use futures_util::{SinkExt, StreamExt};
+use marg_server::protocol::PROTOCOL_VERSION;
 use marg_server::{AppState, ServerConfig, router};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
@@ -158,7 +159,7 @@ async fn live_session_replays_headless_and_the_inspector_matches_agents_parquet(
     let (id, mut ws) = session(addr, json!({"yaml": SCENARIO, "seed": 4})).await;
     let mut frames = Vec::new();
     let hello = until(&mut ws, &mut frames, is("hello")).await;
-    assert_eq!(hello["data"]["protocol"], 2);
+    assert_eq!(hello["data"]["protocol"], PROTOCOL_VERSION);
     assert_eq!(hello["data"]["origin"], json!([100.0, 50.0]));
     assert_eq!(hello["data"]["ribbons"][0]["id"], "main");
 
@@ -456,7 +457,7 @@ async fn frames_are_compact_culled_and_versioned() {
     let full = frames[n_frames.max(1) - 1].clone();
     let b = decode(&full);
     let meta = b.schema().metadata().clone();
-    assert_eq!(meta["protocol"], "2");
+    assert_eq!(meta["protocol"], PROTOCOL_VERSION.to_string());
     let total: usize = meta["total"].parse().unwrap();
     assert_eq!(b.num_rows(), total);
     assert!(total > 100, "{total} agents");

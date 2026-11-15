@@ -460,11 +460,10 @@ impl Session {
                 self.log(name, json!({}), Ok("breakpoints cleared".into()));
                 self.send_status();
             }
-            ClientMessage::ToggleSignalState { junction, state } => self.log(
-                name,
-                json!({ "junction": junction, "state": state }),
-                Err("signals are not modelled yet (phase P8)".into()),
-            ),
+            ClientMessage::ToggleSignalState { junction, state } => {
+                let _ = self.state_command(name, json!({ "junction": junction, "state": state }));
+                self.send_status();
+            }
             ClientMessage::AddObject { object } => {
                 let _ = self.state_command(name, json!({ "object": object }));
                 let m = self.objects();
@@ -767,6 +766,15 @@ impl Session {
             real_time_factor: if self.playing { rtf } else { 0.0 },
             breakpoints: self.breakpoints.clone(),
             run_hash: self.run.run_hash(),
+            signals: self
+                .sim()
+                .control_states()
+                .into_iter()
+                .map(|(junction, s)| SignalView {
+                    junction,
+                    state: s.key().to_string(),
+                })
+                .collect(),
         })
     }
 

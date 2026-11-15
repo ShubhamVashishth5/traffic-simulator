@@ -140,6 +140,15 @@ pub struct SignalCycleRecord {
     pub saturation_flow: f64,
     pub approach_width: f64,
     pub saturation_flow_per_m: f64,
+    /// Who showed the lights in the cycle (`fixed` or `police`), and the
+    /// countdown display (`none`, `working`, `broken`).
+    pub control: String,
+    pub countdown: String,
+    /// Stop-line crossings on red, by third of the red (time since red
+    /// began over the red's length).
+    pub red_crossings_early: u32,
+    pub red_crossings_middle: u32,
+    pub red_crossings_late: u32,
 }
 
 /// Aggregates for one detector, interval and vehicle type.

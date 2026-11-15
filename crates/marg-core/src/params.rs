@@ -11,6 +11,8 @@ use marg_params::{Dist, ResolveError, ResolvedSpec, VehicleClass, VehicleType};
 pub const N_TYPES: usize = VehicleType::ALL.len();
 /// Number of vehicle classes.
 pub const N_CLASSES: usize = VehicleClass::ALL.len();
+/// Seconds per day: the outage probability is per junction-day (a unit).
+const SECONDS_PER_DAY: f64 = 24.0 * crate::demand::SECONDS_PER_HOUR;
 
 /// Per-type distributions (SI).
 #[derive(Debug, Clone)]
@@ -136,6 +138,8 @@ pub struct CoreParams {
     pub personas: crate::personas::PersonaParams,
     /// The violation decision rule (G§4, ADR-0018).
     pub violations: crate::violations::ViolationParams,
+    /// Signal control states (G§6.6, ADR-0019).
+    pub signal: SignalParams,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -276,6 +280,23 @@ pub struct JunctionParams {
     /// `w_route` (1/s²) and `γ_u`.
     pub route_weight: Option<f64>,
     pub urgency_link: Option<f64>,
+}
+
+/// Signal control-state parameters (G§6.6, ADR-0019; `None`: unset).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SignalParams {
+    /// Outages per second: `−ln(1 − p_day) / 86400`, so that a junction
+    /// fails on a share `p_day` of days (on when the duration is set too).
+    pub outage_rate: Option<f64>,
+    pub outage_duration: Option<Dist>,
+    /// Night blinker hours (hour of day).
+    pub blinker_start: f64,
+    pub blinker_end: f64,
+    /// An officer's arrival after an outage begins (s), cycle (s) and bias
+    /// towards the major approach.
+    pub officer_delay: Option<f64>,
+    pub officer_cycle: Option<f64>,
+    pub officer_bias: Option<f64>,
 }
 
 /// Stop-anywhere parameters as the register has them (`None`: unset).
@@ -429,6 +450,22 @@ impl CoreParams {
             kappa_sd,
             personas: crate::personas::PersonaParams::from_spec(spec, kappa_mean, kappa_sd)?,
             violations: crate::violations::ViolationParams::from_spec(spec)?,
+            signal: {
+                let p_day = optional_scalar(spec, "road.signal.outage_probability")?;
+                let duration = optional_dist(spec, "road.signal.outage_duration")?;
+                SignalParams {
+                    outage_rate: p_day
+                        .zip(duration.as_ref())
+                        .filter(|(p, _)| *p > 0.0)
+                        .map(|(p, _)| -libm::log1p(-p.min(1.0 - f64::EPSILON)) / SECONDS_PER_DAY),
+                    outage_duration: duration,
+                    blinker_start: spec.scalar_si("road.signal.blinker_start")?,
+                    blinker_end: spec.scalar_si("road.signal.blinker_end")?,
+                    officer_delay: optional_scalar(spec, "road.signal.officer.arrival_delay")?,
+                    officer_cycle: optional_scalar(spec, "road.signal.officer.cycle_length")?,
+                    officer_bias: optional_scalar(spec, "road.signal.officer.major_bias")?,
+                }
+            },
             squeeze_scale,
             steering_scale: spec.scalar_si("interaction.lateral.steering_scale")?,
             steering_sensitivity: spec.scalar_si("interaction.lateral.steering_sensitivity")?,

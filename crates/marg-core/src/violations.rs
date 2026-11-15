@@ -78,7 +78,19 @@ impl Kind {
 
     /// Whether the type's trigger and act exist yet (P8.4 adds the rest).
     pub fn built(self) -> bool {
-        matches!(self, Kind::ForcedEntry)
+        matches!(
+            self,
+            Kind::ForcedEntry
+                | Kind::RedLight
+                | Kind::EarlyStart
+                | Kind::AmberGo
+                | Kind::BoxBlocking
+        )
+    }
+
+    /// The types whose act is to cross a red line (ADR-0019).
+    pub fn crosses_red(self) -> bool {
+        matches!(self, Kind::RedLight | Kind::EarlyStart)
     }
 }
 
@@ -183,6 +195,11 @@ impl ViolationParams {
 
     pub fn any_active(&self) -> bool {
         Kind::ALL.iter().any(|&k| self.active(k))
+    }
+
+    /// Whether a rule that reads the exposure of crossing a red line runs.
+    pub fn red_light_rules(&self) -> bool {
+        self.active(Kind::RedLight) || self.active(Kind::EarlyStart)
     }
 
     /// The coefficients of type `k` for an agent with persona `persona` and
@@ -584,9 +601,9 @@ mod tests {
     fn a_type_on_without_its_inputs_is_refused() {
         let mut p = params();
         assert!(p.check().is_ok() && !p.any_active());
-        p.intercept[Kind::RedLight as usize] = Some(-3.0);
+        p.intercept[Kind::Footpath as usize] = Some(-3.0);
         assert!(p.check().unwrap_err().contains("not built"));
-        p.intercept[Kind::RedLight as usize] = None;
+        p.intercept[Kind::Footpath as usize] = None;
         p.intercept[Kind::ForcedEntry as usize] = Some(-3.0);
         p.coefficient[6] = None;
         assert!(p.check().unwrap_err().contains("risk"));
