@@ -476,7 +476,7 @@ impl Arbiter {
                     let (dx, dy) = (q[0] - m.x, q[1] - m.y);
                     let u = (dx * m.hx + dy * m.hy).abs() - hl;
                     let w = (m.hx * dy - m.hy * dx).abs() - hw;
-                    u.max(0.0).hypot(w.max(0.0)) <= reach
+                    libm::hypot(u.max(0.0), w.max(0.0)) <= reach
                 });
             if hit {
                 return Some(m.i);

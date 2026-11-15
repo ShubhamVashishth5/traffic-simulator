@@ -1,8 +1,56 @@
 # Release v0.1.0: what is left before the tag
 
-**Status (2026-11-15): on hold, not started.** A self-contained handoff: a new session should need
-only this card, the files it names, and `CLAUDE.md`. Ask the user to confirm before starting, and
-before pushing the tag.
+**Status (2026-11-15): steps 1–5 done on branch `ccr-fbbd374f-94a2s3` (from `release-v0.1.0`);
+step 6 (PR, CI, tag) waits for the user.** The user chose option B (fix, then Windows, then tag).
+A self-contained handoff: a new session should need only this card, the files it names, and
+`CLAUDE.md`. Ask the user before opening the PR and before pushing the tag.
+
+## Done (2026-11-15)
+
+- **Step 1.** The 21 calls use `libm` (marg-net needed `libm` added as a dependency; the card
+  had said both crates had it). Guard test `crates/marg-core/tests/platform_math.rs` scans
+  marg-core, marg-net, marg-params and marg-io, skipping comments, string literals and
+  `#[cfg(test)]` items; run against the old tree it lists exactly the 21 calls.
+- **Step 2.** All 15 scenarios, seed 1: **identical hashes on glibc, musl and MinGW under
+  Wine.** The new hashes (first 16 hex digits; * = changed):
+
+  | Scenario | Hash | Scenario | Hash |
+  | --- | --- | --- | --- |
+  | `barrier_queue` | `d173e588a2586a2a` | `roundabout` * | `555914d5a78e2e70` |
+  | `corridor_2km` | `ef22e8c646ee28d7` | `side_friction_street` | `10a8de17d5e9f3d4` |
+  | `corridor_capacity` | `0ef6d0b3ca200c10` | `signal_crossing` * | `7ec700914830e16b` |
+  | `free_flow_early_morning` | `f0bc593e10c2d349` | `split_corridor` | `2c281914970b6160` |
+  | `kerbside_parking` | `f1874219858b0e95` | `stage3_recovery` | `9cce45971e0b0348` |
+  | `median_opening` * | `05cd79291768a835` | `stop_anywhere_metro_exit` | `31dcdcd73021347b` |
+  | `moving_bottleneck_e_rickshaw` | `0c002088860be90e` | `upstream_signal` | `854ee2dfdba601b9` |
+  | `priority_crossing` * | `a1ece9de8ca6fec8` | | |
+
+  The new `signal_crossing` and `priority_crossing` hashes equal the old musl ones: the `libm`
+  crate is a port of musl's maths library.
+  - **Speed:** `libm::hypot` costs the same as glibc's (about 4.0 against 4.1 ns per call).
+    `corridor_2km` (the same run on both): +0.5% paired median over 5 interleaved rounds.
+    `signal_crossing` reads +7% with `marg bench`, but that is seed 1 only, which now locks up
+    and takes twice the agent-steps. Over seeds 1–8 the new build is 2.5% faster, with
+    seed-to-seed spread of about ±10%.
+  - **Tests:** `cargo test` (workspace), clippy, fmt, ruff and pytest (68) pass. The guard
+    property test: 0 overlaps, 93 events, all on narrowing roads (unchanged). One test failed:
+    `dense_traffic_crosses_without_guard_events` (P7.2, 700 veh/h, seed 1: 474 of 679 through,
+    under its 80%). Over seeds 1–40 it holds on 18 with glibc's maths and on 12 with `libm`
+    (p = 0.25), so seed 1 had passed by luck. **The user chose to `#[ignore]` it** and record it
+    (ADR-0016 open problem 1).
+- **Step 3.** ADR-0003, ADR-0016, STATUS and CHANGELOG updated. The P8 milestone was re-run:
+  its tables moved within their CIs and no finding changed, but the findings text in
+  `scripts/p8_milestone.py` hard-codes about 25 numbers, so the regenerated report would have
+  paired new tables with old prose. The committed P8 report was kept, and the CHANGELOG says
+  the phase reports predate the change. One P8 number moved and is noted in the CHANGELOG: on
+  this version 1 dark run (not 2) holds a pair in the guard for the whole run (40,318
+  events), and two others hold one for a while (100 events, and 344 in a cooperative twin).
+- **Steps 4–5.** `build.yml`: Windows CLI (MSVC, `.zip`) and wheel, a hash report from every CLI
+  build, the `same-results` job (the release job needs it, and drops the hash files from the
+  release). README and `docs/project-overview.md` describe Windows; WSL is no longer suggested.
+  The optional `windows-latest` `cargo test` job in `ci.yml` was not added.
+- **Not done here:** MSVC (the first run is CI on the PR), the Windows wheel (not testable
+  here), and the CHANGELOG date, which should be set to the tag date if it is not 2026-11-15.
 
 ## Where things stand
 

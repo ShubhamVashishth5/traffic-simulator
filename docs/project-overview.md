@@ -109,8 +109,9 @@ These are enforced in code and review (full list: [`CLAUDE.md`](../CLAUDE.md)).
   are the normal physics of Indian traffic, never counted as violations. Otherwise every scenario
   would show "defection" (G§4.4).
 - **Determinism.** All randomness comes from counter-based random streams (Philox) keyed by seed,
-  purpose and agent. Results are bitwise identical for any thread count and machine, and a vehicle
-  keeps its draws across scenario variants (ADR-0003).
+  purpose and agent. Results are bitwise identical for any thread count, machine and supported
+  build (Linux glibc and musl, Windows; checked in CI), and a vehicle keeps its draws across
+  scenario variants (ADR-0003).
 - **Explain decisions.** Every stochastic decision is meant to log its inputs and the terms of its
   rule, so any single event can be traced (in place once decisions arrive in P5 and P8).
 - **Calibrate in stages, from the physical to the social,** freezing each stage (G§8.3):
@@ -224,9 +225,9 @@ Requirements:
 - for the Python layer, Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/);
 - for the viewer, Node 22.
 
-On Windows, use WSL for now; native Windows builds are planned (STATUS P0.9). To try it without
-building, download a [release](https://github.com/ShubhamVashishth5/traffic-simulator/releases)
-(see the README's "Install a release").
+It builds and runs on Linux and Windows. To try it without building, download a
+[release](https://github.com/ShubhamVashishth5/traffic-simulator/releases) (see the README's
+"Install a release").
 
 ```bash
 # Run the reference corridor and write a run folder

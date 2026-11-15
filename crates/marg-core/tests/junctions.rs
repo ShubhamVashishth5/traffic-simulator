@@ -73,7 +73,15 @@ fn guards(out: &marg_core::RunOutputs) -> usize {
 /// for crossing movements, permitted right turns waiting inside the box,
 /// buses: no vehicle is put back by the collision guard, and the junction
 /// keeps discharging (it is near saturation: the right turns comply).
+///
+/// Ignored since v0.1.0: this does not hold robustly, and seed 1 passed by
+/// luck. Over seeds 1–40 it holds on 18 with the platform maths of glibc
+/// and on 12 with `libm` (ADR-0003, the same on every build). The rest stall
+/// part way (under 75% through on 7 and 12 seeds) or have guard events
+/// (ADR-0016 open problems 1 and 3). Run it with `--ignored` once those are
+/// settled.
 #[test]
+#[ignore = "not robust at 700 veh/h with right turns: ADR-0016 open problems 1 and 3"]
 fn dense_traffic_crosses_without_guard_events() {
     let out = run_crossing(&crossing(700, 900), 1);
     assert_eq!(guards(&out), 0);

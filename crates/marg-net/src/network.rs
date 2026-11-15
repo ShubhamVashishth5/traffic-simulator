@@ -51,7 +51,7 @@ impl Network {
                     .all(|p| p[0].is_finite() && p[1].is_finite())
                 && r.polyline
                     .windows(2)
-                    .all(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]) > 1e-6);
+                    .all(|w| libm::hypot(w[1][0] - w[0][0], w[1][1] - w[0][1]) > 1e-6);
             if !ok_poly {
                 return Err(NetError::BadPolyline(r.id.clone()));
             }

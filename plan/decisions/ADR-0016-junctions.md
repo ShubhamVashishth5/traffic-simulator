@@ -143,6 +143,13 @@ the vehicle arriving later at a crossing point follows.
    events on 4 of 5 seeds. **Not yet robust at 500–700 veh/h with right turns**: one seed in four
    stalls part way (a chain of vehicles waiting on a slow one, cause not yet found) and some seeds
    keep a pair held by the guard for minutes (below).
+   **Measured again for v0.1.0 (2026-11-15)**, the checked-in test's scenario (700 veh/h per arm,
+   every turn, 900 s) over seeds 1–40: 0 guard events and over 80% of vehicles through on 18
+   seeds with the old platform maths (glibc) and on 12 with `libm` (ADR-0003, now the same on
+   every build). Stalls (under 75% through) on 7 and 12 seeds, guard events on 14 and 19.
+   The differences are within chance (two-sided Fisher exact p = 0.25–0.36). Seed 1 had passed by
+   luck, so the test (`dense_traffic_crosses_without_guard_events`) is now `#[ignore]` until
+   this and open problem 3 are settled.
 2. ~~A right-turner waiting for a gap stands at the stop line.~~ Your decision: inside the box.
 3. **A bus turning towards a vehicle beside it** (new): as a long vehicle's front enters its turn
    its body sweeps up to L²/8ρ (about 1.3 m for a 10 m bus on a 10 m radius) towards the inside of

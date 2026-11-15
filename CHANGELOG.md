@@ -30,7 +30,8 @@ for decisions about real roads.
   - Ribbons with width profiles, 15 vehicle types, car following against a lane-free set of
     leaders, and lateral behaviour: clearances, target choice, filtering and seepage.
   - A collision guard, and 2-D time-to-contact conflicts.
-  - Deterministic: the same output bit for bit at any thread count.
+  - Deterministic: the same output bit for bit at any thread count and on every build (Linux
+    glibc and musl, Windows), checked in CI.
 - **Road situations:**
   - road objects and kerbside parking;
   - stop-anywhere and attractors, bus stops;
@@ -65,12 +66,26 @@ for decisions about real roads.
 | --- | --- |
 | `marg-v0.1.0-linux-x86_64-musl.tar.gz` | `marg` for any x86_64 Linux (static), with the parameter register and the shipped scenarios |
 | `marg-v0.1.0-linux-x86_64-gnu.tar.gz` | the same for glibc Linux, about 7% faster |
-| `marg-0.1.0-*.whl` | the Python package for x86_64 Linux, Python 3.11 or later (`pip install`). It reads the register from `MARG_PARAMS_DIR`: point it at a CLI archive's `params/base` |
+| `marg-v0.1.0-windows-x86_64.zip` | `marg.exe` for 64-bit Windows, with the register and the scenarios |
+| `marg-0.1.0-*.whl` | the Python package for x86_64 Linux (`manylinux`) and 64-bit Windows (`win_amd64`), Python 3.11 or later (`pip install`). It reads the register from `MARG_PARAMS_DIR`: point it at a CLI archive's `params/base` |
 | `marg-0.1.0.tar.gz` | the Python source distribution |
 | `marg-web-v0.1.0.tar.gz` | the web viewer bundle, for `marg serve` |
 
-Each archive has a SHA-256 checksum next to it. There is no native Windows build yet: on Windows,
-use WSL. The Python package is not on PyPI.
+Each archive has a SHA-256 checksum next to it. The Python package is not on PyPI.
+
+### Same results on every build
+
+- The same scenario and seed give the same output bit for bit on Linux (glibc and musl) and
+  Windows. Before this release, 21 calls in the junction geometry took `sin`, `cos`, `tan`,
+  `hypot` and `atan2` from the platform's C maths library, whose results differ in the last bit
+  between platforms. They now use the `libm` crate, as ADR-0003 requires, and a test keeps it
+  that way. CI runs three scenarios on every build and fails if their output hashes differ.
+- That changed the output hashes of four shipped scenarios: `median_opening`,
+  `priority_crossing`, `roundabout` and `signal_crossing`. The other 11 are unchanged.
+- The phase reports (P2–P8) were made before this change. Runs without a junction reproduce bit
+  for bit; runs through a junction reproduce statistically, not bit for bit. A re-run of the P8
+  milestone on this version moved its numbers within their confidence intervals and changed
+  none of its findings.
 
 ### Known gaps
 
@@ -84,9 +99,10 @@ Each of these is recorded in [`plan/STATUS.md`](plan/STATUS.md), with the decisi
   - the countdown and imitation patterns of the violation literature do not appear (P8).
 - **Junctions are fragile at higher flows.**
   - A signalised crossing can lock up at 400–700 veh/h per arm when right turns are present,
-    more often with personas on.
+    more often with personas on. At 700 veh/h with every turn, 12 of 40 seeds stall part way,
+    so P7.2's dense-traffic test is no longer run by default.
   - Some dark-junction runs keep a pair of vehicles in the collision guard step after step
-    (2 of 15 runs in the P8 experiment).
+    (2 of the 15 observed dark runs in the P8 report; 1 when it is re-run on this version).
   - Splits and roundabouts wait on modelling decisions: roundabouts lock above light flows, and
     the split experiment does not show the late-realiser effect.
 - **Violations are off by default.** Their coefficients are unset in the register: set them to

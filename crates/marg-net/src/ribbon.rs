@@ -46,7 +46,7 @@ impl Ribbon {
         let mut dir = Vec::with_capacity(pts.len() - 1);
         for w in pts.windows(2) {
             let (dx, dy) = (w[1][0] - w[0][0], w[1][1] - w[0][1]);
-            let len = dx.hypot(dy);
+            let len = libm::hypot(dx, dy);
             dir.push([dx / len, dy / len]);
             cum.push(cum[cum.len() - 1] + len);
         }
@@ -76,9 +76,7 @@ impl Ribbon {
         let mut r = f64::INFINITY;
         for k in 1..self.dir.len() {
             let (a, b) = (self.dir[k - 1], self.dir[k]);
-            let turn = (a[0] * b[1] - a[1] * b[0])
-                .atan2(a[0] * b[0] + a[1] * b[1])
-                .abs();
+            let turn = libm::atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1]).abs();
             if turn > 1e-9 {
                 let len = 0.5 * (self.cum[k + 1] - self.cum[k - 1]);
                 r = r.min(len / turn);
@@ -192,7 +190,7 @@ impl Ribbon {
         (
             base[0] + ux * ds - uy * y,
             base[1] + uy * ds + ux * y,
-            uy.atan2(ux),
+            libm::atan2(uy, ux),
         )
     }
 
