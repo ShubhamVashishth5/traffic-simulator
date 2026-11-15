@@ -108,7 +108,7 @@ FINDINGS = """
 
 
 def load(name: str) -> dict:
-    return yaml.safe_load((SCEN / name).read_text())
+    return yaml.safe_load((SCEN / name).read_text(encoding="utf-8"))
 
 
 def with_two_wheelers(comp: dict[str, float], share: float) -> dict[str, float]:
@@ -133,7 +133,7 @@ def split_spec(flow: float, tw: float) -> dict:
 
 def run_marg(spec: dict, seed: int, sets: dict[str, str], tmp: Path, tag: str) -> Path:
     path = tmp / f"{tag}.yaml"
-    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    path.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
     folder = tmp / tag
     cmd = [str(MARG), "run", str(path), "--seed", str(seed), "--out", str(folder)]
     for k, v in sets.items():
@@ -220,7 +220,7 @@ def main() -> None:
     )
     args = ap.parse_args()
     if args.from_json:
-        report(json.loads((OUT / "P7_milestone.json").read_text())["runs"], args.seeds)
+        report(json.loads((OUT / "P7_milestone.json").read_text(encoding="utf-8"))["runs"], args.seeds)
         return
     seeds = list(range(1, args.seeds + 1))
     tmp = Path(tempfile.mkdtemp(prefix="p7_"))
@@ -312,7 +312,7 @@ def main() -> None:
     for kind, r in results:
         by_kind.setdefault(kind, []).append(r)
     OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / "P7_milestone.json").write_text(json.dumps({"runs": by_kind}, indent=1, default=float) + "\n")
+    (OUT / "P7_milestone.json").write_text(json.dumps({"runs": by_kind}, indent=1, default=float) + "\n", encoding="utf-8")
     report(by_kind, args.seeds)
 
 
@@ -408,7 +408,7 @@ def report(by_kind: dict[str, list[dict]], n_seeds: int) -> None:
         "",
     ]
     # 2. Gap acceptance and the signal.
-    gaps_json = json.loads((OUT / "P7_gaps.json").read_text())
+    gaps_json = json.loads((OUT / "P7_gaps.json").read_text(encoding="utf-8"))
     md += [
         "## 2. Gap acceptance (P7.4): critical gaps back out of the simulation",
         "",
@@ -427,7 +427,7 @@ def report(by_kind: dict[str, list[dict]], n_seeds: int) -> None:
             f"{r['drawn_median_s']} / {r['drawn_sigma']} | {r['mle_median_s']} ± {r['mle_median_se']} "
             f"({r['z_median_vs_drawn']:+.1f}) | {r['mle_sigma']} ± {r['mle_sigma_se']} | {r['raff_s']} |"
         )
-    sig = json.loads((OUT / "P7_signal.json").read_text())
+    sig = json.loads((OUT / "P7_signal.json").read_text(encoding="utf-8"))
     md += [
         "",
         "## 3. U-turns at a median opening (P7.5)",
@@ -492,7 +492,7 @@ def report(by_kind: dict[str, list[dict]], n_seeds: int) -> None:
     for c, r in sig["discharge_acceleration"].items():
         md.append(f"| {c} | {r['mean']:.2f} (n {r['n']}) | {r['check']} | {'yes' if r['within_20pct'] else 'no'} |")
     md += ["", FINDINGS.strip(), ""]
-    (OUT / "P7.md").write_text("\n".join(md) + "\n")
+    (OUT / "P7.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 
     # Figure.
     import matplotlib
@@ -538,7 +538,7 @@ def report(by_kind: dict[str, list[dict]], n_seeds: int) -> None:
             indent=1,
             default=float,
         )
-        + "\n"
+        + "\n", encoding="utf-8"
     )
     print("\n".join(md))
 

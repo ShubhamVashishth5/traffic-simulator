@@ -96,11 +96,11 @@ def run(args: tuple[str, str, int, dict[str, str]]) -> dict:
     name, yaml, seed, extra = args
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "s.yaml"
-        path.write_text(yaml)
+        path.write_text(yaml, encoding="utf-8")
         cmd = [str(MARG), "run", str(path), "--seed", str(seed), "--out", tmp + "/run"]
         for key, value in {**PLACEHOLDERS, **extra}.items():
             cmd += ["--set", f"{key}={value}"]
-        done = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT)
+        done = subprocess.run(cmd, capture_output=True, text=True, cwd=ROOT, encoding="utf-8", errors="replace")
         if done.returncode != 0:
             raise RuntimeError(f"{name} seed {seed}: {done.stderr[-800:]}")
         out = Path(tmp) / "run"
@@ -416,12 +416,12 @@ def main() -> None:
            "Bus stop: every bus serves it. Pedestrians: half start from each edge. Potholes: kerb bias 0.5.", ""]
 
     out = ROOT / "reports" / "phases"
-    (out / "P6.md").write_text("\n".join(md))
+    (out / "P6.md").write_text("\n".join(md), encoding="utf-8")
     (out / "P6_milestone.json").write_text(json.dumps({
         "width": width_result, "bus": bus_result,
         "pedestrians": ped, "pedestrian_noise_pct": noise, "potholes": pot, "hump": {k: statistics.fmean(v) for k, v in hump.items()},
         "ramp": ramp_out, "guard_events": guard, "runs": results,
-    }, indent=1, default=str))
+    }, indent=1, default=str), encoding="utf-8")
     print("\n".join(md))
 
 

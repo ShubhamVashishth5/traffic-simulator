@@ -112,7 +112,7 @@ class Out:
         ]
         tex += [" & ".join(_tex(fmt(v)) for v in row) + r" \\" for row in df.iter_rows()]
         tex += [r"\bottomrule", r"\end{tabular}"]
-        (self.path / "tables" / f"{name}.tex").write_text("\n".join(tex) + "\n")
+        (self.path / "tables" / f"{name}.tex").write_text("\n".join(tex) + "\n", encoding="utf-8")
         if df.is_empty():
             return "_(none)_"
         shown = df.head(max_rows)
@@ -145,7 +145,7 @@ def build_run(path: Path, out: Out, metrics: Sequence[str] | None) -> dict[str, 
 
     r = RunResult.open(path)
     m = r.manifest
-    spec = yaml.safe_load((path / "spec.resolved.yaml").read_text())
+    spec = yaml.safe_load((path / "spec.resolved.yaml").read_text(encoding="utf-8"))
     sc = spec["scenario"]
     ribbons = sc["network"]["ribbons"]
     length = sum(
@@ -318,7 +318,7 @@ def build_experiment(path: Path, out: Out, metrics: Sequence[str] | None) -> dic
     reps_section = ""
     rj = path / "replications.json"
     if rj.exists():
-        dec = json.loads(rj.read_text())
+        dec = json.loads(rj.read_text(encoding="utf-8"))
         rt = pl.DataFrame(
             {
                 "point": list(dec),
@@ -490,7 +490,7 @@ def build_sensitivity(path: Path, out: Out, metrics: Sequence[str] | None) -> di
 
 
 def build_calibration_stage(path: Path, out: Out, metrics: Sequence[str] | None) -> dict[str, Any]:
-    doc = yaml.safe_load(path.read_text())
+    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     rows = []
     for p, v in doc.get("params", {}).items():
         rows.append(
@@ -567,7 +567,10 @@ def build_params(path: Path, out: Out, metrics: Sequence[str] | None) -> dict[st
     factors_text = ""
     if (path / "params.parquet").exists():
         p = pl.read_parquet(path / "params.parquet")
-        what, name = "run", json.loads((path / "manifest.json").read_text())["scenario"]
+        what, name = (
+            "run",
+            json.loads((path / "manifest.json").read_text(encoding="utf-8"))["scenario"],
+        )
     else:
         from marg.results import ExperimentData
 
@@ -660,7 +663,7 @@ def _quarto(qmd: Path, formats: Sequence[str]) -> list[Path]:
 
 def _pandoc(qmd: Path, formats: Sequence[str]) -> list[Path]:
     css = qmd.parent / "report.css"
-    css.write_text(CSS)
+    css.write_text(CSS, encoding="utf-8")
     html = qmd.with_suffix(".html")
     subprocess.run(
         [
@@ -745,9 +748,9 @@ def render(
     default = src.parent / f"report-{src.stem}" if src.is_file() else src / "report" / kind
     o = Out(Path(out) if out else default, fmts)
     ctx = BUILDERS[kind](src, o, metrics)
-    text = Template((TEMPLATES / f"{kind}.qmd").read_text()).safe_substitute(ctx)
+    text = Template((TEMPLATES / f"{kind}.qmd").read_text(encoding="utf-8")).safe_substitute(ctx)
     qmd = o.path / f"{kind}.qmd"
-    qmd.write_text(text)
+    qmd.write_text(text, encoding="utf-8")
     if not fmts:
         return [qmd]
     tool = renderer()

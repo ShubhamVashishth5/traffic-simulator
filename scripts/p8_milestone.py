@@ -161,7 +161,7 @@ fitted, to its rate.
 
 
 def crossing(countdown: str = "none", control: dict | None = None, composition=None) -> dict:
-    spec = yaml.safe_load((SCEN / "signal_crossing.yaml").read_text())
+    spec = yaml.safe_load((SCEN / "signal_crossing.yaml").read_text(encoding="utf-8"))
     spec["duration_s"], spec["warmup_s"] = DURATION, WARMUP
     j = spec["network"]["junctions"][0]
     j["control"]["countdown"] = countdown
@@ -210,7 +210,7 @@ def personas(rushed: float = 0.15, delivery: float = 0.1) -> dict[str, float]:
 
 def run_marg(spec: dict, seed: int, sets: dict, tmp: Path, tag: str) -> Path:
     path = tmp / f"{tag}.yaml"
-    path.write_text(yaml.safe_dump(spec, sort_keys=False))
+    path.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
     folder = tmp / tag
     cmd = [str(MARG), "run", str(path), "--seed", str(seed), "--out", str(folder)]
     for k, v in sets.items():
@@ -747,10 +747,10 @@ def main() -> None:
     args = ap.parse_args()
     js = OUT / "P8_milestone.json"
     if args.from_json:
-        res = json.loads(js.read_text())
+        res = json.loads(js.read_text(encoding="utf-8"))
     else:
         seeds = list(range(1, args.seeds + 1))
-        res = json.loads(js.read_text()) if args.only and js.exists() else {}
+        res = json.loads(js.read_text(encoding="utf-8")) if args.only and js.exists() else {}
         steps = (
             args.only.split(",")
             if args.only
@@ -763,27 +763,27 @@ def main() -> None:
                 res["fit_seeds"] = len(seeds)
                 res["fit"] = fit_red(pool, tmp, seeds)
                 print("fit", res["fit"]["intercept"], res["fit"]["share"])
-                js.write_text(json.dumps(res, indent=1))
+                js.write_text(json.dumps(res, indent=1), encoding="utf-8")
             b0 = res["fit"]["intercept"]
             if "countdown" in steps:
                 res["countdown"] = countdown(pool, tmp, seeds + [s + 100 for s in seeds], b0)
                 print("countdown", res["countdown"])
-                js.write_text(json.dumps(res, indent=1))
+                js.write_text(json.dumps(res, indent=1), encoding="utf-8")
             if "imitation" in steps:
                 res["imitation"] = imitation(pool, tmp, seeds, b0)
                 print("imitation done")
-                js.write_text(json.dumps(res, indent=1))
+                js.write_text(json.dumps(res, indent=1), encoding="utf-8")
             if "personas" in steps:
                 res["personas"] = persona_sweep(pool, tmp, seeds[:3], b0)
                 print("personas done")
-                js.write_text(json.dumps(res, indent=1))
+                js.write_text(json.dumps(res, indent=1), encoding="utf-8")
             if "dark" in steps:
                 res["dark"] = dark_experiment(pool, tmp, seeds, b0)
                 print("dark done")
-                js.write_text(json.dumps(res, indent=1))
-        js.write_text(json.dumps(res, indent=1))
+                js.write_text(json.dumps(res, indent=1), encoding="utf-8")
+        js.write_text(json.dumps(res, indent=1), encoding="utf-8")
     plot(res["dark"], OUT / "P8_dark.png")
-    (OUT / "P8.md").write_text(report(res))
+    (OUT / "P8.md").write_text(report(res), encoding="utf-8")
     print(f"wrote {OUT / 'P8.md'}")
 
 

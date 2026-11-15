@@ -77,9 +77,9 @@ def test_stage1_synthetic_recovery(tmp_path: Path) -> None:
         assert r["ci_hi"] - r["ci_lo"] < 0.75 * (hi - lo)
     # Write the stage, with the "observed" data hashed.
     data = tmp_path / "observed.json"
-    data.write_text(json.dumps(res.observed.to_dict()))
+    data.write_text(json.dumps(res.observed.to_dict()), encoding="utf-8")
     p = st.write(res, data=[data], recovery=report)
-    doc = yaml.safe_load(p.read_text())
+    doc = yaml.safe_load(p.read_text(encoding="utf-8"))
     assert doc["status"] == "draft" and doc["stage"] == 1
     assert set(doc["params"]) == set(truth)
     assert doc["data"][0]["blake2b"] and doc["recovery"]["all_covered"]
@@ -93,7 +93,7 @@ def fake_stage1(root: Path, value: float = 55.0) -> None:
     b = st.bind([V0["hatchback"]])[0]
     root.mkdir(parents=True, exist_ok=True)
     doc = {"stage": 1, "status": "frozen", "params": {b.path: {"value": b.value(value)}}}
-    (root / "stage_1.yaml").write_text(yaml.safe_dump(doc))
+    (root / "stage_1.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
 
 
 def test_freeze_rule(tmp_path: Path) -> None:
@@ -119,7 +119,8 @@ def test_freeze_rule(tmp_path: Path) -> None:
     (root / "stage_2.yaml").write_text(
         yaml.safe_dump(
             {"stage": 2, "status": "draft", "params": {V0["motorcycle"]: {"value": 40.0}}}
-        )
+        ),
+        encoding="utf-8",
     )
     with pytest.raises(ValueError, match="may only set `fit` parameters of stage 2"):
         marg.Register(PARAMS, root)
@@ -139,7 +140,7 @@ def test_frozen_stages_reach_runs_and_experiments(tmp_path: Path, tiny) -> None:
     exp.run(marg.backends.Local(workers=1))
     assert (exp.dir / "calibration" / "stage_1.yaml").exists()
     run = exp.run_list()[0]
-    m = json.loads((exp.dir / run["path"] / "manifest.json").read_text())
+    m = json.loads((exp.dir / run["path"] / "manifest.json").read_text(encoding="utf-8"))
     assert m["calibration_stages"] == [1]
     # The calibration layer is part of the run's identity.
     plain = marg.Experiment("plain", tiny, root=tmp_path / "runs", params_dir=PARAMS)

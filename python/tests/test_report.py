@@ -44,14 +44,18 @@ def check(paths: list[Path], formats=None) -> str:
     """Check a built report; return its HTML if rendered, else its source."""
     formats = FORMATS if formats is None else formats
     qmd = paths[0]
-    assert qmd.suffix == ".qmd" and "$" not in qmd.read_text().replace("$$", "")
+    assert qmd.suffix == ".qmd" and "$" not in qmd.read_text(encoding="utf-8").replace("$$", "")
     for f in formats:
         p = qmd.with_suffix(f".{f}")
         assert p in paths and p.stat().st_size > 2000, p
     assert list((qmd.parent / "tables").glob("*.tex")) and list(
         (qmd.parent / "tables").glob("*.csv")
     )
-    return qmd.with_suffix(".html").read_text() if "html" in formats else qmd.read_text()
+    return (
+        qmd.with_suffix(".html").read_text(encoding="utf-8")
+        if "html" in formats
+        else qmd.read_text(encoding="utf-8")
+    )
 
 
 def test_run_report_html_and_pdf(tmp_path: Path) -> None:
@@ -149,7 +153,7 @@ def test_calibration_stage_report(tmp_path: Path) -> None:
         },
     }
     f = tmp_path / "stage_1.yaml"
-    f.write_text(yaml.safe_dump(doc))
+    f.write_text(yaml.safe_dump(doc), encoding="utf-8")
     html = check(report.render("calibration-stage", f, formats=FORMATS))
     assert "every" in html and "Frozen" in html
 
@@ -162,7 +166,7 @@ def test_cli_entry_point(tmp_path: Path) -> None:
     args += ["--format", "html"] if FORMATS else ["--no-render"]
     assert main(args) == 0
     assert (tmp_path / "rep" / ("run.html" if FORMATS else "run.qmd")).exists()
-    assert json.loads((run.path / "manifest.json").read_text())["status"] == "ok"
+    assert json.loads((run.path / "manifest.json").read_text(encoding="utf-8"))["status"] == "ok"
 
 
 def test_missing_renderer_fails_clearly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

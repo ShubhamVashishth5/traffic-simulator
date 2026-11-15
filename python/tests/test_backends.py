@@ -47,12 +47,12 @@ def test_slurm_dry_run_scripts(tiny, tmp_path: Path) -> None:
         partition="short", time="00:20:00", cpus=2, chunk=5, submit=False, container="marg.sif"
     )
     exp.run(backend)
-    array = (exp.dir / "slurm" / "array.sh").read_text()
+    array = (exp.dir / "slurm" / "array.sh").read_text(encoding="utf-8")
     assert "#SBATCH --array=0-4" in array  # 23 runs in chunks of 5
     assert "#SBATCH --partition=short" in array and "#SBATCH --time=00:20:00" in array
     assert "apptainer exec marg.sif marg batch" in array
     assert '--chunk "$SLURM_ARRAY_TASK_ID" --chunk-size 5' in array
-    assert "collect" in (exp.dir / "slurm" / "collect.sh").read_text()
+    assert "collect" in (exp.dir / "slurm" / "collect.sh").read_text(encoding="utf-8")
     assert not run_dirs(exp)  # nothing ran
 
 

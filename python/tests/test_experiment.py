@@ -64,7 +64,7 @@ def test_run_hashes_match_the_core(tiny, tmp_path: Path) -> None:
     exp = make(tiny, tmp_path, replications=marg.Replications(n=1))
     exp.run(marg.backends.Local(workers=2))
     for r in exp.run_list():
-        m = json.loads((exp.dir / r["path"] / "manifest.json").read_text())
+        m = json.loads((exp.dir / r["path"] / "manifest.json").read_text(encoding="utf-8"))
         assert m["status"] == "ok"
         assert m["run_hash"] == r["run_hash"]
         assert m["experiment"] == {
@@ -81,7 +81,9 @@ def test_tampered_run_list_fails_with_reason(tiny, tmp_path: Path) -> None:
     exp.write()
     runs = exp.run_list()
     runs[0]["overrides"]["vehicles.free_flow_speed.hatchback"] = 50.0  # hash no longer matches
-    (exp.dir / "runs.jsonl").write_text("".join(json.dumps(r) + "\n" for r in runs))
+    (exp.dir / "runs.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in runs), encoding="utf-8"
+    )
     with pytest.raises(RuntimeError):
         exp.run(marg.backends.Local(workers=1))
     idx = exp.data().index()

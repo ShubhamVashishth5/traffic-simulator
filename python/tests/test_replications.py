@@ -73,7 +73,7 @@ def test_sequential_rule_stops_in_the_expected_range(tmp_path: Path) -> None:
         params_dir=reg,
     )
     exp.run(marg.backends.Function(noisy))
-    decisions = json.loads((exp.dir / "replications.json").read_text())
+    decisions = json.loads((exp.dir / "replications.json").read_text(encoding="utf-8"))
     k = exp.results("kpis")
     for p, sigma in enumerate(sigmas):
         d = decisions[f"tiny/{p}"]

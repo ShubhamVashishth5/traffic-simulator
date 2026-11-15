@@ -34,7 +34,7 @@ class ExperimentData:
     @cached_property
     def definition(self) -> dict[str, Any]:
         f = self.dir / "experiment.yaml"
-        return yaml.safe_load(f.read_text()) if f.exists() else {}
+        return yaml.safe_load(f.read_text(encoding="utf-8")) if f.exists() else {}
 
     @property
     def name(self) -> str:

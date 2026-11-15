@@ -135,7 +135,7 @@ def main() -> None:
         "",
     ]
     out = REPO / "reports/benchmarks/results_10k.md"
-    out.write_text("\n".join(lines))
+    out.write_text("\n".join(lines), encoding="utf-8")
     print(f"wrote {out}")
 
 

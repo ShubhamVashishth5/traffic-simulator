@@ -26,7 +26,7 @@ class RunResult:
     def open(cls, path: str | Path) -> RunResult:
         """Open an existing run folder."""
         p = Path(path)
-        return cls(path=p, manifest=json.loads((p / "manifest.json").read_text()))
+        return cls(path=p, manifest=json.loads((p / "manifest.json").read_text(encoding="utf-8")))
 
     def table(self, name: str) -> pl.DataFrame:
         """Read one output table (see docs/data-dictionary.md)."""
@@ -75,7 +75,9 @@ def run(
     ``overrides`` are experiment-layer overrides (register units);
     ``calibration_dir`` applies its frozen ``stage_<k>.yaml`` files.
     """
-    text = Path(scenario).read_text() if _looks_like_path(scenario) else str(scenario)
+    text = (
+        Path(scenario).read_text(encoding="utf-8") if _looks_like_path(scenario) else str(scenario)
+    )
     out_path = Path(out)
     pdir = None if params_dir is None else str(params_dir)
     ov = None if not overrides else json.dumps(overrides)

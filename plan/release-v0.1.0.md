@@ -51,6 +51,16 @@ A self-contained handoff: a new session should need only this card, the files it
   The optional `windows-latest` `cargo test` job in `ci.yml` was not added.
 - **Not done here:** MSVC (the first run is CI on the PR), the Windows wheel (not testable
   here), and the CHANGELOG date, which should be set to the tag date if it is not 2026-11-15.
+- **CI round 1 (PR #13).** `ci` green. `build`: the MSVC CLI built and **`same-results` passed**
+  (glibc, musl and Windows give the same hashes). The Windows wheel's smoke test failed: both
+  experiment runs were refused with "run hash mismatch". Cause: the Python package read and
+  wrote text files without an encoding, so Windows used cp1252. The scenario's "§" was hashed as
+  "Â§" by Python, while the file it wrote back was UTF-8 again for `marg batch`. Reproduced on
+  Linux by forcing cp1252, with the same two hashes. Fixed: every text-mode `read_text`,
+  `write_text` and `open` in `python/` and `scripts/` names UTF-8 (98 calls), and
+  subprocess output is decoded as UTF-8. `test_encoding.py` runs an experiment with
+  `-X warn_default_encoding` (it fails on the old code), and CI's pytest runs with
+  `PYTHONWARNDEFAULTENCODING=1` and the warning as an error for marg's code (pyproject).
 
 ## Where things stand
 

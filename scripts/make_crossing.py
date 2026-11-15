@@ -101,12 +101,12 @@ if __name__ == "__main__":
         "signal_crossing",
         "A four-arm crossing of two 7 m dual carriageways under a two-stage fixed-time signal "
         "(70 s cycle). Right turns filter through the opposing stream on a gap (P7.3, P7.4).",
-        SIGNAL, even, TURN))
+        SIGNAL, even, TURN), encoding="utf-8")
     (root / "priority_crossing.yaml").write_text(scenario(
         "priority_crossing",
         "The same crossing without a signal: the east-west road is the major road, and traffic "
         "from north and south waits for gaps in it (G§2.4, P7.4).",
-        PRIORITY, {"e": 500, "w": 500, "n": 250, "s": 250}, TURN))
+        PRIORITY, {"e": 500, "w": 500, "n": 250, "s": 250}, TURN), encoding="utf-8")
     (root / "roundabout.yaml").write_text(scenario(
         "roundabout",
         "The same four arms round a rotary of 16 m radius and 8 m ring width (ADR-0009, P7.8). "
@@ -117,5 +117,5 @@ if __name__ == "__main__":
         TURN
         + "  road.junction.roundabout.entry_critical_gap_factor: 0.6   # placeholder\n"
         + "  road.junction.roundabout.priority_compliance: 0.8         # placeholder\n",
-        box=24))
+        box=24), encoding="utf-8")
     print("wrote signal_crossing, priority_crossing, roundabout")
