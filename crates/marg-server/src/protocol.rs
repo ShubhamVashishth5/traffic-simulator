@@ -20,7 +20,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Bump on any change to the messages or frame columns.
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 
 /// Columns of a binary agent frame, in order.
 pub const FRAME_COLUMNS: [&str; 8] = [
@@ -114,7 +114,8 @@ pub enum ClientMessage {
         on: BreakpointOn,
     },
     ClearBreakpoints,
-    /// Signals arrive in P8; refused until then.
+    /// Put a junction's signal in a control state (`fixed`, `blinker`,
+    /// `dark`, `police`) from the next step on (P8.7).
     ToggleSignalState {
         junction: String,
         state: String,
@@ -257,6 +258,16 @@ pub struct Status {
     pub breakpoints: Vec<BreakpointOn>,
     /// Run identity including the commands so far.
     pub run_hash: String,
+    /// The state of every signal's controller (P8.7).
+    pub signals: Vec<SignalView>,
+}
+
+/// A signalised junction and its controller's state now.
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+pub struct SignalView {
+    pub junction: String,
+    /// `fixed`, `blinker`, `dark` or `police`.
+    pub state: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]

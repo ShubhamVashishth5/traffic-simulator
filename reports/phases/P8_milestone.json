@@ -1,0 +1,3103 @@
+{
+ "seeds": 5,
+ "fit_seeds": 5,
+ "fit": {
+  "intercept": -7.68359375,
+  "share": 0.07266881028938907,
+  "share_ci": [
+   0.22511137496529354,
+   0.4707728264568444
+  ],
+  "history": [
+   [
+    -8.0,
+    0.04939835338822039
+   ],
+   [
+    -5.0,
+    0.23991393222162452
+   ],
+   [
+    -6.5,
+    0.10675605982465189
+   ],
+   [
+    -7.25,
+    0.07819181429444105
+   ],
+   [
+    -7.625,
+    0.06166666666666667
+   ],
+   [
+    -7.8125,
+    0.05483207676490747
+   ],
+   [
+    -7.71875,
+    0.052434456928838954
+   ],
+   [
+    -7.671875,
+    0.0645352279455299
+   ],
+   [
+    -7.6953125,
+    0.0565149136577708
+   ]
+  ],
+  "runs": 113,
+  "facing": 1555,
+  "locked": 1,
+  "first_third": 0.36283185840707965,
+  "middle_third": 0.23893805309734514,
+  "last_third": 0.39823008849557523,
+  "histogram": [
+   5,
+   19,
+   9,
+   12,
+   7,
+   9,
+   10,
+   15,
+   15,
+   12
+  ],
+  "per_seed_thirds": [
+   [
+    0.125,
+    0.75
+   ],
+   [
+    0.4166666666666667,
+    0.375
+   ],
+   [
+    0.35714285714285715,
+    0.2857142857142857
+   ],
+   [
+    0.6190476190476191,
+    0.23809523809523808
+   ],
+   [
+    0.25,
+    0.4583333333333333
+   ]
+  ]
+ },
+ "countdown": {
+  "none": {
+   "start": [
+    0.09390243902439024,
+    0.033674569779544694
+   ],
+   "end": [
+    0.09634146341463415,
+    0.042430240924307305
+   ],
+   "share": [
+    0.15796320462208438,
+    0.21519699269966472
+   ],
+   "early_starts": [
+    0.0,
+    0.0
+   ],
+   "first_third": 0.329004329004329,
+   "last_third": 0.4069264069264069,
+   "cycles": 820,
+   "locked": 2
+  },
+  "working": {
+   "start": [
+    0.06951219512195123,
+    0.03902514482584277
+   ],
+   "end": [
+    0.09268292682926829,
+    0.04904022601334993
+   ],
+   "share": [
+    0.17401104639677364,
+    0.2117814852049259
+   ],
+   "early_starts": [
+    2.9,
+    1.7012197290514188
+   ],
+   "first_third": 0.25773195876288657,
+   "last_third": 0.4793814432989691,
+   "cycles": 820,
+   "locked": 4
+  },
+  "working, early start \u03b20 +3": {
+   "start": [
+    0.10243902439024391,
+    0.03243380170766828
+   ],
+   "end": [
+    0.2487804878048781,
+    0.03445650476521315
+   ],
+   "share": [
+    0.11133740480952994,
+    0.015795258833619395
+   ],
+   "early_starts": [
+    38.7,
+    6.702588396010659
+   ],
+   "first_third": 0.17721518987341772,
+   "last_third": 0.6683544303797468,
+   "cycles": 820,
+   "locked": 0
+  },
+  "working, early start \u03b20 +6": {
+   "start": [
+    0.06463414634146343,
+    0.021388794092313288
+   ],
+   "end": [
+    0.4073170731707318,
+    0.1438894168324254
+   ],
+   "share": [
+    0.2627766582941329,
+    0.07636660315525523
+   ],
+   "early_starts": [
+    99.9,
+    29.251887707161778
+   ],
+   "first_third": 0.05732484076433121,
+   "last_third": 0.85828025477707,
+   "cycles": 820,
+   "locked": 2
+  }
+ },
+ "imitation": [
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 0.0,
+   "share": [
+    0.07016523584541554,
+    0.03137925091537496
+   ],
+   "acts": 11.8,
+   "episodes": 176.0
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 1.0,
+   "share": [
+    0.06176413199791878,
+    0.014479222211519026
+   ],
+   "acts": 11.4,
+   "episodes": 186.0
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 2.0,
+   "share": [
+    0.07235168744305578,
+    0.01156128952691201
+   ],
+   "acts": 13.4,
+   "episodes": 185.4
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 3.0,
+   "share": [
+    0.08007168195618862,
+    0.023578085000090232
+   ],
+   "acts": 15.4,
+   "episodes": 192.2
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 4.0,
+   "share": [
+    0.12025496991763858,
+    0.09842778918941449
+   ],
+   "acts": 16.6,
+   "episodes": 166.2
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 6.0,
+   "share": [
+    0.10067907703995897,
+    0.033673923683376156
+   ],
+   "acts": 19.4,
+   "episodes": 194.4
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 8.0,
+   "share": [
+    0.09951597824239335,
+    0.05429051103478495
+   ],
+   "acts": 19.0,
+   "episodes": 190.6
+  },
+  {
+   "beta_minus": 0.0,
+   "beta_plus": 10.0,
+   "share": [
+    0.08996687694490148,
+    0.03613229123270687
+   ],
+   "acts": 17.6,
+   "episodes": 195.6
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 0.0,
+   "share": [
+    0.06667587577550162,
+    0.04222309159476571
+   ],
+   "acts": 9.8,
+   "episodes": 166.8
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 1.0,
+   "share": [
+    0.0706809126300855,
+    0.038299475578486813
+   ],
+   "acts": 10.6,
+   "episodes": 168.4
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 2.0,
+   "share": [
+    0.06995147553971083,
+    0.023624492848271963
+   ],
+   "acts": 12.2,
+   "episodes": 180.6
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 3.0,
+   "share": [
+    0.08644994840041278,
+    0.038503749610101695
+   ],
+   "acts": 15.6,
+   "episodes": 181.6
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 4.0,
+   "share": [
+    0.0689712879650484,
+    0.012493557163544066
+   ],
+   "acts": 13.4,
+   "episodes": 192.4
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 6.0,
+   "share": [
+    0.09670764409712355,
+    0.02485376935774751
+   ],
+   "acts": 17.0,
+   "episodes": 180.4
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 8.0,
+   "share": [
+    0.0853305863952433,
+    0.030247541910908754
+   ],
+   "acts": 16.4,
+   "episodes": 191.2
+  },
+  {
+   "beta_minus": 1.0,
+   "beta_plus": 10.0,
+   "share": [
+    0.08923509262422433,
+    0.02834137053886887
+   ],
+   "acts": 17.4,
+   "episodes": 194.4
+  }
+ ],
+ "personas": [
+  {
+   "delivery": 0.0,
+   "e_rickshaw": 0.03,
+   "throughput": [
+    1550.4,
+    274.45402230137364
+   ],
+   "delay_mean": [
+    26.256043655554546,
+    14.424972395767437
+   ],
+   "delay_total": [
+    16886.35470443991,
+    7730.25103518785
+   ],
+   "conflicts_per_1000": [
+    224.55060442723322,
+    208.7474043310922
+   ],
+   "violations_per_1000": [
+    67.13459626354074,
+    1.5792158798689004
+   ],
+   "red_runs_per_1000": [
+    36.44225234182846,
+    4.5714143890941905
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    7.048380344340363,
+    25.059662514761825
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.0,
+    0.0
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.12272031503480035,
+    0.06927770715109112
+   ],
+   "delivery_realised": [
+    0.0,
+    0.0
+   ],
+   "locked_runs": 1,
+   "runs": [
+    {
+     "throughput": 1572.0,
+     "delay_mean": 25.12077370710964,
+     "delay_total": 16277.97075378785,
+     "conflicts_per_1000": 208.12182741116752,
+     "violations_per_1000": 67.25888324873097,
+     "red_runs_per_1000": 36.80203045685279,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 5.0761421319796955,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1281725888324873,
+     "delivery_realised": 0.0
+    },
+    {
+     "throughput": 1528.8,
+     "delay_mean": 27.39131360399945,
+     "delay_total": 17494.738655091965,
+     "conflicts_per_1000": 240.97938144329896,
+     "violations_per_1000": 67.01030927835052,
+     "red_runs_per_1000": 36.08247422680412,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 9.02061855670103,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1172680412371134,
+     "delivery_realised": 0.0
+    },
+    {
+     "throughput": 19.2,
+     "delay_mean": 46.03999673198139,
+     "delay_total": 465275.89231603744,
+     "conflicts_per_1000": 828.9473684210526,
+     "violations_per_1000": 28.94736842105263,
+     "red_runs_per_1000": 18.42105263157895,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 5.2631578947368425,
+     "gridlock_share": 0.9477999999998683,
+     "gridlock_onset": 318.40000000000003,
+     "guard": 0.0,
+     "locked": 1.0,
+     "rushed_realised": 0.125,
+     "delivery_realised": 0.0
+    }
+   ]
+  },
+  {
+   "delivery": 0.0,
+   "e_rickshaw": 0.1,
+   "throughput": [
+    1528.0,
+    67.01096733811364
+   ],
+   "delay_mean": [
+    26.284216812720118,
+    3.8869305225606285
+   ],
+   "delay_total": [
+    16617.42288252708,
+    1940.8072041236696
+   ],
+   "conflicts_per_1000": [
+    189.05983835087792,
+    82.10417001541359
+   ],
+   "violations_per_1000": [
+    77.45379923005707,
+    7.547452485195296
+   ],
+   "red_runs_per_1000": [
+    44.08751893055,
+    5.850112789529231
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    4.28307739529307,
+    1.932940883392954
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.0,
+    0.0
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.11509207004776108,
+    0.021797693191886378
+   ],
+   "delivery_realised": [
+    0.0,
+    0.0
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1557.6,
+     "delay_mean": 24.485968079755377,
+     "delay_total": 15733.639231643398,
+     "conflicts_per_1000": 183.206106870229,
+     "violations_per_1000": 75.06361323155217,
+     "red_runs_per_1000": 41.98473282442748,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.816793893129771,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.12213740458015267,
+     "delivery_realised": 0.0
+    },
+    {
+     "throughput": 1521.6,
+     "delay_mean": 27.335039957752272,
+     "delay_total": 17216.137348313943,
+     "conflicts_per_1000": 224.64698331193838,
+     "violations_per_1000": 80.87291399229781,
+     "red_runs_per_1000": 43.64569961489089,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.851091142490372,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.10526315789473684,
+     "delivery_realised": 0.0
+    },
+    {
+     "throughput": 1504.8,
+     "delay_mean": 27.031642400652697,
+     "delay_total": 16902.4920676239,
+     "conflicts_per_1000": 159.32642487046633,
+     "violations_per_1000": 76.42487046632124,
+     "red_runs_per_1000": 46.63212435233161,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 5.181347150259067,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.11787564766839378,
+     "delivery_realised": 0.0
+    }
+   ]
+  },
+  {
+   "delivery": 0.0,
+   "e_rickshaw": 0.2,
+   "throughput": [
+    1516.8,
+    77.5050966066103
+   ],
+   "delay_mean": [
+    25.973204385659468,
+    7.176806707488632
+   ],
+   "delay_total": [
+    16029.939079384936,
+    4217.213141839705
+   ],
+   "conflicts_per_1000": [
+    182.48683058643738,
+    52.06049929058845
+   ],
+   "violations_per_1000": [
+    64.95793209423616,
+    8.962193296812845
+   ],
+   "red_runs_per_1000": [
+    37.06570031930451,
+    17.598104391119957
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    4.700063759696787,
+    9.632667169322271
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.0,
+    0.0
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.10061493809855541,
+    0.026954400039004255
+   ],
+   "delivery_realised": [
+    0.0,
+    0.0
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1533.6,
+     "delay_mean": 22.645336780954107,
+     "delay_total": 14111.87273293136,
+     "conflicts_per_1000": 158.3011583011583,
+     "violations_per_1000": 61.77606177606177,
+     "red_runs_per_1000": 38.61003861003861,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.861003861003861,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.11068211068211069,
+     "delivery_realised": 0.0
+    },
+    {
+     "throughput": 1480.8,
+     "delay_mean": 27.435636501378013,
+     "delay_total": 16638.53746300679,
+     "conflicts_per_1000": 195.28178243774573,
+     "violations_per_1000": 64.22018348623853,
+     "red_runs_per_1000": 43.25032765399738,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 1.3106159895150722,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.0891218872870249,
+     "delivery_realised": 0.0
+    },
+    {
+     "throughput": 1536.0,
+     "delay_mean": 27.83863987464628,
+     "delay_total": 17339.407042216655,
+     "conflicts_per_1000": 193.87755102040816,
+     "violations_per_1000": 68.87755102040816,
+     "red_runs_per_1000": 29.336734693877553,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 8.928571428571429,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.10204081632653061,
+     "delivery_realised": 0.0
+    }
+   ]
+  },
+  {
+   "delivery": 0.15,
+   "e_rickshaw": 0.03,
+   "throughput": [
+    1506.0,
+    228.71168525114447
+   ],
+   "delay_mean": [
+    26.703997867773563,
+    6.125520907975852
+   ],
+   "delay_total": [
+    16408.51796790872,
+    4042.228214900184
+   ],
+   "conflicts_per_1000": [
+    198.51465002712968,
+    64.72029135151377
+   ],
+   "violations_per_1000": [
+    76.85838307107976,
+    43.261765989959926
+   ],
+   "red_runs_per_1000": [
+    39.751763429191534,
+    46.62273984176958
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    8.457677699403147,
+    7.152841787184616
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    1.0,
+    12.706204736174694
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.14770075963103635,
+    0.10453490467295112
+   ],
+   "delivery_realised": [
+    0.1546755815048498,
+    0.24828491220983606
+   ],
+   "locked_runs": 1,
+   "runs": [
+    {
+     "throughput": 204.0,
+     "delay_mean": 22.848096037005533,
+     "delay_total": 394689.26488896133,
+     "conflicts_per_1000": 845.1776649746192,
+     "violations_per_1000": 36.80203045685279,
+     "red_runs_per_1000": 25.380710659898476,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.8071065989847717,
+     "gridlock_share": 0.7968000000000056,
+     "gridlock_onset": 544.9,
+     "guard": 0.0,
+     "locked": 1.0,
+     "rushed_realised": 0.12690355329949238,
+     "delivery_realised": 0.178125
+    },
+    {
+     "throughput": 1524.0,
+     "delay_mean": 26.221908917125976,
+     "delay_total": 16726.648227795995,
+     "conflicts_per_1000": 203.60824742268042,
+     "violations_per_1000": 73.45360824742268,
+     "red_runs_per_1000": 36.08247422680412,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 9.02061855670103,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 2.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1559278350515464,
+     "delivery_realised": 0.13513513513513514
+    },
+    {
+     "throughput": 1488.0,
+     "delay_mean": 27.18608681842115,
+     "delay_total": 16090.387708021444,
+     "conflicts_per_1000": 193.42105263157896,
+     "violations_per_1000": 80.26315789473684,
+     "red_runs_per_1000": 43.421052631578945,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 7.894736842105263,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1394736842105263,
+     "delivery_realised": 0.17421602787456447
+    }
+   ]
+  },
+  {
+   "delivery": 0.15,
+   "e_rickshaw": 0.1,
+   "throughput": [
+    1525.5999999999997,
+    69.8674495943604
+   ],
+   "delay_mean": [
+    25.24414617871987,
+    4.981772421080724
+   ],
+   "delay_total": [
+    16001.755005076957,
+    2932.9785203934543
+   ],
+   "conflicts_per_1000": [
+    184.3978495480794,
+    156.0214737453452
+   ],
+   "violations_per_1000": [
+    81.80595487917171,
+    36.41549396090059
+   ],
+   "red_runs_per_1000": [
+    48.40115187759064,
+    24.887812912397372
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    4.7148563244813255,
+    3.7905055797114353
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.3333333333333333,
+    1.4342175765831542
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.1318458828686568,
+    0.029804493023705785
+   ],
+   "delivery_realised": [
+    0.16312839023064052,
+    0.06654488579945547
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1557.6,
+     "delay_mean": 23.208794970341707,
+     "delay_total": 14996.753224586862,
+     "conflicts_per_1000": 152.67175572519085,
+     "violations_per_1000": 64.8854961832061,
+     "red_runs_per_1000": 36.895674300254456,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.816793893129771,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1183206106870229,
+     "delivery_realised": 0.18120805369127516
+    },
+    {
+     "throughput": 1504.8,
+     "delay_mean": 27.218258767302256,
+     "delay_total": 17302.059316455507,
+     "conflicts_per_1000": 256.73940949935815,
+     "violations_per_1000": 89.85879332477535,
+     "red_runs_per_1000": 55.198973042362006,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.851091142490372,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 1.0,
+     "locked": 0.0,
+     "rushed_realised": 0.14120667522464697,
+     "delivery_realised": 0.1323529411764706
+    },
+    {
+     "throughput": 1514.4,
+     "delay_mean": 25.30538479851564,
+     "delay_total": 15706.452474188505,
+     "conflicts_per_1000": 143.78238341968913,
+     "violations_per_1000": 90.67357512953367,
+     "red_runs_per_1000": 53.10880829015544,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 6.476683937823834,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.13601036269430053,
+     "delivery_realised": 0.17582417582417584
+    }
+   ]
+  },
+  {
+   "delivery": 0.15,
+   "e_rickshaw": 0.2,
+   "throughput": [
+    1521.6000000000001,
+    72.53001500705116
+   ],
+   "delay_mean": [
+    25.9625327412634,
+    8.638284770205555
+   ],
+   "delay_total": [
+    16031.2803750683,
+    5180.924001141926
+   ],
+   "conflicts_per_1000": [
+    173.84044079653518,
+    87.50146166165989
+   ],
+   "violations_per_1000": [
+    68.37078372137348,
+    14.91460803772635
+   ],
+   "red_runs_per_1000": [
+    42.20263607550633,
+    9.46512037282246
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    4.278934898200954,
+    10.139233424700487
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.0,
+    0.0
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.11408434974948738,
+    0.028683501693357656
+   ],
+   "delivery_realised": [
+    0.15826534059306452,
+    0.0868367080686612
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1540.8,
+     "delay_mean": 21.984355228681856,
+     "delay_total": 13704.428707833395,
+     "conflicts_per_1000": 133.84813384813384,
+     "violations_per_1000": 65.63706563706563,
+     "red_runs_per_1000": 42.47104247104247,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 1.287001287001287,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.10167310167310167,
+     "delivery_realised": 0.17803030303030304
+    },
+    {
+     "throughput": 1488.0,
+     "delay_mean": 27.47967599992209,
+     "delay_total": 16657.06406201792,
+     "conflicts_per_1000": 187.4180865006553,
+     "violations_per_1000": 64.22018348623853,
+     "red_runs_per_1000": 45.87155963302752,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 2.6212319790301444,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.12450851900393185,
+     "delivery_realised": 0.11790393013100436
+    },
+    {
+     "throughput": 1536.0,
+     "delay_mean": 28.423566995186253,
+     "delay_total": 17732.348355353588,
+     "conflicts_per_1000": 200.25510204081633,
+     "violations_per_1000": 75.25510204081633,
+     "red_runs_per_1000": 38.265306122448976,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 8.928571428571429,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.11607142857142858,
+     "delivery_realised": 0.17886178861788618
+    }
+   ]
+  },
+  {
+   "delivery": 0.3,
+   "e_rickshaw": 0.03,
+   "throughput": [
+    1526.3999999999999,
+    107.3147491476141
+   ],
+   "delay_mean": [
+    25.784746806279927,
+    4.261086478604486
+   ],
+   "delay_total": [
+    16140.046068188685,
+    2112.7727987331623
+   ],
+   "conflicts_per_1000": [
+    188.3951072930639,
+    63.986308461671804
+   ],
+   "violations_per_1000": [
+    81.44823372471683,
+    26.16760281329832
+   ],
+   "red_runs_per_1000": [
+    49.57662091803899,
+    20.74322526129982
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    6.907487332597022,
+    6.814951420220425
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.3333333333333333,
+    1.4342175765831542
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.15786333802479405,
+    0.025292055775634568
+   ],
+   "delivery_realised": [
+    0.33132572903914365,
+    0.05105620263768701
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1569.6,
+     "delay_mean": 23.8076048897921,
+     "delay_total": 15519.514104646854,
+     "conflicts_per_1000": 177.66497461928935,
+     "violations_per_1000": 73.60406091370558,
+     "red_runs_per_1000": 44.41624365482234,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 3.8071065989847717,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 1.0,
+     "locked": 0.0,
+     "rushed_realised": 0.15609137055837563,
+     "delivery_realised": 0.33125
+    },
+    {
+     "throughput": 1526.4,
+     "delay_mean": 26.875780938925256,
+     "delay_total": 17109.527246617625,
+     "conflicts_per_1000": 217.7835051546392,
+     "violations_per_1000": 77.31958762886597,
+     "red_runs_per_1000": 45.103092783505154,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 9.02061855670103,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.16881443298969073,
+     "delivery_realised": 0.3108108108108108
+    },
+    {
+     "throughput": 1483.2,
+     "delay_mean": 26.670854590122424,
+     "delay_total": 15791.096853301573,
+     "conflicts_per_1000": 169.73684210526315,
+     "violations_per_1000": 93.42105263157895,
+     "red_runs_per_1000": 59.21052631578947,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 7.894736842105263,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.14868421052631578,
+     "delivery_realised": 0.3519163763066202
+    }
+   ]
+  },
+  {
+   "delivery": 0.3,
+   "e_rickshaw": 0.1,
+   "throughput": [
+    1534.3999999999999,
+    46.3090177849318
+   ],
+   "delay_mean": [
+    25.722211207617963,
+    5.278892281354349
+   ],
+   "delay_total": [
+    16232.690405954825,
+    3108.610406506368
+   ],
+   "conflicts_per_1000": [
+    187.69099053316373,
+    132.43720433017256
+   ],
+   "violations_per_1000": [
+    97.21094141997652,
+    46.81102165909868
+   ],
+   "red_runs_per_1000": [
+    56.50081584239903,
+    23.302480692413617
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    7.714098456534644,
+    5.6482243222291135
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.6666666666666666,
+    1.4342175765831542
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.14674245972335426,
+    0.019265772546928267
+   ],
+   "delivery_realised": [
+    0.33221449395452557,
+    0.07177085963910106
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1555.2,
+     "delay_mean": 24.086094285411637,
+     "delay_total": 15523.386329723882,
+     "conflicts_per_1000": 187.0229007633588,
+     "violations_per_1000": 76.33587786259542,
+     "red_runs_per_1000": 48.346055979643765,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 5.089058524173028,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 1.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1475826972010178,
+     "delivery_realised": 0.3288590604026846
+    },
+    {
+     "throughput": 1519.2,
+     "delay_mean": 28.123979408706116,
+     "delay_total": 17677.584588235826,
+     "conflicts_per_1000": 241.33504492939667,
+     "violations_per_1000": 112.96534017971759,
+     "red_runs_per_1000": 66.75224646983312,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 8.985879332477536,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.1540436456996149,
+     "delivery_realised": 0.30514705882352944
+    },
+    {
+     "throughput": 1528.8,
+     "delay_mean": 24.956559928736144,
+     "delay_total": 15497.100299904767,
+     "conflicts_per_1000": 134.71502590673575,
+     "violations_per_1000": 102.33160621761658,
+     "red_runs_per_1000": 54.40414507772021,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 9.067357512953368,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 1.0,
+     "locked": 0.0,
+     "rushed_realised": 0.13860103626943004,
+     "delivery_realised": 0.3626373626373626
+    }
+   ]
+  },
+  {
+   "delivery": 0.3,
+   "e_rickshaw": 0.2,
+   "throughput": [
+    1518.4000000000003,
+    75.96101564247206
+   ],
+   "delay_mean": [
+    25.89344491155882,
+    7.573438420740047
+   ],
+   "delay_total": [
+    15987.782281337246,
+    4418.365839104363
+   ],
+   "conflicts_per_1000": [
+    178.9339775086826,
+    76.32149699564518
+   ],
+   "violations_per_1000": [
+    86.8362862956572,
+    50.34373398571893
+   ],
+   "red_runs_per_1000": [
+    53.37024676801872,
+    26.244246730004416
+   ],
+   "forced_per_1000": [
+    0.0,
+    0.0
+   ],
+   "box_blocks_per_1000": [
+    5.152678891211001,
+    9.49332153185122
+   ],
+   "gridlock_share": [
+    0.0,
+    0.0
+   ],
+   "gridlock_onset": [
+    NaN,
+    NaN
+   ],
+   "guard": [
+    0.0,
+    0.0
+   ],
+   "locked": [
+    0.0,
+    0.0
+   ],
+   "rushed_realised": [
+    0.13044592992168355,
+    0.018920919982527328
+   ],
+   "delivery_realised": [
+    0.3171978330541543,
+    0.09737591324560348
+   ],
+   "locked_runs": 0,
+   "runs": [
+    {
+     "throughput": 1533.6,
+     "delay_mean": 22.379122866103074,
+     "delay_total": 13941.425763317608,
+     "conflicts_per_1000": 146.71814671814673,
+     "violations_per_1000": 68.21106821106821,
+     "red_runs_per_1000": 41.184041184041185,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 1.287001287001287,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.13127413127413126,
+     "delivery_realised": 0.3143939393939394
+    },
+    {
+     "throughput": 1483.2,
+     "delay_mean": 27.829055887996308,
+     "delay_total": 16859.801259077827,
+     "conflicts_per_1000": 182.17562254259502,
+     "violations_per_1000": 83.87942332896462,
+     "red_runs_per_1000": 58.97771952817824,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 5.242463958060289,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.13761467889908258,
+     "delivery_realised": 0.2794759825327511
+    },
+    {
+     "throughput": 1538.4,
+     "delay_mean": 27.47215598057708,
+     "delay_total": 17162.119821616303,
+     "conflicts_per_1000": 207.90816326530611,
+     "violations_per_1000": 108.41836734693878,
+     "red_runs_per_1000": 59.94897959183673,
+     "forced_per_1000": 0.0,
+     "box_blocks_per_1000": 8.928571428571429,
+     "gridlock_share": 0.0,
+     "gridlock_onset": NaN,
+     "guard": 0.0,
+     "locked": 0.0,
+     "rushed_realised": 0.12244897959183673,
+     "delivery_realised": 0.35772357723577236
+    }
+   ]
+  }
+ ],
+ "dark": [
+  {
+   "rushed": 0.0,
+   "state": "fixed",
+   "sed": [
+    -0.06038805061355094,
+    0.05535251119227883
+   ],
+   "sed_pairs": 3,
+   "observed": {
+    "throughput": [
+     1518.3999999999999,
+     89.69354091600619
+    ],
+    "delay_mean": [
+     27.90693350051877,
+     1.6225113443180743
+    ],
+    "delay_total": [
+     17379.33172215724,
+     1711.9108895637994
+    ],
+    "conflicts_per_1000": [
+     231.7984916085417,
+     20.107560557266563
+    ],
+    "violations_per_1000": [
+     71.10937431180109,
+     22.891991041438025
+    ],
+    "red_runs_per_1000": [
+     40.33159590927536,
+     17.479583638909425
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     6.061046933877614,
+     1.717020510962991
+    ],
+    "gridlock_share": [
+     0.0,
+     0.0
+    ],
+    "gridlock_onset": [
+     NaN,
+     NaN
+    ],
+    "guard": [
+     0.0,
+     0.0
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.0,
+     0.0
+    ],
+    "delivery_realised": [
+     0.099212813870263,
+     0.004822935399461542
+    ],
+    "runs": [
+     {
+      "throughput": 357.6,
+      "delay_mean": 27.46296747355788,
+      "delay_total": 311084.9875501341,
+      "conflicts_per_1000": 747.4619289340102,
+      "violations_per_1000": 41.878172588832484,
+      "red_runs_per_1000": 27.918781725888326,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 7.614213197969543,
+      "gridlock_share": 0.7111333333334169,
+      "gridlock_onset": 673.4000000000001,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1521.6,
+      "delay_mean": 27.15464560446578,
+      "delay_total": 17358.797262568467,
+      "conflicts_per_1000": 225.51546391752578,
+      "violations_per_1000": 60.56701030927835,
+      "red_runs_per_1000": 32.21649484536083,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 6.443298969072165,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1480.8,
+      "delay_mean": 28.23670472229898,
+      "delay_total": 16700.69157152025,
+      "conflicts_per_1000": 228.94736842105263,
+      "violations_per_1000": 77.63157894736842,
+      "red_runs_per_1000": 44.73684210526316,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 5.2631578947368425,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1552.8,
+      "delay_mean": 28.329450174791546,
+      "delay_total": 18078.50633238301,
+      "conflicts_per_1000": 240.93264248704662,
+      "violations_per_1000": 75.12953367875647,
+      "red_runs_per_1000": 44.04145077720207,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 6.476683937823834,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 417.6,
+      "delay_mean": 90.8921617673485,
+      "delay_total": 289292.52051450737,
+      "conflicts_per_1000": 1063.4715025906735,
+      "violations_per_1000": 67.35751295336787,
+      "red_runs_per_1000": 41.45077720207254,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 15.544041450777202,
+      "gridlock_share": 0.6913333333334349,
+      "gridlock_onset": 703.1,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 2,
+    "locked_runs": 2
+   },
+   "cooperative": {
+    "throughput": [
+     1438.56,
+     279.36228069237325
+    ],
+    "delay_mean": [
+     29.625634463983367,
+     3.5239110008610934
+    ],
+    "delay_total": [
+     29172.168450683006,
+     30663.867995806773
+    ],
+    "conflicts_per_1000": [
+     287.06326463530314,
+     135.7933873345011
+    ],
+    "violations_per_1000": [
+     0.0,
+     0.0
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     0.0,
+     0.0
+    ],
+    "gridlock_share": [
+     0.04912000000000204,
+     0.13637898356732125
+    ],
+    "gridlock_onset": [
+     766.0,
+     NaN
+    ],
+    "guard": [
+     3.0,
+     6.331268956166629
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.0,
+     0.0
+    ],
+    "delivery_realised": [
+     0.1125142518400731,
+     0.02299758441108772
+    ],
+    "runs": [
+     {
+      "throughput": 1569.6,
+      "delay_mean": 25.70490206511458,
+      "delay_total": 17051.17542421243,
+      "conflicts_per_1000": 189.08629441624365,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 1.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1528.8,
+      "delay_mean": 28.825375521472758,
+      "delay_total": 18330.856043566895,
+      "conflicts_per_1000": 251.28865979381445,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 2.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1480.8,
+      "delay_mean": 30.800296245694433,
+      "delay_total": 18260.488154109433,
+      "conflicts_per_1000": 257.89473684210526,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 12.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1572.0,
+      "delay_mean": 29.332689856136618,
+      "delay_total": 18885.214368617435,
+      "conflicts_per_1000": 261.6580310880829,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 1041.6,
+      "delay_mean": 33.464908631498446,
+      "delay_total": 73333.10826290882,
+      "conflicts_per_1000": 475.38860103626945,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.24560000000001017,
+      "gridlock_onset": 766.0,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 1,
+    "locked_runs": 0
+   }
+  },
+  {
+   "rushed": 0.0,
+   "state": "dark",
+   "sed": [
+    -0.7917823592792957,
+    0.12042421848854769
+   ],
+   "sed_pairs": 2,
+   "observed": {
+    "throughput": [
+     1460.4,
+     1082.568643522083
+    ],
+    "delay_mean": [
+     51.64730724510379,
+     6.626713797571046
+    ],
+    "delay_total": [
+     35243.76652848415,
+     34396.708168596015
+    ],
+    "conflicts_per_1000": [
+     562.1011726206709,
+     147.17645109599712
+    ],
+    "violations_per_1000": [
+     368.2812926097628,
+     219.1187952014857
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     366.9655031360785,
+     202.40010475915048
+    ],
+    "box_blocks_per_1000": [
+     1.3157894736842106,
+     16.718690442335124
+    ],
+    "gridlock_share": [
+     0.05519999999999894,
+     0.43794052324013955
+    ],
+    "gridlock_onset": [
+     396.65,
+     3060.2894107076745
+    ],
+    "guard": [
+     2326.0,
+     29554.63221634234
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.0,
+     0.0
+    ],
+    "delivery_realised": [
+     0.09814354512971882,
+     0.007402247593701289
+    ],
+    "runs": [
+     {
+      "throughput": 664.8,
+      "delay_mean": 54.01423910297949,
+      "delay_total": 202313.4150124114,
+      "conflicts_per_1000": 865.4822335025381,
+      "violations_per_1000": 164.9746192893401,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 161.16751269035532,
+      "box_blocks_per_1000": 3.8071065989847717,
+      "gridlock_share": 0.577933333333419,
+      "gridlock_onset": 250.5,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 139.2,
+      "delay_mean": 20.722228861930038,
+      "delay_total": 423344.31220373616,
+      "conflicts_per_1000": 840.2061855670103,
+      "violations_per_1000": 81.18556701030928,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 67.01030927835052,
+      "box_blocks_per_1000": 14.175257731958762,
+      "gridlock_share": 0.8625333333332792,
+      "gridlock_onset": 175.5,
+      "guard": 40318.0,
+      "locked": 1.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1375.2,
+      "delay_mean": 52.16884093161088,
+      "delay_total": 37950.846170500954,
+      "conflicts_per_1000": 573.6842105263158,
+      "violations_per_1000": 385.5263157894737,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 382.89473684210526,
+      "box_blocks_per_1000": 2.6315789473684212,
+      "gridlock_share": 0.08966666666666442,
+      "gridlock_onset": 155.8,
+      "guard": 4652.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1545.6,
+      "delay_mean": 51.1257735585967,
+      "delay_total": 32536.686886467345,
+      "conflicts_per_1000": 550.5181347150259,
+      "violations_per_1000": 351.0362694300518,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 351.0362694300518,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.020733333333333447,
+      "gridlock_onset": 637.5,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 0.0,
+      "delay_mean": NaN,
+      "delay_total": 475113.6121461236,
+      "conflicts_per_1000": 908.0310880829015,
+      "violations_per_1000": 47.92746113989637,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 37.56476683937824,
+      "box_blocks_per_1000": 10.362694300518134,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 238.8,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 5,
+    "locked_runs": 3
+   },
+   "cooperative": {
+    "throughput": [
+     1224.48,
+     98.95642975736523
+    ],
+    "delay_mean": [
+     199.4510073438468,
+     95.73165366172711
+    ],
+    "delay_total": [
+     169143.11352492048,
+     20264.62083455137
+    ],
+    "conflicts_per_1000": [
+     1579.8016589997962,
+     621.4138801381195
+    ],
+    "violations_per_1000": [
+     0.0,
+     0.0
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     0.0,
+     0.0
+    ],
+    "gridlock_share": [
+     0.9991466666664882,
+     0.002369233156433278
+    ],
+    "gridlock_onset": [
+     139.42000000000002,
+     86.76603737886755
+    ],
+    "guard": [
+     0.0,
+     0.0
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.0,
+     0.0
+    ],
+    "delivery_realised": [
+     0.1125142518400731,
+     0.02299758441108772
+    ],
+    "runs": [
+     {
+      "throughput": 1106.4,
+      "delay_mean": 211.6204759034054,
+      "delay_total": 191982.11561297876,
+      "conflicts_per_1000": 1571.0659898477156,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 187.20000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1219.2,
+      "delay_mean": 69.29539903038179,
+      "delay_total": 147071.16643940067,
+      "conflicts_per_1000": 786.0824742268042,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 99.60000000000001,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1209.6,
+      "delay_mean": 202.46855382963878,
+      "delay_total": 174330.1668884916,
+      "conflicts_per_1000": 1526.3157894736842,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 107.2,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1322.4,
+      "delay_mean": 250.98765170683788,
+      "delay_total": 163714.797396308,
+      "conflicts_per_1000": 2044.041450777202,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.995733333333158,
+      "gridlock_onset": 236.20000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 1264.8,
+      "delay_mean": 262.8829562489702,
+      "delay_total": 168617.32128742323,
+      "conflicts_per_1000": 1971.5025906735752,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 66.9,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.0,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 5,
+    "locked_runs": 0
+   }
+  },
+  {
+   "rushed": 0.25,
+   "state": "fixed",
+   "sed": [
+    -0.10192816274761458,
+    0.05478996512425307
+   ],
+   "sed_pairs": 4,
+   "observed": {
+    "throughput": [
+     1530.0,
+     66.18264183992132
+    ],
+    "delay_mean": [
+     25.489017959880613,
+     2.2609172349594937
+    ],
+    "delay_total": [
+     16019.108223243118,
+     816.8468552005113
+    ],
+    "conflicts_per_1000": [
+     198.00821913848534,
+     41.685994151458374
+    ],
+    "violations_per_1000": [
+     82.7164811774137,
+     10.541881458514974
+    ],
+    "red_runs_per_1000": [
+     49.45956960230291,
+     10.593369458962009
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     8.060577454818606,
+     4.763617071917504
+    ],
+    "gridlock_share": [
+     0.0,
+     0.0
+    ],
+    "gridlock_onset": [
+     NaN,
+     NaN
+    ],
+    "guard": [
+     0.25,
+     0.7956115763209269
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.22355946945917016,
+     0.008698001479326556
+    ],
+    "delivery_realised": [
+     0.10644086040269723,
+     0.023140759331247433
+    ],
+    "runs": [
+     {
+      "throughput": 1564.8,
+      "delay_mean": 23.900746353623763,
+      "delay_total": 15510.45608040656,
+      "conflicts_per_1000": 184.01015228426397,
+      "violations_per_1000": 82.48730964467005,
+      "red_runs_per_1000": 46.954314720812185,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 10.152284263959391,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 1.0,
+      "locked": 0.0,
+      "rushed_realised": 0.21573604060913706,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1524.0,
+      "delay_mean": 26.165431750334776,
+      "delay_total": 16717.26692962513,
+      "conflicts_per_1000": 235.82474226804123,
+      "violations_per_1000": 73.45360824742268,
+      "red_runs_per_1000": 41.23711340206186,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 10.309278350515465,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22809278350515463,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1473.6,
+      "delay_mean": 27.098356716672633,
+      "delay_total": 16039.37907426954,
+      "conflicts_per_1000": 194.73684210526315,
+      "violations_per_1000": 86.84210526315789,
+      "red_runs_per_1000": 53.94736842105263,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 7.894736842105263,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22631578947368422,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1557.6,
+      "delay_mean": 24.791537018891287,
+      "delay_total": 15809.33080867124,
+      "conflicts_per_1000": 177.46113989637306,
+      "violations_per_1000": 88.08290155440415,
+      "red_runs_per_1000": 55.69948186528497,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 3.8860103626943006,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22409326424870465,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 189.6,
+      "delay_mean": 30.939823938913992,
+      "delay_total": 388386.213980248,
+      "conflicts_per_1000": 957.2538860103627,
+      "violations_per_1000": 25.906735751295336,
+      "red_runs_per_1000": 15.544041450777202,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 2.5906735751295336,
+      "gridlock_share": 0.7858666666666823,
+      "gridlock_onset": 561.3000000000001,
+      "guard": 10.0,
+      "locked": 1.0,
+      "rushed_realised": 0.22538860103626943,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 1,
+    "locked_runs": 1
+   },
+   "cooperative": {
+    "throughput": [
+     1540.8,
+     62.906265856235414
+    ],
+    "delay_mean": [
+     28.35826844998921,
+     2.3505299398238346
+    ],
+    "delay_total": [
+     17859.79657350579,
+     1535.892344491289
+    ],
+    "conflicts_per_1000": [
+     245.3614778139784,
+     60.31663297270704
+    ],
+    "violations_per_1000": [
+     0.0,
+     0.0
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     0.0,
+     0.0
+    ],
+    "gridlock_share": [
+     0.0,
+     0.0
+    ],
+    "gridlock_onset": [
+     NaN,
+     NaN
+    ],
+    "guard": [
+     1.5,
+     1.5912231526418539
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.22355946945917016,
+     0.008698001479326556
+    ],
+    "delivery_realised": [
+     0.10644086040269723,
+     0.023140759331247433
+    ],
+    "runs": [
+     {
+      "throughput": 1574.4,
+      "delay_mean": 26.200051738963428,
+      "delay_total": 16950.090642438896,
+      "conflicts_per_1000": 195.43147208121826,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 2.0,
+      "locked": 0.0,
+      "rushed_realised": 0.21573604060913706,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1524.0,
+      "delay_mean": 29.51784499239723,
+      "delay_total": 18917.43696177673,
+      "conflicts_per_1000": 287.37113402061857,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 2.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22809278350515463,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1492.8,
+      "delay_mean": 29.007692825907657,
+      "delay_total": 17138.57282596375,
+      "conflicts_per_1000": 246.05263157894737,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22631578947368422,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1572.0,
+      "delay_mean": 28.707484242688533,
+      "delay_total": 18433.085863843797,
+      "conflicts_per_1000": 252.59067357512953,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 2.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22409326424870465,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 127.2,
+      "delay_mean": 29.80375617894596,
+      "delay_total": 429005.50347021414,
+      "conflicts_per_1000": 895.0777202072538,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.8441999999999625,
+      "gridlock_onset": 473.8,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.22538860103626943,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 1,
+    "locked_runs": 1
+   }
+  },
+  {
+   "rushed": 0.25,
+   "state": "dark",
+   "sed": [
+    -0.7321110362114835,
+    0.21092085813856873
+   ],
+   "sed_pairs": 4,
+   "observed": {
+    "throughput": [
+     1444.8,
+     330.0232110707289
+    ],
+    "delay_mean": [
+     51.2573172655281,
+     4.835678741281822
+    ],
+    "delay_total": [
+     42298.63943685878,
+     32337.784623209387
+    ],
+    "conflicts_per_1000": [
+     606.8256687093974,
+     144.0905080926925
+    ],
+    "violations_per_1000": [
+     364.7119009024099,
+     86.89888701822575
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     363.7403983117363,
+     87.87200176330285
+    ],
+    "box_blocks_per_1000": [
+     0.971502590673575,
+     1.9734199233533836
+    ],
+    "gridlock_share": [
+     0.0931000000000053,
+     0.2223980858919777
+    ],
+    "gridlock_onset": [
+     662.1750000000001,
+     1093.3418169629706
+    ],
+    "guard": [
+     0.0,
+     0.0
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.22288342384194884,
+     0.007719528892671123
+    ],
+    "delivery_realised": [
+     0.11530497696225354,
+     0.03204163220011724
+    ],
+    "runs": [
+     {
+      "throughput": 1562.4,
+      "delay_mean": 55.65776363567801,
+      "delay_total": 36529.04296630889,
+      "conflicts_per_1000": 676.3959390862944,
+      "violations_per_1000": 408.6294416243655,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 408.6294416243655,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.06586666666666577,
+      "gridlock_onset": 250.20000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.21573604060913706,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 398.4,
+      "delay_mean": 42.55566148831539,
+      "delay_total": 296228.76190843264,
+      "conflicts_per_1000": 813.1443298969073,
+      "violations_per_1000": 126.28865979381443,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 125.0,
+      "box_blocks_per_1000": 1.288659793814433,
+      "gridlock_share": 0.7088666666667522,
+      "gridlock_onset": 208.3,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.22809278350515463,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1519.2,
+      "delay_mean": 48.720901031590294,
+      "delay_total": 28591.665992661598,
+      "conflicts_per_1000": 475.0,
+      "violations_per_1000": 397.36842105263156,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 397.36842105263156,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0070666666666666525,
+      "gridlock_onset": 125.10000000000001,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22631578947368422,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1562.4,
+      "delay_mean": 50.032583548695364,
+      "delay_total": 31687.65017887383,
+      "conflicts_per_1000": 623.0569948186528,
+      "violations_per_1000": 365.2849740932642,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 362.6943005181347,
+      "box_blocks_per_1000": 2.5906735751295336,
+      "gridlock_share": 0.0013333333333333337,
+      "gridlock_onset": 1640.6000000000001,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22409326424870465,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 1135.2,
+      "delay_mean": 50.618020846148745,
+      "delay_total": 72386.19860959079,
+      "conflicts_per_1000": 652.8497409326425,
+      "violations_per_1000": 287.56476683937825,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 286.26943005181346,
+      "box_blocks_per_1000": 1.2953367875647668,
+      "gridlock_share": 0.29813333333335545,
+      "gridlock_onset": 632.8000000000001,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22538860103626943,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 5,
+    "locked_runs": 1
+   },
+   "cooperative": {
+    "throughput": [
+     1237.92,
+     80.77376948463174
+    ],
+    "delay_mean": [
+     163.4229728539305,
+     67.44841720790473
+    ],
+    "delay_total": [
+     157548.01757986983,
+     12004.902278733081
+    ],
+    "conflicts_per_1000": [
+     1275.0542372398563,
+     296.9610587294869
+    ],
+    "violations_per_1000": [
+     0.0,
+     0.0
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     0.0,
+     0.0
+    ],
+    "gridlock_share": [
+     0.9900133333331633,
+     0.024957576776003014
+    ],
+    "gridlock_onset": [
+     171.76,
+     61.91538571499793
+    ],
+    "guard": [
+     0.0,
+     0.0
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.22392529577459,
+     0.005965022533037317
+    ],
+    "delivery_realised": [
+     0.1125142518400731,
+     0.02299758441108772
+    ],
+    "runs": [
+     {
+      "throughput": 1185.6,
+      "delay_mean": 155.21560504041233,
+      "delay_total": 173526.34554418764,
+      "conflicts_per_1000": 1247.46192893401,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 162.3,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.21573604060913706,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1221.6,
+      "delay_mean": 152.42856730168458,
+      "delay_total": 153690.4730408283,
+      "conflicts_per_1000": 1378.8659793814434,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 204.20000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22809278350515463,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1348.8,
+      "delay_mean": 227.7018545656199,
+      "delay_total": 147642.31234488485,
+      "conflicts_per_1000": 1348.6842105263158,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 108.80000000000001,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22631578947368422,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1197.6,
+      "delay_mean": 84.02013134580245,
+      "delay_total": 157695.03383238724,
+      "conflicts_per_1000": 883.419689119171,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9958666666664913,
+      "gridlock_onset": 236.70000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22409326424870465,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 1236.0,
+      "delay_mean": 197.7487060161332,
+      "delay_total": 155185.92313706112,
+      "conflicts_per_1000": 1516.839378238342,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9541999999998625,
+      "gridlock_onset": 146.8,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.22538860103626943,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 5,
+    "locked_runs": 0
+   }
+  },
+  {
+   "rushed": 0.5,
+   "state": "fixed",
+   "sed": [
+    -0.12281275136995488,
+    0.27724284494182627
+   ],
+   "sed_pairs": 3,
+   "observed": {
+    "throughput": [
+     1374.6000000000001,
+     470.31732951461504
+    ],
+    "delay_mean": [
+     27.05233427581887,
+     2.4626000863440023
+    ],
+    "delay_total": [
+     36286.18175783554,
+     62719.274973140244
+    ],
+    "conflicts_per_1000": [
+     295.78316216801284,
+     231.2502879834281
+    ],
+    "violations_per_1000": [
+     112.67165145249214,
+     6.4888767485926895
+    ],
+    "red_runs_per_1000": [
+     70.12205193154887,
+     14.021257864916505
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     9.737569546161222,
+     5.42044152342874
+    ],
+    "gridlock_share": [
+     0.08378333333334097,
+     0.2666359596110443
+    ],
+    "gridlock_onset": [
+     1237.3000000000002,
+     NaN
+    ],
+    "guard": [
+     0.0,
+     0.0
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.43965412118111097,
+     0.012160253940527265
+    ],
+    "delivery_realised": [
+     0.10861156480009139,
+     0.03001719245204
+    ],
+    "runs": [
+     {
+      "throughput": 369.6,
+      "delay_mean": 24.308751147893947,
+      "delay_total": 309608.75591091067,
+      "conflicts_per_1000": 739.8477157360406,
+      "violations_per_1000": 53.2994923857868,
+      "red_runs_per_1000": 41.878172588832484,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 2.5380710659898478,
+      "gridlock_share": 0.7111333333334169,
+      "gridlock_onset": 673.4000000000001,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.4352791878172589,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1519.2,
+      "delay_mean": 27.114465039472424,
+      "delay_total": 17480.95391576547,
+      "conflicts_per_1000": 243.55670103092783,
+      "violations_per_1000": 106.95876288659794,
+      "red_runs_per_1000": 63.144329896907216,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 14.175257731958762,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.42912371134020616,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1485.6,
+      "delay_mean": 27.688141221624246,
+      "delay_total": 16385.1166661769,
+      "conflicts_per_1000": 196.05263157894737,
+      "violations_per_1000": 113.15789473684211,
+      "red_runs_per_1000": 65.78947368421052,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 10.526315789473685,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4473684210526316,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1560.0,
+      "delay_mean": 24.89592758540181,
+      "delay_total": 15877.351273370223,
+      "conflicts_per_1000": 231.86528497409327,
+      "violations_per_1000": 116.58031088082902,
+      "red_runs_per_1000": 68.65284974093264,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 7.772020725388601,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.44041450777202074,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 933.6,
+      "delay_mean": 28.510803256776995,
+      "delay_total": 95401.30517602956,
+      "conflicts_per_1000": 511.6580310880829,
+      "violations_per_1000": 113.98963730569949,
+      "red_runs_per_1000": 82.90155440414507,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 6.476683937823834,
+      "gridlock_share": 0.33513333333336387,
+      "gridlock_onset": 1237.3000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4417098445595855,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 2,
+    "locked_runs": 1
+   },
+   "cooperative": {
+    "throughput": [
+     1402.2,
+     390.89406427958886
+    ],
+    "delay_mean": [
+     29.896189721733087,
+     3.825525036278592
+    ],
+    "delay_total": [
+     32310.686570895734,
+     42249.86704609664
+    ],
+    "conflicts_per_1000": [
+     314.00973464659984,
+     102.48759652814233
+    ],
+    "violations_per_1000": [
+     0.0,
+     0.0
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     0.0,
+     0.0
+    ],
+    "gridlock_share": [
+     0.06261666666666948,
+     0.1992741794825238
+    ],
+    "gridlock_onset": [
+     1364.4,
+     NaN
+    ],
+    "guard": [
+     0.0,
+     0.0
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.43804645699552935,
+     0.012318021711753576
+    ],
+    "delivery_realised": [
+     0.10644086040269723,
+     0.023140759331247433
+    ],
+    "runs": [
+     {
+      "throughput": 1039.2,
+      "delay_mean": 27.905381952870243,
+      "delay_total": 72069.36463280156,
+      "conflicts_per_1000": 406.0913705583756,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.25046666666667794,
+      "gridlock_onset": 1364.4,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4352791878172589,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1519.2,
+      "delay_mean": 28.751701146967903,
+      "delay_total": 18420.649605490813,
+      "conflicts_per_1000": 269.3298969072165,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.42912371134020616,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1473.6,
+      "delay_mean": 29.57287616205762,
+      "delay_total": 17543.58630155209,
+      "conflicts_per_1000": 269.7368421052632,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4473684210526316,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1576.8,
+      "delay_mean": 33.354799625036584,
+      "delay_total": 21209.145743738463,
+      "conflicts_per_1000": 310.88082901554407,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": NaN,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.44041450777202074,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 122.4,
+      "delay_mean": 31.746520579985994,
+      "delay_total": 428157.76633056795,
+      "conflicts_per_1000": 794.041450777202,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.8475333333332928,
+      "gridlock_onset": 468.8,
+      "guard": 0.0,
+      "locked": 1.0,
+      "rushed_realised": 0.4417098445595855,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 2,
+    "locked_runs": 1
+   }
+  },
+  {
+   "rushed": 0.5,
+   "state": "dark",
+   "sed": [
+    -0.8109646980988752,
+    0.018826534821780448
+   ],
+   "sed_pairs": 5,
+   "observed": {
+    "throughput": [
+     1543.2,
+     19.767041269125105
+    ],
+    "delay_mean": [
+     49.14127344829886,
+     1.985873397126287
+    ],
+    "delay_total": [
+     31008.71864791467,
+     2598.5954050998917
+    ],
+    "conflicts_per_1000": [
+     555.2786857672666,
+     37.724575364031416
+    ],
+    "violations_per_1000": [
+     407.4813544012994,
+     35.057932435044535
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     406.44099443402376,
+     35.81508120483008
+    ],
+    "box_blocks_per_1000": [
+     1.0403599672757022,
+     1.347226122412604
+    ],
+    "gridlock_share": [
+     0.017466666666666804,
+     0.0186511544594815
+    ],
+    "gridlock_onset": [
+     314.84000000000003,
+     286.5548212029968
+    ],
+    "guard": [
+     1.2,
+     2.2211560841582343
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.43877913450834055,
+     0.008569194864303716
+    ],
+    "delivery_realised": [
+     0.1125142518400731,
+     0.02299758441108772
+    ],
+    "runs": [
+     {
+      "throughput": 1555.2,
+      "delay_mean": 49.933797674424284,
+      "delay_total": 33078.14679826155,
+      "conflicts_per_1000": 591.3705583756346,
+      "violations_per_1000": 398.47715736040607,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 398.47715736040607,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.028800000000000228,
+      "gridlock_onset": 244.20000000000002,
+      "guard": 4.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4352791878172589,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1548.0,
+      "delay_mean": 51.01969383607039,
+      "delay_total": 32119.032117841412,
+      "conflicts_per_1000": 572.1649484536083,
+      "violations_per_1000": 449.74226804123714,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 449.74226804123714,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.0,
+      "gridlock_onset": 175.8,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.42912371134020616,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1526.4,
+      "delay_mean": 47.109548969349355,
+      "delay_total": 27710.26692135279,
+      "conflicts_per_1000": 510.5263157894737,
+      "violations_per_1000": 421.05263157894734,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 419.7368421052632,
+      "box_blocks_per_1000": 1.3157894736842106,
+      "gridlock_share": 0.0020666666666666676,
+      "gridlock_onset": 126.0,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4473684210526316,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1560.0,
+      "delay_mean": 47.88809370941897,
+      "delay_total": 30320.530607206863,
+      "conflicts_per_1000": 556.9948186528497,
+      "violations_per_1000": 379.53367875647666,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 378.2383419689119,
+      "box_blocks_per_1000": 1.2953367875647668,
+      "gridlock_share": 0.028266666666666888,
+      "gridlock_onset": 322.20000000000005,
+      "guard": 2.0,
+      "locked": 0.0,
+      "rushed_realised": 0.44041450777202074,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 1526.4,
+      "delay_mean": 49.75523305223128,
+      "delay_total": 31815.61679491075,
+      "conflicts_per_1000": 545.3367875647668,
+      "violations_per_1000": 388.60103626943004,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 386.0103626943005,
+      "box_blocks_per_1000": 2.5906735751295336,
+      "gridlock_share": 0.02820000000000022,
+      "gridlock_onset": 706.0,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4417098445595855,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 5,
+    "locked_runs": 0
+   },
+   "cooperative": {
+    "throughput": [
+     1211.04,
+     102.48752105956707
+    ],
+    "delay_mean": [
+     177.84304651223943,
+     93.15659420466466
+    ],
+    "delay_total": [
+     164318.66360236233,
+     10216.151053101272
+    ],
+    "conflicts_per_1000": [
+     1398.3702389787934,
+     317.2209740109076
+    ],
+    "violations_per_1000": [
+     0.0,
+     0.0
+    ],
+    "red_runs_per_1000": [
+     0.0,
+     0.0
+    ],
+    "forced_per_1000": [
+     0.0,
+     0.0
+    ],
+    "box_blocks_per_1000": [
+     0.0,
+     0.0
+    ],
+    "gridlock_share": [
+     0.9994533333331546,
+     0.0015177899908400602
+    ],
+    "gridlock_onset": [
+     155.58,
+     70.52385902373757
+    ],
+    "guard": [
+     0.2,
+     0.5552890210395588
+    ],
+    "locked": [
+     0.0,
+     0.0
+    ],
+    "rushed_realised": [
+     0.43877913450834055,
+     0.008569194864303716
+    ],
+    "delivery_realised": [
+     0.1125142518400731,
+     0.02299758441108772
+    ],
+    "runs": [
+     {
+      "throughput": 1096.8,
+      "delay_mean": 74.94285930920658,
+      "delay_total": 166132.077052379,
+      "conflicts_per_1000": 1064.7208121827412,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.99726666666649,
+      "gridlock_onset": 187.10000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4352791878172589,
+      "delivery_realised": 0.128125
+     },
+     {
+      "throughput": 1214.4,
+      "delay_mean": 150.86982950660084,
+      "delay_total": 164137.76644669767,
+      "conflicts_per_1000": 1342.7835051546392,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 100.9,
+      "guard": 1.0,
+      "locked": 0.0,
+      "rushed_realised": 0.42912371134020616,
+      "delivery_realised": 0.10135135135135136
+     },
+     {
+      "throughput": 1329.6,
+      "delay_mean": 233.04198989512224,
+      "delay_total": 158944.05163370466,
+      "conflicts_per_1000": 1426.3157894736842,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 107.0,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4473684210526316,
+      "delivery_realised": 0.0975609756097561
+     },
+     {
+      "throughput": 1214.4,
+      "delay_mean": 266.9697666933572,
+      "delay_total": 176950.21444193376,
+      "conflicts_per_1000": 1779.7927461139896,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 236.10000000000002,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.44041450777202074,
+      "delivery_realised": 0.09872611464968153
+     },
+     {
+      "throughput": 1200.0,
+      "delay_mean": 163.39078715691022,
+      "delay_total": 155429.20843709644,
+      "conflicts_per_1000": 1378.238341968912,
+      "violations_per_1000": 0.0,
+      "red_runs_per_1000": 0.0,
+      "forced_per_1000": 0.0,
+      "box_blocks_per_1000": 0.0,
+      "gridlock_share": 0.9999999999998208,
+      "gridlock_onset": 146.8,
+      "guard": 0.0,
+      "locked": 0.0,
+      "rushed_realised": 0.4417098445595855,
+      "delivery_realised": 0.13680781758957655
+     }
+    ],
+    "gridlocked_runs": 5,
+    "locked_runs": 0
+   }
+  }
+ ]
+}

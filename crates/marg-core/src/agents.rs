@@ -120,6 +120,16 @@ pub struct AgentStore {
     /// It may pass the stop line ahead whatever the line shows: it took a
     /// gap, or could not stop when the signal changed.
     pub gate_open: Vec<bool>,
+    /// It decided to cross its stop line on red (a `red_light` or
+    /// `early_start` act): the light does not hold it, standing or not,
+    /// until it has crossed (ADR-0019).
+    pub runs_red: Vec<bool>,
+    /// It decided to enter a junction whose way through is not clear (a
+    /// `box_blocking` act), until it has crossed its stop line.
+    pub box_block: Vec<bool>,
+    /// When it saw its movement's last amber begin (NaN: never), so it
+    /// knows how long the red has lasted.
+    pub saw_amber: Vec<f64>,
     /// When it began to wait at the stop line ahead (NaN: not waiting).
     pub wait_since: Vec<f64>,
     /// The conflicting vehicle that ends the gap it is looking at.
@@ -286,6 +296,9 @@ macro_rules! each_column {
         $m!($s.turn_junction);
         $m!($s.turn_out);
         $m!($s.gate_open);
+        $m!($s.runs_red);
+        $m!($s.box_block);
+        $m!($s.saw_amber);
         $m!($s.wait_since);
         $m!($s.gap_ref);
         $m!($s.gap_rejected);
@@ -390,6 +403,9 @@ impl AgentStore {
         self.turn_junction.push(NO_RIBBON);
         self.turn_out.push(0);
         self.gate_open.push(false);
+        self.runs_red.push(false);
+        self.box_block.push(false);
+        self.saw_amber.push(f64::NAN);
         self.wait_since.push(f64::NAN);
         self.gap_ref.push(NO_AGENT);
         self.gap_rejected.push(f64::NAN);

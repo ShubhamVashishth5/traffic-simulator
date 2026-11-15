@@ -15,7 +15,9 @@ use crate::agents::{
 };
 use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::gridlock::Gridlock;
-use crate::junctions::{Junctions, chord_pose, draw_turn, onward};
+use crate::junctions::{
+    Junctions, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, chord_pose, draw_turn, onward,
+};
 use crate::model::coverage::Coverage;
 use crate::model::decision::{Features, HazardClock};
 use crate::model::geometry::{Body, overlap, penetration};
@@ -37,12 +39,14 @@ pub use crate::scan::Interaction;
 use crate::scan::{Barrier, FixedTime, MoveCtx, MoveOut, centre_bounds, conflict_kind_name};
 use crate::stopping::Stopping;
 use crate::surface::Surface;
-use crate::violations::{Episode, Episodes, Kind, Pose, counts_in_view, episode_counter, read};
+use crate::violations::{
+    Episode, Episodes, Kind, Pose, counts_in_view, decide_once, episode_counter, read,
+};
 use crate::width::WidthObservers;
 use marg_net::Network;
-use marg_net::junction::Control;
 use marg_params::spec::JunctionKind;
 use marg_params::spec::ObjectSpec;
+use marg_params::spec::{ControlState, CountdownState};
 use marg_params::{ResolvedSpec, Scenario, VehicleClass, VehicleType};
 use rayon::prelude::*;
 
@@ -347,7 +351,8 @@ impl Simulation {
         let widths = WidthObservers::new(&scenario.outputs.effective_width, &net, &p)
             .map_err(SimError::InvalidScenario)?;
         let narrow = Narrowings::new(&net);
-        let junctions = Junctions::new(&net, &p).map_err(SimError::InvalidScenario)?;
+        let junctions = Junctions::new(&net, &p, seed, scenario.start_time_h)
+            .map_err(SimError::InvalidScenario)?;
         let gridlock = Gridlock::new(
             &scenario.detectors,
             ribbon_of,
@@ -774,6 +779,35 @@ impl Simulation {
         self.objects.remove(id, self.t).map_err(SimError::Object)
     }
 
+    /// Put the signal of junction `junction` (its id) in `state` (`fixed`,
+    /// `blinker`, `dark` or `police`) from the next step on: the viewer's
+    /// live toggle (P8.7). An outage still overlays it.
+    pub fn set_control(&mut self, junction: &str, state: &str) -> Result<(), SimError> {
+        let bad = |m: String| SimError::InvalidScenario(format!("junction `{junction}`: {m}"));
+        let j = self
+            .net
+            .junctions
+            .iter()
+            .position(|j| j.id == junction)
+            .ok_or_else(|| bad("no such junction".into()))?;
+        let s = ControlState::parse(state).ok_or_else(|| {
+            bad(format!(
+                "unknown state `{state}` (fixed, blinker, dark or police)"
+            ))
+        })?;
+        self.junctions.request(j, s).map_err(bad)
+    }
+
+    /// The state of every signal's controller now, by junction id.
+    pub fn control_states(&self) -> Vec<(String, ControlState)> {
+        self.net
+            .junctions
+            .iter()
+            .enumerate()
+            .filter_map(|(j, jn)| self.junctions.control_state(j).map(|s| (jn.id.clone(), s)))
+            .collect()
+    }
+
     /// Every conflict episode closed so far.
     pub fn conflicts(&self) -> &[ConflictRecord] {
         &self.conflicts
@@ -960,15 +994,36 @@ impl Simulation {
                     s: f64::NAN,
                     y: f64::NAN,
                     attrs: format!(
-                        "{{\"junction\":{},\"phase\":{},\"state\":\"{}\",\"lasts_s\":{}}}",
+                        "{{\"junction\":{},\"phase\":{},\"state\":\"{}\",\"lasts_s\":{},\"control\":\"{}\"}}",
                         json_string(&j.id),
                         ch.phase,
                         ch.state,
-                        ch.lasts
+                        ch.lasts,
+                        ch.control.key()
                     ),
                 });
             },
         );
+        for ch in self.junctions.control_log.drain(..) {
+            events.push(EventRecord {
+                t: ch.t,
+                kind: "control_state",
+                agent_id: NO_AGENT,
+                ribbon: String::new(),
+                s: f64::NAN,
+                y: f64::NAN,
+                attrs: format!(
+                    "{{\"junction\":{},\"from\":\"{}\",\"to\":\"{}\",\"cause\":\"{}\"}}",
+                    json_string(&net.junctions[ch.junction].id),
+                    ch.from.key(),
+                    ch.to.key(),
+                    ch.cause
+                ),
+            });
+        }
+        if !self.junctions.amber_options.is_empty() {
+            self.amber_go(t);
+        }
         let mut buf = std::mem::take(&mut self.move_buf);
         {
             let ctx = self.move_ctx();
@@ -1051,6 +1106,15 @@ impl Simulation {
         self.record_junction(i, jo, t);
         if self.p.violations.active(Kind::ForcedEntry) {
             self.forced_entry(i, jo, t);
+        }
+        if self.p.violations.red_light_rules() {
+            self.red_light_rules(i, jo, t);
+        }
+        if self.p.violations.active(Kind::AmberGo) {
+            self.keep_acted(i, Kind::AmberGo);
+        }
+        if self.p.violations.active(Kind::BoxBlocking) {
+            self.box_blocking(i, jo, t);
         }
         match self.agents.split_state[i] {
             SPLIT_GAVE_UP | SPLIT_UNAWARE => self.take_branch_in(i, t, false),
@@ -2026,11 +2090,23 @@ impl Simulation {
             } else {
                 t
             };
-            self.junctions.crossed(j, arm, t_cross, a.queued[i]);
+            let red = self.junctions.crossed(j, arm, n, t_cross, a.queued[i]);
             let jn = &self.net.junctions[j];
             let out = usize::from(a.turn_out[i]);
             let movement = jn.movement_of[arm][out].map(|m| jn.movements[m].turn);
             if Junctions::countdown(&self.net, j).is_some() {
+                // What let it over a red line: its own decision, or that it
+                // could not stop at amber.
+                let act = self
+                    .episodes
+                    .list
+                    .iter()
+                    .find(|e| e.agent == a.id[i] && e.acted && e.junction as usize == j)
+                    .map_or("null".to_string(), |e| format!("\"{}\"", e.kind.key()));
+                let red_attrs = match red {
+                    Some((into, length)) => format!(",\"into_red_s\":{into},\"red_s\":{length}"),
+                    None => String::new(),
+                };
                 self.events.push(EventRecord {
                     t: t_cross,
                     kind: "stop_line_crossed",
@@ -2039,7 +2115,7 @@ impl Simulation {
                     s: rib.length(),
                     y: a.y[i],
                     attrs: format!(
-                        "{{\"junction\":{},\"arm\":{},\"to\":{},\"queued\":{},\"waited_s\":{},\"speed\":{},\"light\":{}}}",
+                        "{{\"junction\":{},\"arm\":{},\"to\":{},\"queued\":{},\"waited_s\":{},\"speed\":{},\"light\":{},\"control\":\"{}\",\"act\":{act}{red_attrs}}}",
                         json_string(&jn.id),
                         json_string(&jn.arms[arm].id),
                         json_string(&jn.arms[out].id),
@@ -2050,7 +2126,10 @@ impl Simulation {
                             t_cross - a.wait_since[i]
                         },
                         a.v[i],
-                        self.junctions.light[n]
+                        self.junctions.light[n],
+                        self.junctions
+                            .control_state(j)
+                            .map_or("none", ControlState::key)
                     ),
                 });
             }
@@ -2097,6 +2176,9 @@ impl Simulation {
             }
             let a = &mut self.agents;
             a.land_y[i] = land;
+            // A decision to run the red or to enter a blocked box is used up.
+            a.runs_red[i] = false;
+            a.box_block[i] = false;
             // A gap taken for a wait inside the junction (under a signal)
             // still holds there; the stop line's own gate is used up.
             let signal = self.junctions.light[n] != crate::junctions::LIGHT_NONE;
@@ -2123,6 +2205,8 @@ impl Simulation {
             let a = &mut self.agents;
             a.land_y[i] = f64::NAN;
             a.gate_open[i] = false;
+            a.runs_red[i] = false;
+            a.box_block[i] = false;
             a.wait_since[i] = f64::NAN;
             a.queued[i] = false;
             a.line_held[i] = false;
@@ -2298,9 +2382,11 @@ impl Simulation {
             return;
         }
         let j = self.agents.turn_junction[i] as usize;
-        let uncontrolled = self.net.junctions.get(j).is_some_and(|jn| {
-            matches!(jn.control, Control::Uncontrolled) && jn.kind != JunctionKind::Roundabout
-        });
+        // Uncontrolled now: no signal, or one that is dark or blinking.
+        let uncontrolled =
+            self.net.junctions.get(j).is_some_and(|jn| {
+                !self.junctions.signalised(j) && jn.kind != JunctionKind::Roundabout
+            });
         let a = &self.agents;
         // Still waiting at this line; the trigger needs a gap in view too.
         let waiting = uncontrolled
@@ -2417,6 +2503,391 @@ impl Simulation {
             self.act(e, t);
             self.agents.gate_open[i] = true;
         }
+    }
+
+    /// An act of `kind` by agent `i` under way: it counts as a violator in
+    /// view until it has left the junction. Returns whether there is one.
+    fn keep_acted(&mut self, i: usize, kind: Kind) -> bool {
+        let id = self.agents.id[i];
+        let Some(e) = self.episodes.find(id, kind) else {
+            return false;
+        };
+        if !self.episodes.list[e].acted {
+            return false;
+        }
+        let r = self.agents.ribbon[i];
+        let inside = r == self.episodes.list[e].ribbon || self.net.ribbon(r as usize).internal;
+        if inside {
+            let ep = &mut self.episodes.list[e];
+            ep.touched = self.step;
+            ep.idx = i as u32;
+        } else {
+            self.episodes.list.remove(e);
+        }
+        true
+    }
+
+    /// One step of agent `i`'s episode of continuous type `kind` at junction
+    /// `j` (ADR-0018 part 1): end it, pause its clock, or read the rule at
+    /// its start, its decision ticks and after anybody acted. `features`
+    /// gives what the agent perceives (the imitation counts and its
+    /// episode's start are passed in). Returns whether it acts now.
+    fn continuous(
+        &mut self,
+        i: usize,
+        kind: Kind,
+        j: usize,
+        seen: Seen,
+        t: f64,
+        features: impl FnOnce(&Self, (u32, u32), f64) -> Features,
+    ) -> bool {
+        let id = self.agents.id[i];
+        let found = self.episodes.find(id, kind);
+        match seen {
+            Seen::Off(reason) => {
+                if let Some(e) = found {
+                    self.end_episode(e, t, reason);
+                }
+                return false;
+            }
+            Seen::Paused => {
+                if let Some(e) = found {
+                    let ep = &mut self.episodes.list[e];
+                    ep.touched = self.step;
+                    ep.idx = i as u32;
+                    ep.clock.skip_to(t);
+                }
+                return false;
+            }
+            Seen::On => {}
+        }
+        let due = found.is_none()
+            || self.episodes.recount
+            || self
+                .step
+                .wrapping_add(id)
+                .is_multiple_of(self.decision_steps);
+        if let Some(e) = found {
+            let ep = &mut self.episodes.list[e];
+            ep.touched = self.step;
+            ep.idx = i as u32;
+            if self.agents.distracted[i] {
+                // A distracted driver does not re-read its trigger.
+                ep.clock.skip_to(t);
+                return false;
+            }
+            if !due {
+                return false;
+            }
+        }
+        let vp = &self.p.violations;
+        let counts = counts_in_view(
+            vp,
+            &self.episodes,
+            id,
+            kind,
+            self.pose(i),
+            |k| self.pose(k as usize),
+            self.p.stop_speed_below,
+        );
+        let t_start = found.map_or(t, |e| self.episodes.list[e].t_start);
+        let f = features(self, counts, t_start);
+        let a = &self.agents;
+        let c = vp.coefficients(kind, a.persona[i], &a.traits[i], &self.p.personas);
+        let reading = read(kind, t, &c, f, vp.max_rate);
+        match found {
+            None => {
+                let serial = self.episodes.next_serial(id, kind);
+                let u = StreamRng::at(
+                    self.seed,
+                    StreamKind::Decisions,
+                    id,
+                    episode_counter(kind, serial),
+                )
+                .uniform();
+                self.episodes.list.push(Episode {
+                    agent: id,
+                    idx: i as u32,
+                    kind,
+                    serial,
+                    t_start: t,
+                    clock: HazardClock::start(t, reading.rate, u),
+                    draw: u,
+                    acted: false,
+                    junction: j as u32,
+                    ribbon: self.agents.ribbon[i],
+                    touched: self.step,
+                    last: reading,
+                });
+                false
+            }
+            Some(e) => {
+                let ep = &mut self.episodes.list[e];
+                ep.last = reading;
+                if ep.clock.advance(t, reading.rate) {
+                    self.act(e, t);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    /// Perceived enforcement at junction `j` (P9's detection field is not
+    /// built): 1 while a traffic officer controls it, else 0 (ADR-0019).
+    fn enforcement_at(&self, j: usize) -> f64 {
+        if self.junctions.control_state(j) == Some(ControlState::Police) {
+            1.0
+        } else {
+            0.0
+        }
+    }
+
+    /// Red-light running and early start (G§4.2, ADR-0019). Both are
+    /// continuous triggers of a vehicle at the front of a red line, within
+    /// its comfortable stopping distance of where it would stand (or
+    /// standing there): `red_light` for the whole red, `early_start` only
+    /// with a working countdown, standing, in the change interval before
+    /// its green. Their clocks compete; the first to fire decides. Acting,
+    /// it crosses its line whatever the light shows; inside, the junction's
+    /// arbitration decides who goes first (ADR-0016 part 4).
+    fn red_light_rules(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        if self.keep_acted(i, Kind::RedLight) | self.keep_acted(i, Kind::EarlyStart) {
+            return;
+        }
+        let j = self.agents.turn_junction[i] as usize;
+        let first = jo.first as usize;
+        let signal =
+            jo.first != NO_RIBBON && j < self.net.junctions.len() && self.junctions.signalised(j);
+        let a = &self.agents;
+        let v = a.v[i];
+        let zone = v * v / (2.0 * a.comfortable_decel[i]) + 2.0 * a.standstill_gap[i];
+        let at_red = signal
+            && jo.light == LIGHT_RED
+            && jo.signal_held
+            && !a.runs_red[i]
+            && jo.line_gap <= zone;
+        let front = at_red && jo.line_binds && !jo.runner_gap.is_nan();
+        let ended = if jo.light == LIGHT_GREEN {
+            "green"
+        } else {
+            "trigger_ended"
+        };
+        let standing = v < self.p.stop_speed_below;
+        let (remaining, window) = if at_red {
+            (
+                self.junctions.next_green[first] - t,
+                self.junctions.change_before_green[first],
+            )
+        } else {
+            (f64::NAN, f64::NAN)
+        };
+        let countdown = at_red
+            && self.junctions.control_state(j) == Some(ControlState::Fixed)
+            && Junctions::countdown(&self.net, j) == Some(CountdownState::Working);
+        let risk = if jo.runner_needed > 0.0 {
+            (1.0 - jo.runner_gap / jo.runner_needed).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let enforcement = if signal { self.enforcement_at(j) } else { 0.0 };
+        let waited = if a.wait_since[i].is_nan() {
+            0.0
+        } else {
+            t - a.wait_since[i]
+        };
+        let mut fired = None;
+        if self.p.violations.active(Kind::RedLight) {
+            let seen = if front {
+                Seen::On
+            } else if at_red {
+                Seen::Paused
+            } else {
+                Seen::Off(ended)
+            };
+            let (saw, amber_start, red_start) = if at_red {
+                (
+                    a.saw_amber[i],
+                    self.junctions.amber_start[first],
+                    self.junctions.red_start[first],
+                )
+            } else {
+                (f64::NAN, f64::NAN, f64::NAN)
+            };
+            let wait_since = a.wait_since[i];
+            let knows = countdown || saw == amber_start;
+            if self.continuous(i, Kind::RedLight, j, seen, t, |s, (nv, nc), t0| {
+                // The red still to come as the driver can judge it: shown
+                // by a working countdown, or known from the cycle if it saw
+                // the red begin; otherwise the mean of what is left of a
+                // red of the cycle's length, given how long it has watched.
+                let length = s.junctions.next_green[first] - red_start;
+                let time_saved = if knows {
+                    remaining
+                } else {
+                    let watching =
+                        red_start.max(t0.min(if wait_since.is_nan() { t } else { wait_since }));
+                    0.5 * (length - (t - watching)).max(0.0)
+                };
+                Features {
+                    kappa: s.agents.kappa[i],
+                    time_saved: time_saved.max(0.0),
+                    waiting_time: waited,
+                    n_violating: nv,
+                    n_complying: nc,
+                    enforcement,
+                    risk,
+                }
+            }) {
+                fired = Some(Kind::RedLight);
+            }
+        }
+        if fired.is_none() && self.p.violations.active(Kind::EarlyStart) {
+            let in_window = countdown && remaining <= window;
+            let seen = if front && standing && in_window {
+                Seen::On
+            } else if in_window {
+                Seen::Paused
+            } else {
+                Seen::Off(ended)
+            };
+            if self.continuous(i, Kind::EarlyStart, j, seen, t, |s, (nv, nc), _| Features {
+                kappa: s.agents.kappa[i],
+                time_saved: remaining.max(0.0),
+                waiting_time: waited,
+                n_violating: nv,
+                n_complying: nc,
+                enforcement,
+                risk,
+            }) {
+                fired = Some(Kind::EarlyStart);
+            }
+        }
+        if let Some(kind) = fired {
+            // The competing clock is over: it went the other way.
+            let other = if kind == Kind::RedLight {
+                Kind::EarlyStart
+            } else {
+                Kind::RedLight
+            };
+            if let Some(e) = self.episodes.find(self.agents.id[i], other) {
+                self.end_episode(e, t, "other_type_acted");
+            }
+            self.agents.runs_red[i] = true;
+            self.agents.gate_open[i] = true;
+        }
+    }
+
+    /// Box blocking (G§4.2, ADR-0019): standing at its line on green (or at
+    /// a junction without lights), held because its way through is not
+    /// clear (ADR-0016), a driver may enter anyway and stand in the
+    /// junction. A continuous trigger; its waiting time counts from the
+    /// episode's start.
+    fn box_blocking(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        if self.keep_acted(i, Kind::BoxBlocking) {
+            return;
+        }
+        let j = self.agents.turn_junction[i] as usize;
+        let a = &self.agents;
+        let blocked = jo.blocked
+            && j < self.net.junctions.len()
+            && (jo.light == LIGHT_GREEN || jo.light == LIGHT_NONE)
+            && !a.box_block[i];
+        let seen = if blocked && a.v[i] < self.p.stop_speed_below {
+            Seen::On
+        } else if blocked {
+            Seen::Paused
+        } else {
+            Seen::Off("way_clear")
+        };
+        let enforcement = self.enforcement_at(j.min(self.net.junctions.len().saturating_sub(1)));
+        if self.continuous(i, Kind::BoxBlocking, j, seen, t, |s, (nv, nc), t0| {
+            Features {
+                kappa: s.agents.kappa[i],
+                time_saved: 0.0,
+                waiting_time: t - t0,
+                n_violating: nv,
+                n_complying: nc,
+                enforcement,
+                risk: 0.0,
+            }
+        }) {
+            self.agents.box_block[i] = true;
+        }
+    }
+
+    /// Amber go (G§4.2, ADR-0019): at amber onset, each vehicle in the
+    /// option zone (it can still stop at the safe braking limit and would
+    /// reach the line within the amber at its speed) decides once whether
+    /// to go. Time saved is the red it would otherwise wait; risk is how
+    /// late into the amber it would cross. Going, it may pass the line
+    /// whatever it shows (as one that cannot stop does).
+    fn amber_go(&mut self, t: f64) {
+        let options = std::mem::take(&mut self.junctions.amber_options);
+        let kind = Kind::AmberGo;
+        for o in &options {
+            let i = o.i as usize;
+            let id = self.agents.id[i];
+            if self.episodes.find(id, kind).is_some() {
+                continue;
+            }
+            let j = o.junction as usize;
+            let vp = &self.p.violations;
+            let (nv, nc) = counts_in_view(
+                vp,
+                &self.episodes,
+                id,
+                kind,
+                self.pose(i),
+                |k| self.pose(k as usize),
+                self.p.stop_speed_below,
+            );
+            let a = &self.agents;
+            let f = Features {
+                kappa: a.kappa[i],
+                time_saved: o.red_s.max(0.0),
+                waiting_time: 0.0,
+                n_violating: nv,
+                n_complying: nc,
+                enforcement: self.enforcement_at(j),
+                risk: (o.gap / a.v[i] / o.amber_s).clamp(0.0, 1.0),
+            };
+            let c = vp.coefficients(kind, a.persona[i], &a.traits[i], &self.p.personas);
+            let reading = read(kind, t, &c, f, vp.max_rate);
+            let serial = self.episodes.next_serial(id, kind);
+            let u = StreamRng::at(
+                self.seed,
+                StreamKind::Decisions,
+                id,
+                episode_counter(kind, serial),
+            )
+            .uniform();
+            let go = decide_once(&reading, u);
+            self.episodes.list.push(Episode {
+                agent: id,
+                idx: i as u32,
+                kind,
+                serial,
+                t_start: t,
+                clock: HazardClock::start(t, 0.0, u),
+                draw: u,
+                acted: false,
+                junction: j as u32,
+                ribbon: self.agents.ribbon[i],
+                touched: self.step,
+                last: reading,
+            });
+            let e = self.episodes.list.len() - 1;
+            if go {
+                self.act(e, t);
+                self.agents.gate_open[i] = true;
+            } else {
+                self.end_episode(e, t, "stopped");
+            }
+        }
+        self.junctions.amber_options = options;
+        self.junctions.amber_options.clear();
     }
 
     /// Episode `e` acts: count it, log it with its terms, and let everybody
@@ -2969,10 +3440,38 @@ impl Simulation {
                 "forced_entries",
                 self.episodes.acts[Kind::ForcedEntry as usize] as f64,
             ),
+            (
+                "red_light_runs",
+                self.episodes.acts[Kind::RedLight as usize] as f64,
+            ),
+            (
+                "early_starts",
+                self.episodes.acts[Kind::EarlyStart as usize] as f64,
+            ),
+            (
+                "amber_goes",
+                self.episodes.acts[Kind::AmberGo as usize] as f64,
+            ),
+            (
+                "box_blocks",
+                self.episodes.acts[Kind::BoxBlocking as usize] as f64,
+            ),
             ("gridlock_share", self.gridlock.share(self.t)),
             ("gridlock_onset_s", self.gridlock.onset()),
         ]
     }
+}
+
+/// What a continuous violation trigger says about an agent this step.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Seen {
+    /// The trigger holds: the hazard runs.
+    On,
+    /// Still in the situation, but the trigger does not hold now (a vehicle
+    /// came in front, nothing read): the episode goes on, its clock paused.
+    Paused,
+    /// The situation is over, for this reason.
+    Off(&'static str),
 }
 
 /// Counter block of the U-turn path draw (`StreamKind::Decisions`).

@@ -9,6 +9,8 @@ pub mod junction;
 pub mod network;
 pub mod ribbon;
 
-pub use junction::{Arm, ConflictArea, ConflictKind, Control, Junction, Movement, Phase, Turn};
+pub use junction::{
+    Arm, ConflictArea, ConflictKind, Control, Junction, Movement, Phase, Turn, two_way_stop_rank,
+};
 pub use network::{NetError, Network};
 pub use ribbon::Ribbon;

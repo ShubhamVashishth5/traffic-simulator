@@ -10,7 +10,9 @@
 use crate::agents::{
     NO_AGENT, NO_RIBBON, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_UNAWARE, SPLIT_WAIT,
 };
-use crate::junctions::{LIGHT_AMBER, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, chord_pose, onward};
+use crate::junctions::{
+    LIGHT_AMBER, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, MODE_MUTUAL, chord_pose, onward,
+};
 use crate::model::lateral::{edge_gap, leader_weight, steering_speed};
 use crate::model::longitudinal::Idm;
 use crate::rng::{StreamKind, StreamRng};
@@ -27,6 +29,17 @@ const RING_BASE: u64 = 4 << 40;
 const CHAIN: usize = 6;
 /// Ribbons upstream of a conflict area searched for vehicles coming to it.
 const UPSTREAM: usize = 8;
+
+/// Which conflicting streams a gap is read in ([`MoveCtx::gap_offer`]).
+/// Priority: the streams that rank above the movement (and have green,
+/// under a signal).
+const GAP_PRIORITY: u8 = 0;
+/// Mutual: every conflicting stream (a dark junction, ADR-0019).
+const GAP_MUTUAL: u8 = 1;
+/// A red-light runner's: every conflicting stream that is moving: those
+/// with green, those on amber that cannot stop, and every vehicle already
+/// inside the junction (ADR-0019).
+const GAP_RUNNER: u8 = 2;
 
 /// What the junction part of the move phase decided for one agent.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -52,6 +65,22 @@ pub struct JunctionOut {
     pub needed_move: f64,
     /// It waits inside the junction for a gap in a priority stream.
     pub waiting: bool,
+    /// What the signal shows its movement (`LIGHT_*`), whether the signal
+    /// holds it (red, or amber it can stop for), whether the line is its
+    /// most constraining leader, and the gap from its front to the line (m).
+    pub light: u8,
+    /// Its movement's first ribbon ([`NO_RIBBON`]: no line ahead).
+    pub first: u32,
+    pub signal_held: bool,
+    pub line_binds: bool,
+    pub line_gap: f64,
+    /// Held at a red line, at the front: the gap it would have in the
+    /// moving conflicting streams if it went now, and its critical gap for
+    /// it (s; NaN: not read).
+    pub runner_gap: f64,
+    pub runner_needed: f64,
+    /// It waits at its line because its way through is not clear.
+    pub blocked: bool,
 }
 
 impl JunctionOut {
@@ -68,6 +97,14 @@ impl JunctionOut {
         urgency: 0.0,
         needed_move: 0.0,
         waiting: false,
+        light: LIGHT_NONE,
+        first: NO_RIBBON,
+        signal_held: false,
+        line_binds: false,
+        line_gap: f64::NAN,
+        runner_gap: f64::NAN,
+        runner_needed: f64::NAN,
+        blocked: false,
     };
 }
 
@@ -283,17 +320,23 @@ impl MoveCtx<'_> {
             return view;
         }
         // It took a gap or could not stop at amber, and is still on its
-        // way: a vehicle standing at a red light is not.
+        // way: a vehicle standing at a red light is not, unless it decided
+        // to run the red (ADR-0019).
         let light = self.junctions.light[first];
         let shut = light == LIGHT_RED || light == LIGHT_AMBER;
-        if a.gate_open[i] && (!shut || v >= p.stop_speed_below) {
+        view.out.light = light;
+        view.out.first = first as u32;
+        view.out.line_gap = gap;
+        if a.gate_open[i] && (!shut || v >= p.stop_speed_below || a.runs_red[i]) {
             return view;
         }
         // The signal.
-        let mut closed = light == LIGHT_RED || light == LIGHT_AMBER;
-        // A lower-priority movement waits for a gap (G§2.4).
-        let rank = net.ribbon(first).rank;
-        if !closed && rank > 0 && self.yields(i, j, first, light) {
+        let mut closed = shut;
+        // A lower-priority movement waits for a gap (G§2.4); at a dark
+        // junction every movement does (ADR-0019).
+        let mutual = self.junctions.mode[j] == MODE_MUTUAL;
+        let rank = self.junctions.rank[first];
+        if !closed && (rank > 0 || mutual) && self.yields(i, j, first, light) {
             let decide_within = idm.desired_gap(v, v, 1.0, 1.0);
             if gap <= decide_within {
                 let movement = jn.movement_of[arm][out].map(|m| jn.movements[m].turn);
@@ -303,7 +346,8 @@ impl MoveCtx<'_> {
                     _ => 1.0,
                 };
                 let t_me = arrive(v, idm.max_accel, gap);
-                let offer = self.gap_offer(i, j, first, light, factor, t_me);
+                let mode = if mutual { GAP_MUTUAL } else { GAP_PRIORITY };
+                let offer = self.gap_offer(i, j, first, light, factor, t_me, mode);
                 view.out.gap = offer.0;
                 view.out.gap_ref = offer.1;
                 view.out.gap_class = offer.2;
@@ -315,9 +359,26 @@ impl MoveCtx<'_> {
             }
         }
         if closed {
-            view.cap = view
-                .cap
-                .min((free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel));
+            let line = (free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel);
+            if shut {
+                view.out.signal_held = true;
+                view.out.line_binds = line <= *acc;
+                // At the front of a red line, within its comfortable
+                // stopping distance of where it would stand: what going
+                // now would expose it to, for the red-light rules.
+                let zone = v * v / (2.0 * idm.comfortable_decel) + 2.0 * a.standstill_gap[i];
+                if light == LIGHT_RED
+                    && view.out.line_binds
+                    && gap <= zone
+                    && p.violations.red_light_rules()
+                {
+                    let t_me = arrive(v, idm.max_accel, gap);
+                    let offer = self.gap_offer(i, j, first, light, 1.0, t_me, GAP_RUNNER);
+                    view.out.runner_gap = offer.0;
+                    view.out.runner_needed = offer.3;
+                }
+            }
+            view.cap = view.cap.min(line);
             view.out.held = true;
         }
         view
@@ -332,10 +393,11 @@ impl MoveCtx<'_> {
             return false;
         }
         let jn = &net.junctions[j];
-        let rank = net.ribbon(first).rank;
+        let mutual = self.junctions.mode[j] == MODE_MUTUAL;
+        let rank = self.junctions.rank[first];
         let any = jn.conflicts_of(first).any(|(c, _, _, kind)| {
             kind != ConflictKind::Diverge
-                && net.ribbon(c).rank < rank
+                && (mutual || self.junctions.rank[c] < rank)
                 && (light == LIGHT_NONE || self.junctions.light[c] == LIGHT_GREEN)
         });
         if !any {
@@ -383,7 +445,8 @@ impl MoveCtx<'_> {
     /// vehicle that ends it, its class, the gap needed, accepted)`. The gap
     /// is the time between the agent's own arrival at the line (`t_me` from
     /// now) and the arrival of the conflicting vehicle that leaves the
-    /// least to spare.
+    /// least to spare. `mode` (`GAP_*`) says which streams count.
+    #[allow(clippy::too_many_arguments)]
     fn gap_offer(
         &self,
         i: usize,
@@ -392,19 +455,31 @@ impl MoveCtx<'_> {
         light: u8,
         factor: f64,
         t_me: f64,
+        mode: u8,
     ) -> (f64, u64, u8, f64, bool) {
         let (a, p, net) = (self.a, self.p, self.net);
         let jn = &net.junctions[j];
-        let rank = net.ribbon(first).rank;
+        let rank = self.junctions.rank[first];
         let t_c = a.critical_gap[i] * factor;
         let mut worst = (f64::INFINITY, f64::INFINITY, NO_AGENT, 0u8, t_c);
         for (c, _, c_s, kind) in jn.conflicts_of(first) {
-            if kind == ConflictKind::Diverge
-                || net.ribbon(c).rank >= rank
-                || (light != LIGHT_NONE && self.junctions.light[c] != LIGHT_GREEN)
-            {
+            if kind == ConflictKind::Diverge {
                 continue;
             }
+            let lc = self.junctions.light[c];
+            // Vehicles still to reach `c`: every one, those that cannot
+            // stop for its amber, or none (only those already on it).
+            let (upstream, gate_only) = match mode {
+                GAP_PRIORITY => {
+                    if self.junctions.rank[c] >= rank || (light != LIGHT_NONE && lc != LIGHT_GREEN)
+                    {
+                        continue;
+                    }
+                    (true, false)
+                }
+                GAP_MUTUAL => (true, false),
+                _ => (lc == LIGHT_GREEN || lc == LIGHT_AMBER, lc == LIGHT_AMBER),
+            };
             // Vehicles on the conflicting ribbon and coming to it: walk upstream.
             let mut stack = [(0usize, 0.0f64, usize::MAX); UPSTREAM];
             stack[0] = (c, c_s.0, usize::MAX);
@@ -424,6 +499,9 @@ impl MoveCtx<'_> {
                         break;
                     }
                     if down != usize::MAX {
+                        if gate_only && !a.gate_open[k] {
+                            continue;
+                        }
                         let mut turn = (a.turn_junction[k], a.turn_out[k]);
                         if onward(net, self.seed, a.id[k], q, &mut turn) != Some(down) {
                             continue;
@@ -460,7 +538,7 @@ impl MoveCtx<'_> {
                         worst = (offered - needed, offered, a.id[k], class as u8, needed);
                     }
                 }
-                if start < p.lookahead {
+                if upstream && start < p.lookahead {
                     // Further upstream is within reach too.
                     for &up in &self.junctions_preds(q) {
                         if up == usize::MAX || n == UPSTREAM {
@@ -510,7 +588,15 @@ impl MoveCtx<'_> {
             _ => 1.0,
         };
         let t_me = arrive(a.v[i], idm.max_accel, hold.max(0.0));
-        Some(self.gap_offer(i, j, first, self.junctions.light[first], factor, t_me))
+        Some(self.gap_offer(
+            i,
+            j,
+            first,
+            self.junctions.light[first],
+            factor,
+            t_me,
+            GAP_PRIORITY,
+        ))
     }
 
     /// Up to three ribbons that lead onto `q`.

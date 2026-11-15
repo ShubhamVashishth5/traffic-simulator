@@ -17,6 +17,7 @@ import { type Chrome, groupOfClass } from "../theme";
 import { LiveClient } from "./client";
 
 const SPEEDS = [0.5, 1, 2, 5, 10, 30, 0];
+const SIGNAL_STATES = ["fixed", "blinker", "dark", "police"];
 
 export function LiveView({ theme }: { theme: Chrome }) {
   const [scenarios, setScenarios] = useState<ScenarioListing[]>([]);
@@ -180,6 +181,22 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
             <button onClick={() => { const last = [...st.objects].reverse().find((o) => o.present.some(([, b]) => b == null)); if (last) send({ cmd: "remove_object", id: last.id }); }}>Remove last</button>
           )}
         </span>
+        {(status?.signals.length ?? 0) > 0 && (
+          <span className="group" title="Signal control state (P8.7): fixed plan, blinker, dark (failed) or a traffic officer. Logged and replayed like any command.">
+            {status?.signals.map((sg) => (
+              <label key={sg.junction}>
+                {sg.junction}{" "}
+                <select value={sg.state} onChange={(e) => send({ cmd: "toggle_signal_state", junction: sg.junction, state: e.target.value })} aria-label={`signal ${sg.junction}`}>
+                  {SIGNAL_STATES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </span>
+        )}
         <button onClick={() => send({ cmd: "save" })} title="Write the session folder (scenario, seed, command log) and replay it headless">
           Save session
         </button>

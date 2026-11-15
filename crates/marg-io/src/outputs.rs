@@ -20,7 +20,7 @@ use std::sync::mpsc;
 use std::thread::JoinHandle;
 
 /// Schema version of the output tables; bump on any column change.
-pub const OUTPUT_SCHEMA_VERSION: u32 = 3;
+pub const OUTPUT_SCHEMA_VERSION: u32 = 4;
 
 fn f64s<T>(rows: &[T], f: impl Fn(&T) -> f64) -> ArrayRef {
     Arc::new(Float64Array::from_iter_values(rows.iter().map(f)))
@@ -427,14 +427,21 @@ pub fn signal_cycles_batch(
         strs(rows, |r| &r.arm),
         strs(rows, |r| &r.ribbon),
     ];
+    fields.push(Field::new("control", DataType::Utf8, false));
+    cols.push(strs(rows, |r| &r.control));
+    fields.push(Field::new("countdown", DataType::Utf8, false));
+    cols.push(strs(rows, |r| &r.countdown));
     type GetU = fn(&marg_core::SignalCycleRecord) -> u32;
-    let counts: [(&str, GetU); 6] = [
+    let counts: [(&str, GetU); 9] = [
         ("cycle", |r| r.cycle),
         ("phase", |r| r.phase),
         ("queue_at_green", |r| r.queue_at_green),
         ("discharged", |r| r.discharged),
         ("discharged_from_queue", |r| r.discharged_from_queue),
         ("saturation_vehicles", |r| r.saturation_vehicles),
+        ("red_crossings_early", |r| r.red_crossings_early),
+        ("red_crossings_middle", |r| r.red_crossings_middle),
+        ("red_crossings_late", |r| r.red_crossings_late),
     ];
     for (name, get) in counts {
         fields.push(Field::new(name, DataType::UInt32, false));
@@ -774,9 +781,9 @@ pub fn data_dictionary() -> String {
                      parking_manoeuvre, stop_anywhere, stop_anywhere_standing, bus_stop, \
                      bus_standing, pothole_crossed, pedestrian_crossing, signal_state, \
                      stop_line_crossed, gap_accepted, gap_rejected, split_decision, \
-                     missed_branch, reroute, u_turn, gridlock, violation, complied (agent_id \
-                     is 2⁶⁴ − 1 for the \
-                     object, parking, pedestrian, signal and gridlock events)",
+                     missed_branch, reroute, u_turn, gridlock, violation, complied, \
+                     control_state (agent_id is 2⁶⁴ − 1 for the \
+                     object, parking, pedestrian, signal, control and gridlock events)",
                 ),
                 ("ribbon, s, y", "utf8, f64, f64", "m", "where"),
                 (
@@ -803,9 +810,17 @@ pub fn data_dictionary() -> String {
                      pedestrian_crossing (when it ends): zone, group, from (left or right), \
                      accepted_gap_s, waited_at_edge_s, waited_on_road_s, duration_s. \
                      signal_state (a signal changes, P7.3): junction, phase, state (green, \
-                     amber, all_red), lasts_s. stop_line_crossed (signalised junctions): \
+                     amber, all_red), lasts_s, control (fixed or police: who shows it). \
+                     control_state (a signal's controller changes state, P8.7, ADR-0019): \
+                     junction, from, to (fixed, blinker, dark, police), cause (schedule, live, \
+                     outage, officer, repaired, blinker_on, blinker_off). \
+                     stop_line_crossed (signalised junctions): \
                      junction, arm, to, queued (it had stood at the closed line), waited_s, \
-                     speed, light (1 green, 2 amber, 3 red). gap_accepted (a vehicle that \
+                     speed, light (0 none, 1 green, 2 amber, 3 red), control (the \
+                     controller's state), act (the violation that took it over the line: \
+                     red_light, early_start, amber_go, box_blocking, or null), and on red \
+                     into_red_s and red_s (time since its red began, the red's length). \
+                     gap_accepted (a vehicle that \
                      gives way takes a gap, G§2.4): junction, gap_s (time from its own \
                      arrival at the line to the arrival of the conflicting vehicle that \
                      leaves least to spare; null if none was coming), critical_gap_s (what it \
@@ -829,7 +844,8 @@ pub fn data_dictionary() -> String {
                      slow_since (s), with the area's start in ribbon, s. \
                      violation (an agent acts on a violation episode, ADR-0018) and complied \
                      (the episode's trigger ended first): type, junction, episode, t_start, \
-                     reason (acted, gap_accepted, trigger_ended, left), features (kappa, \
+                     reason (acted, gap_accepted, trigger_ended, left, green, way_clear, \
+                     stopped, other_type_acted), features (kappa, \
                      time_saved, waiting_time, n_violating, n_complying, enforcement, risk), \
                      coefficients (the agent's own, traits applied), terms (each coefficient \
                      times its feature; they add up to eta), eta, and for continuous types \
@@ -973,6 +989,24 @@ pub fn data_dictionary() -> String {
                     "veh/h/m",
                     "per metre of approach width (the road is lane-free)",
                 ),
+                (
+                    "control",
+                    "str",
+                    "",
+                    "who showed the lights in the cycle: `fixed` (the plan) or `police` (an officer, G§6.6); a cycle ends when the signal goes dark or blinks",
+                ),
+                (
+                    "countdown",
+                    "str",
+                    "",
+                    "the countdown display: `none`, `working` or `broken`",
+                ),
+                (
+                    "red_crossings_early, red_crossings_middle, red_crossings_late",
+                    "u32",
+                    "veh",
+                    "stop-line crossings on red in the first, middle and last third of the red (time since red began over the red's length): red-light running by phase of the red (plan/04, Sharma et al. 2012)",
+                ),
             ],
         ),
         (
@@ -1034,7 +1068,10 @@ pub fn data_dictionary() -> String {
                      splits: gaps_accepted, gaps_rejected, split_stop_and_wait, split_give_up, \
                      missed_branches, reroutes. gridlock_share: share of the measured window in \
                      which some area detector was gridlocked; gridlock_onset_s: start of the \
-                     first slow spell that became a gridlock (NaN: none)",
+                     first slow spell that became a gridlock (NaN: none). Violations \
+                     (ADR-0018, ADR-0019): violations_per_1000_veh (every type), and acts by \
+                     type: forced_entries, red_light_runs, early_starts, amber_goes, \
+                     box_blocks",
                 ),
                 (
                     "trajectories: t, agent_id, ribbon, s, y",

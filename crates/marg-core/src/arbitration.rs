@@ -26,9 +26,9 @@
 
 use crate::agents::AgentStore;
 use crate::junction_scan::{arrive, body_ahead};
-use crate::junctions::{LIGHT_GREEN, Member, onward};
+use crate::junctions::{LIGHT_GREEN, MODE_SIGNAL, Member, onward};
 use crate::params::CoreParams;
-use marg_net::{ConflictKind, Control, Network};
+use marg_net::{ConflictKind, Network};
 use marg_params::spec::JunctionKind;
 
 /// Spacing of the points at which two paths are compared (m). A numerical
@@ -60,6 +60,9 @@ pub struct Yield {
     /// Speed of what it brakes for: 0 for a place to stop at, the other
     /// vehicle's speed at a merge.
     pub v_lead: f64,
+    /// It waits at its stop line because its way through the junction is
+    /// not clear (the trigger of `box_blocking`).
+    pub box_blocked: bool,
 }
 
 /// A decision taken at an earlier step and still in force.
@@ -203,6 +206,7 @@ impl Arbiter {
 
     /// Decide who goes first at every junction this step. `members[j]` are
     /// the vehicles near junction `j`, in ribbon and position order.
+    #[allow(clippy::too_many_arguments)]
     pub fn run(
         &mut self,
         a: &AgentStore,
@@ -211,18 +215,30 @@ impl Arbiter {
         p: &CoreParams,
         seed: u64,
         light: &[u8],
+        rank: &[u8],
+        mode: &[u8],
     ) {
         self.scope.clear();
         self.scope.resize(a.len(), NO_SCOPE);
         self.yields.clear();
         self.next.clear();
         for (j, group) in members.iter().enumerate().take(net.junctions.len()) {
-            self.gather(j, group, a, net, p, seed, light);
+            self.gather(
+                j,
+                group,
+                a,
+                net,
+                p,
+                seed,
+                light,
+                rank,
+                mode[j] == MODE_SIGNAL,
+            );
             self.order_tickets(a, net.junctions[j].kind == JunctionKind::Roundabout);
             let n = self.active.len();
             for x in 0..n {
                 for z in x + 1..n {
-                    self.pair(x, z, a, net, p, light);
+                    self.pair(x, z, a, net, p, light, rank);
                 }
             }
             self.break_cycles();
@@ -244,10 +260,11 @@ impl Arbiter {
         p: &CoreParams,
         seed: u64,
         light: &[u8],
+        rank: &[u8],
+        signal: bool,
     ) {
         self.active.clear();
         self.points.clear();
-        let signal = matches!(net.junctions[j].control, Control::Signal { .. });
         for m in group {
             let (i, r) = (m.i as usize, m.ribbon as usize);
             let rib = net.ribbon(r);
@@ -370,10 +387,10 @@ impl Arbiter {
                 if signal && a.gate_open[i] {
                     // A permitted movement that took its gap: whether it
                     // is one is whether anything has priority over it.
-                    act.took_gap = net.ribbon(first).rank > 1;
+                    act.took_gap = rank[first] > 1;
                 }
                 if signal && !a.gate_open[i] {
-                    hold = self.hold(&act, j, net, light);
+                    hold = self.hold(&act, j, net, light, rank);
                     if let Some(d) = hold {
                         act.gives_way = true;
                         if d - act.half_l > 0.0 {
@@ -382,6 +399,7 @@ impl Arbiter {
                                 goer: STREAM,
                                 gap: d - act.half_l,
                                 v_lead: 0.0,
+                                box_blocked: false,
                             });
                         }
                     }
@@ -392,8 +410,13 @@ impl Arbiter {
                 // that waits for a gap inside needs its way clear only as
                 // far as where it waits. One that can no longer stop
                 // before the line goes on.
+                // One that has decided to enter anyway (`box_blocking`)
+                // does not check.
                 let to_line = act.d_line - act.half_l;
-                if to_line > 0.0 && a.v[i] * a.v[i] <= 2.0 * p.safe_decel * to_line {
+                if to_line > 0.0
+                    && !a.box_block[i]
+                    && a.v[i] * a.v[i] <= 2.0 * p.safe_decel * to_line
+                {
                     let through = hold.unwrap_or(f64::INFINITY);
                     if let Some(b) = self.blocker(&act, group, a, net, p, through) {
                         self.yields.push(Yield {
@@ -401,6 +424,7 @@ impl Arbiter {
                             goer: b,
                             gap: to_line,
                             v_lead: 0.0,
+                            box_blocked: true,
                         });
                         continue;
                     }
@@ -544,10 +568,10 @@ impl Arbiter {
     /// carriageway of a movement that has green and priority over its own
     /// (a lower rank): where it waits for a gap. `None`: it gives way to
     /// nothing.
-    fn hold(&self, x: &Active, j: usize, net: &Network, light: &[u8]) -> Option<f64> {
+    fn hold(&self, x: &Active, j: usize, net: &Network, light: &[u8], ranks: &[u8]) -> Option<f64> {
         let n = self.size[j];
         let jn = &net.junctions[j];
-        let rank = net.ribbon(x.first as usize).rank;
+        let rank = ranks[x.first as usize];
         let mut best: Option<f64> = None;
         for &(ra, _, _, fa, na) in &x.path[..x.n] {
             let la = self.local[ra as usize] as usize;
@@ -564,7 +588,7 @@ impl Arbiter {
                 };
                 let rc = net.ribbon(other);
                 if area.kind == ConflictKind::Diverge
-                    || rc.rank >= rank
+                    || ranks[other] >= rank
                     || light[other] != LIGHT_GREEN
                 {
                     continue;
@@ -673,6 +697,7 @@ impl Arbiter {
 
     /// Compare active vehicles `x` and `z`, decide who goes first if it is
     /// time to, and record what the other must do.
+    #[allow(clippy::too_many_arguments)]
     fn pair(
         &mut self,
         x: usize,
@@ -681,6 +706,7 @@ impl Arbiter {
         net: &Network,
         p: &CoreParams,
         light: &[u8],
+        ranks: &[u8],
     ) {
         let (ax, az) = (self.active[x], self.active[z]);
         let (i, k) = (ax.i as usize, az.i as usize);
@@ -724,7 +750,7 @@ impl Arbiter {
         let gives_way = |g: &Active, o: &Active| {
             g.gives_way
                 && c.kind != ConflictKind::Diverge
-                && net.ribbon(g.first as usize).rank > net.ribbon(o.first as usize).rank
+                && ranks[g.first as usize] > ranks[o.first as usize]
                 && (light[o.first as usize] == LIGHT_GREEN || o.d_line <= 0.0)
         };
         // ... and once it has taken its gap, the movement it gave way to
@@ -733,7 +759,7 @@ impl Arbiter {
         let took_gap = |g: &Active, o: &Active| {
             g.took_gap
                 && c.kind != ConflictKind::Diverge
-                && net.ribbon(g.first as usize).rank > net.ribbon(o.first as usize).rank
+                && ranks[g.first as usize] > ranks[o.first as usize]
         };
         // `x` goes: `z` gives way to it, or `x` took its gap; and `z` can
         // still stop short or `x` cannot. The same the other way round.
@@ -859,18 +885,20 @@ impl Arbiter {
                     goer: gi as u32,
                     gap,
                     v_lead,
+                    box_blocked: false,
                 }
             };
         let x_yields = constraint(i, k, dx, c.e_x, c.e_z, &ax, az.half_l);
         let z_yields = constraint(k, i, dz, c.e_z, c.e_x, &az, ax.half_l);
         // Priority, then room to the contact: which decision to turn round
         // first if this pair is in a cycle.
-        let rank = |q: &Active| net.ribbon(q.first as usize).rank;
+        let rank = |q: &Active| ranks[q.first as usize];
         self.pending.push(Pending {
             x: x as u32,
             z: z as u32,
             x_goes,
             fixed: by_rank.is_some(),
+            turned: false,
             x_yields,
             z_yields,
             release: [(rank(&ax), -dx, ax.id), (rank(&az), -dz, az.id)],
@@ -901,23 +929,35 @@ impl Arbiter {
             // Release the yielder that goes first by priority, then by
             // room to its contact, then by id; decisions fixed by priority
             // are turned round only if nothing else in the ring can be.
+            // A decision is turned round at most once a step: two rings
+            // that share one, with every other decision in both blocked,
+            // would otherwise turn it back and forth for ever. A ring whose
+            // decisions have all been turned round already stands this step.
             let order = |p: &usize, q: &usize| {
                 self.pending[*p]
                     .yielder_key()
                     .total_cmp_key(&self.pending[*q].yielder_key())
             };
             let free = |e: &usize| self.pending[*e].releasable();
+            let unturned = |e: &usize| !self.pending[*e].turned;
             let pick = cycle
                 .iter()
                 .copied()
                 .filter(|e| free(e) && !self.pending[*e].fixed)
                 .min_by(order)
-                .or_else(|| cycle.iter().copied().filter(free).min_by(order))
-                .or_else(|| cycle.iter().copied().min_by(order));
+                .or_else(|| {
+                    cycle
+                        .iter()
+                        .copied()
+                        .filter(|e| free(e) && unturned(e))
+                        .min_by(order)
+                })
+                .or_else(|| cycle.iter().copied().filter(unturned).min_by(order));
             let Some(e) = pick else { break };
             let d = &mut self.pending[e];
             d.x_goes = !d.x_goes;
             d.fixed = true;
+            d.turned = true;
         }
         for d in self.pending.drain(..) {
             let (ax, az) = (self.active[d.x as usize], self.active[d.z as usize]);
@@ -993,6 +1033,8 @@ struct Pending {
     x_goes: bool,
     /// Decided by priority (or already turned round once this step).
     fixed: bool,
+    /// Turned round this step to break a ring.
+    turned: bool,
     x_yields: Yield,
     z_yields: Yield,
     /// Per vehicle: `(rank of its movement, minus its room to the contact, id)`.
@@ -1081,12 +1123,14 @@ mod tests {
             goer: g,
             gap: 1.0,
             v_lead: 0.0,
+            box_blocked: false,
         };
         Pending {
             x,
             z,
             x_goes,
             fixed: false,
+            turned: false,
             x_yields: y(x, z),
             z_yields: y(z, x),
             release: [(1, -room, u64::from(x)), (1, -room, u64::from(z))],
@@ -1147,6 +1191,49 @@ mod tests {
             yielder: 0,
             goer: 2
         }));
+    }
+
+    /// Two rings that share one decision, every other decision in both
+    /// blocked: turning the shared one round breaks the first ring and
+    /// closes the second. It is not turned back (that looped for ever, found
+    /// in a P8 persona sweep); a blocked decision of the second ring is.
+    #[test]
+    fn two_rings_sharing_a_decision_are_broken_without_looping() {
+        let blocked = |x, z| {
+            let mut d = decision(x, z, false, 1.0);
+            d.blocked = [true, true];
+            d
+        };
+        // 0 waits for 1 (shared); ring A: 1 → 2 → 0; ring B, once 1 waits
+        // for 0: 0 → 3 → 1.
+        let mut arb = Arbiter {
+            active: (0..4).map(active).collect(),
+            pending: vec![
+                decision(0, 1, false, 4.0),
+                blocked(1, 2),
+                blocked(2, 0),
+                blocked(0, 3),
+                blocked(3, 1),
+            ],
+            ..Arbiter::default()
+        };
+        arb.break_cycles();
+        assert_eq!(arb.next.len(), 5);
+        assert!(arb.next.contains(&Decision {
+            yielder: 1,
+            goer: 0
+        }));
+        // Exactly one decision of ring B was turned round.
+        let b_turned = [(3, 0), (1, 3)]
+            .iter()
+            .filter(|&&(y, g)| {
+                arb.next.contains(&Decision {
+                    yielder: y,
+                    goer: g,
+                })
+            })
+            .count();
+        assert_eq!(b_turned, 1);
     }
 
     /// Without a ring nothing changes.

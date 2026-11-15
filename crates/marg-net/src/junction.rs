@@ -10,7 +10,7 @@ use crate::ribbon::Ribbon;
 use indexmap::IndexMap;
 use marg_params::Dist;
 use marg_params::spec::{
-    ControlSpec, CountdownState, JunctionKind, JunctionSpec, RibbonSpec, WidthPoint,
+    ControlSpec, ControlState, CountdownState, JunctionKind, JunctionSpec, RibbonSpec, WidthPoint,
 };
 use std::f64::consts::{FRAC_PI_4, PI, TAU};
 
@@ -114,7 +114,27 @@ pub enum Control {
         cycle_s: f64,
         offset_s: f64,
         countdown: CountdownState,
+        /// State at time 0 and scripted changes `(at_s, state)` in time order.
+        state: ControlState,
+        schedule: Vec<(f64, ControlState)>,
+        /// Priority ranks of the movements (by movement index) while the
+        /// signal blinks; `None`: nobody has priority (as when dark).
+        blinker_ranks: Option<Vec<u8>>,
+        /// Arms a traffic officer favours.
+        police_major: Vec<usize>,
+        night_blinker: bool,
     },
+}
+
+/// The priority rank of a movement under two-way stop control (HCM 2010,
+/// ch. 19), mirrored for left-hand traffic: 1 goes first.
+pub fn two_way_stop_rank(from_major: bool, turn: Turn) -> u8 {
+    match (from_major, turn) {
+        (true, Turn::Through | Turn::Left) => 1,
+        (true, Turn::Right | Turn::UTurn) | (false, Turn::Left) => 2,
+        (false, Turn::Through) => 3,
+        (false, Turn::Right | Turn::UTurn) => 4,
+    }
 }
 
 /// A built junction.
@@ -537,12 +557,7 @@ pub(crate) fn build(
                     // The priority ranks of two-way stop control (HCM 2010,
                     // ch. 19), mirrored for left-hand traffic.
                     for m in &j.movements {
-                        ribbons[m.first].rank = match (is_major[m.from], m.turn) {
-                            (true, Turn::Through | Turn::Left) => 1,
-                            (true, Turn::Right | Turn::UTurn) | (false, Turn::Left) => 2,
-                            (false, Turn::Through) => 3,
-                            (false, Turn::Right | Turn::UTurn) => 4,
-                        };
+                        ribbons[m.first].rank = two_way_stop_rank(is_major[m.from], m.turn);
                     }
                 }
             } else if !major.is_empty() {
@@ -553,6 +568,11 @@ pub(crate) fn build(
             phases,
             offset_s,
             countdown,
+            state,
+            schedule,
+            blinker_major,
+            police_major,
+            night_blinker,
         } => {
             if spec.kind != JunctionKind::Box {
                 return Err(bad(id, "a signal needs a box junction"));
@@ -622,11 +642,44 @@ pub(crate) fn build(
                 .iter()
                 .map(|p| p.green_s + p.amber_s + p.all_red_s)
                 .sum();
+            let arms_of = |list: &[String], what: &str| -> Result<Vec<usize>, NetError> {
+                list.iter()
+                    .map(|a| {
+                        arm_of_in(&j.arms, a)
+                            .ok_or_else(|| bad(id, format!("{what}: unknown arm `{a}`")))
+                    })
+                    .collect()
+            };
+            let blinker = arms_of(blinker_major, "control.blinker_major")?;
+            let blinker_ranks = (!blinker.is_empty()).then(|| {
+                j.movements
+                    .iter()
+                    .map(|m| two_way_stop_rank(blinker.contains(&m.from), m.turn))
+                    .collect()
+            });
+            let police = arms_of(police_major, "control.police_major")?;
+            let mut changes = Vec::with_capacity(schedule.len());
+            let mut last = f64::NEG_INFINITY;
+            for c in schedule {
+                if !(c.at_s.is_finite() && c.at_s >= last) {
+                    return Err(bad(
+                        id,
+                        "control.schedule: times must be finite and in order",
+                    ));
+                }
+                last = c.at_s;
+                changes.push((c.at_s, c.state));
+            }
             j.control = Control::Signal {
                 phases: built,
                 cycle_s,
                 offset_s: *offset_s,
                 countdown: *countdown,
+                state: *state,
+                schedule: changes,
+                blinker_ranks,
+                police_major: police,
+                night_blinker: *night_blinker,
             };
         }
     }

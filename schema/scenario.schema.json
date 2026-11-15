@@ -62,6 +62,14 @@
       },
       "default": {}
     },
+    "start_time_h": {
+      "description": "Hour of day at simulated time 0 (0–24). Needed only by clock-driven\nbehaviour, such as a signal on the night blinker schedule (G§6.6).",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
     "warmup_s": {
       "description": "Initial period excluded from KPIs and detector summaries, in seconds.",
       "type": "number",
@@ -238,6 +246,25 @@
         "to_s"
       ]
     },
+    "ControlChangeSpec": {
+      "description": "A scripted change of a signal's state.",
+      "type": "object",
+      "properties": {
+        "at_s": {
+          "description": "Simulated time of the change (s).",
+          "type": "number",
+          "format": "double"
+        },
+        "state": {
+          "$ref": "#/$defs/ControlState"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "at_s",
+        "state"
+      ]
+    },
     "ControlSpec": {
       "description": "Who goes first at a junction.",
       "oneOf": [
@@ -266,6 +293,13 @@
           "description": "A fixed-time signal (G§6.6, normal state).",
           "type": "object",
           "properties": {
+            "blinker_major": {
+              "description": "Arms that keep priority while the signal blinks (flashing amber;\nthe others flash red). Empty: nobody has priority, as when dark.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "countdown": {
               "description": "The countdown display. It changes nothing while every driver\ncomplies (P7); violations read it from P8 on.",
               "$ref": "#/$defs/CountdownState",
@@ -274,6 +308,10 @@
             "kind": {
               "type": "string",
               "const": "signal"
+            },
+            "night_blinker": {
+              "description": "On the register's night blinker schedule\n(`road.signal.blinker_start` to `blinker_end`); needs the\nscenario's `start_time_h`.",
+              "type": "boolean"
             },
             "offset_s": {
               "description": "Time into the cycle at simulated time 0 (s).",
@@ -287,6 +325,25 @@
               "items": {
                 "$ref": "#/$defs/PhaseSpec"
               }
+            },
+            "police_major": {
+              "description": "Arms a traffic officer favours (G§6.6). Empty: the arms of the\nstage with the longest green.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "schedule": {
+              "description": "Scripted changes of state, in time order (an experiment's\noutage, a twin arm's switch to dark).",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ControlChangeSpec"
+              }
+            },
+            "state": {
+              "description": "The controller's state at simulated time 0 (G§6.6).",
+              "$ref": "#/$defs/ControlState",
+              "default": "fixed"
             }
           },
           "additionalProperties": false,
@@ -294,6 +351,31 @@
             "kind",
             "phases"
           ]
+        }
+      ]
+    },
+    "ControlState": {
+      "description": "What a signal controller is doing (G§6.6, plan/03-model-design.md §8).\nA broken countdown is a fixed-time signal with `countdown: broken`.",
+      "oneOf": [
+        {
+          "description": "The fixed-time plan.",
+          "type": "string",
+          "const": "fixed"
+        },
+        {
+          "description": "Flashing amber: an uncontrolled junction (priority to\n`blinker_major`, if given).",
+          "type": "string",
+          "const": "blinker"
+        },
+        {
+          "description": "Failed: an uncontrolled junction where nobody knows who should yield.",
+          "type": "string",
+          "const": "dark"
+        },
+        {
+          "description": "A traffic officer: long cycles, biased to the major approach.",
+          "type": "string",
+          "const": "police"
         }
       ]
     },

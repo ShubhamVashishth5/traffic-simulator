@@ -73,6 +73,13 @@ class ControlSpec1(BaseModel):
     major: list[str] | None = []
 
 
+class ControlState(StrEnum):
+    fixed = 'fixed'
+    blinker = 'blinker'
+    dark = 'dark'
+    police = 'police'
+
+
 class CountdownState(StrEnum):
     none = 'none'
     working = 'working'
@@ -487,20 +494,47 @@ class BarrierSpec(BaseModel):
     s: float = Field(..., description='Station of the stop line on the ribbon.')
 
 
+class ControlChangeSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    at_s: float = Field(..., description='Simulated time of the change (s).')
+    state: ControlState
+
+
 class ControlSpec2(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
+    )
+    blinker_major: list[str] | None = Field(
+        None,
+        description='Arms that keep priority while the signal blinks (flashing amber;\nthe others flash red). Empty: nobody has priority, as when dark.',
     )
     countdown: CountdownState | None = Field(
         'none',
         description='The countdown display. It changes nothing while every driver\ncomplies (P7); violations read it from P8 on.',
     )
     kind: Literal['signal']
+    night_blinker: bool | None = Field(
+        None,
+        description="On the register's night blinker schedule\n(`road.signal.blinker_start` to `blinker_end`); needs the\nscenario's `start_time_h`.",
+    )
     offset_s: float | None = Field(
         0.0, description='Time into the cycle at simulated time 0 (s).'
     )
     phases: list[PhaseSpec] = Field(
         ..., description='Stages in order; the cycle is the sum of their times.'
+    )
+    police_major: list[str] | None = Field(
+        None,
+        description='Arms a traffic officer favours (G§6.6). Empty: the arms of the\nstage with the longest green.',
+    )
+    schedule: list[ControlChangeSpec] | None = Field(
+        None,
+        description="Scripted changes of state, in time order (an experiment's\noutage, a twin arm's switch to dark).",
+    )
+    state: ControlState | None = Field(
+        'fixed', description="The controller's state at simulated time 0 (G§6.6)."
     )
 
 
@@ -629,6 +663,10 @@ class Scenario(BaseModel):
         {},
         description="Parameter overrides by register path, in the register entry's unit.",
         validate_default=True,
+    )
+    start_time_h: float | None = Field(
+        None,
+        description='Hour of day at simulated time 0 (0–24). Needed only by clock-driven\nbehaviour, such as a signal on the night blinker schedule (G§6.6).',
     )
     warmup_s: float | None = Field(
         0.0,
