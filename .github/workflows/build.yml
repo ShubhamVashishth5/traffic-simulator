@@ -218,7 +218,12 @@ jobs:
           # An experiment runs through \`python -m marg batch\` when no CLI is installed.
           exp = marg.Experiment('smoke', sys.argv[1], replications=marg.Replications(n=2))
           exp.run(marg.backends.Local(workers=2))
-          assert exp.results('kpis').height == 2
+          import polars as pl
+          files = exp.data().files('kpis')
+          seen = pl.scan_parquet(files, include_file_paths='f').collect()['f'].to_list()
+          print('run files', files, 'as Polars reports them', seen)
+          res = exp.results('kpis')
+          assert res.height == 2, (res.height, exp.data().index().select('status', 'path').rows())
           " "$GITHUB_WORKSPACE/scenarios/free_flow_early_morning.yaml"
       - uses: actions/upload-artifact@v4
         with:

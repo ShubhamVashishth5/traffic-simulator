@@ -61,6 +61,14 @@ A self-contained handoff: a new session should need only this card, the files it
   subprocess output is decoded as UTF-8. `test_encoding.py` runs an experiment with
   `-X warn_default_encoding` (it fails on the old code), and CI's pytest runs with
   `PYTHONWARNDEFAULTENCODING=1` and the warning as an error for marg's code (pyproject).
+- **CI round 2.** The experiment now runs on Windows, but `results('kpis')` came back without
+  its two rows. `ExperimentData.scan` joined each run's keys to its rows on the file path
+  string, and Polars on Windows evidently reports a path in another form than it was given
+  (on Linux it is the same string). The join is now on the run's own path
+  (`scenario=…/run=…`), read from the end of whatever path Polars reports, with either
+  separator (`run_of_file`, tested on Windows forms). The DuckDB view's glob uses `/`. The wheel
+  smoke test prints both path forms, so the next run shows what Polars does there. Running
+  Windows Python under Wine to check directly was refused by the session's safety check.
 
 ## Where things stand
 
