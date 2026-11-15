@@ -182,10 +182,11 @@ These are enforced in code and review (full list: [`CLAUDE.md`](../CLAUDE.md)).
 | Viewer streaming | 20,000 vehicles at 30 frames/s, 20.7 MB/s on localhost |
 | Replay | A 1 h run with 1 Hz trajectories (41.6 MB) opens in about 4–5 s in the browser |
 
-## Status (2026-11-09)
+## Status (2026-11-15, version 0.1.0)
 
-Five of thirteen phases are built. Phase-by-phase evidence is in
-[`reports/phases/`](../reports/phases).
+Nine of thirteen phases are built, and 0.1.0 is the first tagged version: a research preview,
+not calibrated against real data ([`CHANGELOG.md`](../CHANGELOG.md)). Phase-by-phase evidence is
+in [`reports/phases/`](../reports/phases).
 
 | Phase | What | Status |
 | --- | --- | --- |
@@ -194,27 +195,27 @@ Five of thirteen phases are built. Phase-by-phase evidence is in
 | P2 | Corridor core: ribbons, 15 vehicle types, lane-free following, demand, detectors, Parquet | done; milestone partial (below) |
 | P3 | Experiments, twins, SLURM backend, sensitivity, staged calibration, reports | done; milestone partial (below) |
 | P4 | Web viewer: live sessions, replay, twin compare, schema-driven parameter panel | done, except a rendering check that needs a GPU |
-| P5 | Lateral behaviour, filtering, seepage, 2-D conflicts | done |
+| P5 | Lateral behaviour, filtering, seepage, 2-D conflicts | done; the performance budget is missed (P5.9) |
 | P6 | Road objects and side friction (parking, bus stops, potholes, humps, rain, pedestrians) | done; the width–capacity target is missed (see `reports/phases/P6.md`) |
-| P7 | Junctions, signals, gap acceptance, median openings, splits, roundabouts | planned |
-| P8 | Personas, violations, imitation, signal control states | planned |
+| P7 | Junctions, signals, gap acceptance, median openings, splits, roundabouts | built; splits and roundabouts wait on decisions (ADR-0017, ADR-0009); milestone partial |
+| P8 | Personas, violations, imitation, signal control states | built except five violation types; milestone partial (`reports/phases/P8.md`) |
 | P9 | Zones, enforcement fields, scenario bundles (rain, night, fog, GRAP, EVs) | planned |
 | P10 | Calibration toolkit and validation of the shipped defaults | planned (needs data) |
 | P11 | OpenStreetMap import, zones of 20–100 junctions, parallel scaling | planned |
 | P12 | Scenario editor, packaging, documentation site | planned |
 
-**What the model cannot do yet.**
+**What the model cannot do yet** (the full list is in [`CHANGELOG.md`](../CHANGELOG.md)).
 
-- Vehicles keep the lateral position they entered at. Overtaking and filtering arrive in P5.
-  Partly for that reason, only 2 of 10 vehicle sub-classes match their measured free-flow speeds
-  within ±2 km/h without tuning. Slower vehicles hold up faster ones, which biases measured
-  speeds. This is re-checked after P5.
-- There are no junctions, road objects, personas or violations yet, so the research experiments
-  above cannot run yet.
-- Nothing is calibrated against real data: the values are the guide's literature values.
-- A first sensitivity screen (Morris, 58 parameters, 1,180 runs) found seven parameters that
-  clearly drive corridor capacity or delay, led by the standstill-gap multiplier and car
-  acceleration. Many others are within noise at two replications.
+- Nothing is calibrated against real data: the values are the guide's literature values (P10).
+- Junctions are fragile at higher flows. A signalised crossing can lock up at 400–700 veh/h per
+  arm with right turns, and splits and roundabouts wait on modelling decisions.
+- The violation rules are off unless their coefficients are set. Five types are not built yet,
+  and the dark-signal experiment does not show the guide's "negative-sum game" (ADR-0019 is
+  under review).
+- The P2 free-flow check (2 of 10 sub-classes within ±2 km/h untuned) has not been re-run since
+  lateral movement arrived.
+- There are no zones, enforcement fields or weather bundles yet (P9), no OpenStreetMap import
+  (P11) and no scenario editor (P12).
 
 ## Getting started
 
@@ -223,7 +224,9 @@ Requirements:
 - for the Python layer, Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/);
 - for the viewer, Node 22.
 
-On Windows, use WSL for now; native Windows builds are planned (STATUS P0.9).
+On Windows, use WSL for now; native Windows builds are planned (STATUS P0.9). To try it without
+building, download a [release](https://github.com/ShubhamVashishth5/traffic-simulator/releases)
+(see the README's "Install a release").
 
 ```bash
 # Run the reference corridor and write a run folder

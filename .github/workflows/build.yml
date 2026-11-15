@@ -17,7 +17,9 @@ name: build
 #
 # Every binary and wheel is smoke-tested by running a scenario before upload.
 # Artifacts are attached to the workflow run; a `v*` tag also publishes them as
-# a GitHub release (the tag must match the workspace version in Cargo.toml).
+# a GitHub release. The tag must match the workspace version in Cargo.toml, and
+# CHANGELOG.md must have a section for it: that section is the release's body.
+# 0.x versions are published as pre-releases (research previews, uncalibrated).
 
 on:
   push:
@@ -213,8 +215,14 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: Release notes from CHANGELOG.md
+        env:
+          LINK_BASE: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}
+        run: ./scripts/release-notes.sh "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/*
+          body_path: ${{ runner.temp }}/notes.md
           generate_release_notes: true
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') || contains(github.ref_name, '-') }}
           fail_on_unmatched_files: true

@@ -6,8 +6,12 @@ implement the *Simulator Parameter Guide: Delhi Disordered Traffic*.
 **New here?** Start with the [project overview](docs/project-overview.md): what the simulator is,
 the research it supports, how it works and where it stands.
 
-**Status:** early development (phases P0–P4 of 13 built). See [`plan/`](plan/README.md) for the
-design and the phased roadmap, and [`plan/STATUS.md`](plan/STATUS.md) for progress.
+**Status:** a research preview, version 0.1.0. Phases P0–P8 of 13 are built: the corridor core,
+lateral behaviour, road objects, junctions and signals, personas and violations. **Nothing is
+calibrated against real data yet**: the values are the guide's literature values, and some
+checks are missed. [`CHANGELOG.md`](CHANGELOG.md) lists what works and the known gaps,
+[`plan/`](plan/README.md) has the design and roadmap, and [`plan/STATUS.md`](plan/STATUS.md)
+tracks progress task by task.
 
 ## Layout
 
@@ -19,7 +23,25 @@ design and the phased roadmap, and [`plan/STATUS.md`](plan/STATUS.md) for progre
 | `params/`, `scenarios/`, `validation/` | Parameter register, scenarios, validation targets |
 | `plan/` | Design and roadmap |
 
-## Quick start
+## Install a release
+
+[Releases](https://github.com/ShubhamVashishth5/traffic-simulator/releases) carry ready-built
+files for x86_64 Linux, so you need no Rust toolchain. On Windows, use WSL; native builds are
+planned (STATUS P0.9).
+
+```bash
+# The command line, with the parameter register and the shipped scenarios
+tar xzf marg-v0.1.0-linux-x86_64-musl.tar.gz && cd marg-v0.1.0-linux-x86_64-musl
+export MARG_PARAMS_DIR=$PWD/params/base
+./marg run scenarios/corridor_2km.yaml --seed 1 --out runs/reference
+
+# The Python package (Python 3.11 or later). It does not include the register: it reads the
+# one MARG_PARAMS_DIR points at (above: the CLI archive's), or the nearest params/base above
+# the working directory.
+pip install marg-0.1.0-*.whl
+```
+
+## Build from source
 
 ```bash
 cargo test
@@ -65,12 +87,20 @@ Every push to `master`, every pull request and every `v*` tag runs the
 
 Each CLI archive contains the binary, the parameter register (`params/`), the shipped scenarios and
 a SHA-256 checksum; set `MARG_PARAMS_DIR` to its `params/base`. Binaries and wheels are
-smoke-tested by running a scenario before upload. Pushing a tag `vX.Y.Z` that matches the
-workspace version in `Cargo.toml` also publishes everything as a GitHub release.
+smoke-tested by running a scenario before upload. Pushing a tag `vX.Y.Z` also publishes
+everything as a GitHub release (0.x versions as pre-releases).
 
 macOS builds run only when the repository variable `BUILD_MACOS` is `true` (Settings → Secrets
 and variables → Actions → Variables), because they need macOS runners, which this repository
 does not get by default (GitHub cancels such jobs before they start).
+
+To release a version:
+
+1. Set `version` in `Cargo.toml` (`[workspace.package]`). The Python package and every crate
+   take it from there; `web/package.json` is set by hand.
+2. Write its section in [`CHANGELOG.md`](CHANGELOG.md). CI fails without one, and it becomes the
+   body of the release (`scripts/release-notes.sh` prints it).
+3. Once that change is on `master` with green checks, tag the merge commit:
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
