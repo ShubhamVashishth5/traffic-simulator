@@ -45,6 +45,19 @@ pub enum Drawn {
 }
 
 impl Drawn {
+    /// The κ link of this draw, if it has one.
+    pub fn linked(self) -> Option<crate::personas::Linked> {
+        use crate::personas::Linked;
+        match self {
+            Drawn::Length | Drawn::Width => None,
+            Drawn::V0 => Some(Linked::FreeFlowSpeed),
+            Drawn::TimeGap => Some(Linked::TimeGap),
+            Drawn::StandstillGap => Some(Linked::StandstillGap),
+            Drawn::MaxAccel => Some(Linked::MaxAccel),
+            Drawn::ComfortableDecel => Some(Linked::ComfortableDecel),
+        }
+    }
+
     pub fn key(self) -> &'static str {
         match self {
             Drawn::Length => "length",
@@ -119,6 +132,10 @@ pub struct CoreParams {
     pub road: RoadParams,
     /// Junctions, gap acceptance, splits and U-turns (G§2.4, §6.7).
     pub junction: JunctionParams,
+    /// Personas, traits, κ links and within-trip processes (G§3, ADR-0018).
+    pub personas: crate::personas::PersonaParams,
+    /// The violation decision rule (G§4, ADR-0018).
+    pub violations: crate::violations::ViolationParams,
     /// MOBIL politeness `p0`.
     pub politeness: f64,
     /// MOBIL safe braking limit `b_safe` (m/s²).
@@ -243,8 +260,6 @@ pub struct JunctionParams {
     pub critical_gap: Vec<Dist>,
     /// Factor on the critical gap against a heavy vehicle, per agent.
     pub heavy_factor: Dist,
-    /// `γ_g`: critical gaps are scaled by `exp(−γ_g κ)`.
-    pub gap_link: f64,
     pub u_turn_gap_factor: Option<f64>,
     pub u_turn_path_four: Option<Dist>,
     pub u_turn_path_six: Option<Dist>,
@@ -412,6 +427,8 @@ impl CoreParams {
             clearance_link,
             kappa_mean,
             kappa_sd,
+            personas: crate::personas::PersonaParams::from_spec(spec, kappa_mean, kappa_sd)?,
+            violations: crate::violations::ViolationParams::from_spec(spec)?,
             squeeze_scale,
             steering_scale: spec.scalar_si("interaction.lateral.steering_scale")?,
             steering_sensitivity: spec.scalar_si("interaction.lateral.steering_sensitivity")?,
@@ -484,7 +501,6 @@ impl CoreParams {
                     })
                     .collect::<Result<_, _>>()?,
                 heavy_factor: spec.dist_si("interaction.gap_acceptance.heavy_stream_factor")?,
-                gap_link: spec.scalar_si("personas.links.critical_gap")?,
                 u_turn_gap_factor: optional_scalar(
                     spec,
                     "interaction.gap_acceptance.u_turn.critical_gap_factor",
@@ -589,6 +605,21 @@ impl CoreParams {
             Drawn::StandstillGap => &c.standstill_gap,
             Drawn::MaxAccel => &c.max_accel,
             Drawn::ComfortableDecel => &c.comfortable_decel,
+        }
+    }
+
+    /// The distribution a κ-linked parameter is drawn from for type `vtype`.
+    pub fn linked_dist(&self, l: crate::personas::Linked, vtype: usize) -> &Dist {
+        use crate::personas::Linked;
+        match l {
+            Linked::FreeFlowSpeed => self.draw_dist(Drawn::V0, vtype),
+            Linked::TimeGap => self.draw_dist(Drawn::TimeGap, vtype),
+            Linked::StandstillGap => self.draw_dist(Drawn::StandstillGap, vtype),
+            Linked::MaxAccel => self.draw_dist(Drawn::MaxAccel, vtype),
+            Linked::ComfortableDecel => self.draw_dist(Drawn::ComfortableDecel, vtype),
+            Linked::CriticalGap => {
+                &self.junction.critical_gap[VehicleType::ALL[vtype].class().index()]
+            }
         }
     }
 

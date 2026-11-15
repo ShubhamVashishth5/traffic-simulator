@@ -20,7 +20,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Bump on any change to the messages or frame columns.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Columns of a binary agent frame, in order.
 pub const FRAME_COLUMNS: [&str; 8] = [
@@ -349,6 +349,53 @@ pub struct AgentRow {
     pub standstill_gap: f64,
     pub max_accel: f64,
     pub comfortable_decel: f64,
+    /// Persona key (null: no persona shares set) and traits at entry (G§3).
+    pub persona: Option<String>,
+    pub kappa: f64,
+    /// κ now (moves within a trip with the OU process or the jump on delay).
+    pub kappa_now: f64,
+    pub time_pressure: f64,
+    pub risk_tolerance: f64,
+    pub conformity: f64,
+    pub norm_sensitivity: f64,
+    pub skill: f64,
+    pub distraction: f64,
+    pub phone_user: bool,
+    pub distraction_episodes: u32,
+    pub violations: u32,
+}
+
+/// A named number (a feature, a coefficient or a term of a decision).
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+pub struct Named {
+    pub name: String,
+    pub value: f64,
+}
+
+/// An open violation episode of the inspected agent, as its last reading
+/// left it (ADR-0018): each term is its coefficient times its feature, and
+/// they add up to `eta`.
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+pub struct DecisionView {
+    /// Violation type (`forced_entry`, …).
+    pub kind: String,
+    pub episode: u32,
+    /// It has acted (a violation under way).
+    pub acted: bool,
+    pub t_start: f64,
+    /// When the features were last read.
+    pub t_read: f64,
+    pub features: Vec<Named>,
+    pub coefficients: Vec<Named>,
+    pub terms: Vec<Named>,
+    pub eta: f64,
+    /// Continuous types: hazard λ = λ_max σ(η) (1/s), the hazard integrated
+    /// so far Λ, and the threshold E it acts at. Null for one-shot types.
+    pub hazard: Option<f64>,
+    pub integrated: Option<f64>,
+    pub threshold: Option<f64>,
+    /// 1 − exp(−Λ) (continuous) or σ(η) (one-shot).
+    pub probability: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
@@ -392,7 +439,8 @@ pub struct Inspector {
     pub neighbours: Vec<Neighbour>,
     /// Free acceleration `a[1 − (v/v0)^δ]` (m/s²).
     pub free_accel: Option<f64>,
-    /// Persona, traits and decision explanations arrive with P8.
+    /// Open violation episodes with their logit breakdown (P8.3).
+    pub decisions: Vec<DecisionView>,
     pub note: String,
 }
 

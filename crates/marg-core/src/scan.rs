@@ -1086,16 +1086,19 @@ impl MoveCtx<'_> {
                 -idm.comfortable_decel
             });
         }
-        // Lateral target: on the agent's schedule, or when its leader changed.
-        let due = (self.step.wrapping_add(a.id[i])).is_multiple_of(self.decision_steps)
-            || lead.1 != a.decision_leader[i];
+        // Lateral target: on the agent's schedule, or when its leader changed;
+        // never while distracted (it keeps its target, ADR-0018 part 6).
+        let distracted = a.distracted[i];
+        let due = !distracted
+            && ((self.step.wrapping_add(a.id[i])).is_multiple_of(self.decision_steps)
+                || lead.1 != a.decision_leader[i]);
         let (target, choice) = if stop == STOP_PULLING_OVER {
             (tracking, None)
         } else if stop == STOP_IN_PLACE {
             (a.y_target[i], None)
         } else if let Some(land) = land {
             (land, None)
-        } else if due || route.is_some_and(|_| !a.aware[i]) {
+        } else if due || (!distracted && route.is_some_and(|_| !a.aware[i])) {
             let c =
                 NEIGHBOURS.with_borrow_mut(|nb| self.decide_with(r, k, i, &idm, cap, route, nb));
             (c.target, Some(c))

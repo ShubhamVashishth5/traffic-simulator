@@ -15,6 +15,8 @@ Every decision must be explainable term by term.
   - [03-model-design.md](../03-model-design.md) §6–8;
   - [ADR-0007](../decisions/ADR-0007-cooperative-twin.md): every violation hazard must honour
     `violations.enabled` (the cooperative twin, P3.3).
+  - [ADR-0018](../decisions/ADR-0018-decision-rule-timing.md) (accepted at the P8.1 gate): the
+    hazard clock, imitation counts, field of view, κ links, distraction; the engine as built.
 
 ## Tasks
 

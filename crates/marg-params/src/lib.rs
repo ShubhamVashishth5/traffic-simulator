@@ -8,6 +8,7 @@
 pub mod calibration;
 pub mod dist;
 pub mod param;
+pub mod persona;
 pub mod register;
 pub mod resolve;
 pub mod spec;
@@ -17,6 +18,7 @@ pub mod vehicle;
 pub use calibration::{Calibration, CalibrationError, StageFile, StageStatus};
 pub use dist::Dist;
 pub use param::{Grade, ParamEntry, ParamValue, Role};
+pub use persona::{Persona, Trait};
 pub use register::{Register, RegisterFile, RegisterFilter};
 pub use resolve::{
     Layer, ResolveError, ResolveOptions, ResolvedParam, ResolvedSpec, resolve, resolve_layers,
