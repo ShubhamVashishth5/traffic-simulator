@@ -60,5 +60,5 @@ def synthetic_register(
             '    guide: "-"',
             f"    range: [{lo}, {hi}]",
         ]
-    (d / "t.yaml").write_text("\n".join(lines) + "\n")
+    (d / "t.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return d

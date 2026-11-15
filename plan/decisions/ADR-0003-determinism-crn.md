@@ -27,10 +27,22 @@ Option 3:
 - decisions use per-agent decision streams;
 - environment and objects have their own streams;
 - the perceive, decide and move phases only read the previous state;
-- `libm` for transcendental functions in decision code.
+- `libm` for every transcendental function in simulation code: decisions, motion, geometry and
+  the network build. The float methods of the standard library (`f64::sin`, `hypot`, `atan2`,
+  `exp`, …) call the platform's C maths library, whose results differ in the last bit between
+  glibc, musl and the Windows CRT. `sqrt` (correctly rounded everywhere) and `powi` (Rust's
+  compiler builtins) are allowed.
 
 ## Consequences
 - Output is bitwise-identical for any thread count, tested in CI.
+- Output is bitwise-identical on every supported build (Linux glibc and musl, Windows), checked
+  in CI: the `build` workflow's `same-results` job compares the output hashes of three scenarios
+  from every build. Every transcendental call in simulation code uses `libm`, enforced by a guard
+  test (`crates/marg-core/tests/platform_math.rs`) over marg-core, marg-net, marg-params and
+  marg-io. Found before v0.1.0 (2026-11-15): 21 calls to `sin`, `cos`, `tan`, `hypot` and `atan2`
+  had used the platform library, mostly in junction geometry, so junction scenarios gave
+  different hashes on glibc, musl and Windows. Moving them to `libm` changed those scenarios'
+  reference hashes once (release plan `plan/release-v0.1.0.md`).
 - Twins and the population swap get variance reduction for free.
 - Spawn order must not affect draws, so agent IDs come from the demand stream.
 - Each of an agent's parameter draws reads its own block of the agent's stream (block `k · 2³²` for

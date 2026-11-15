@@ -244,7 +244,7 @@ def main() -> None:
         "folder, HTML and PDF).",
         "",
     ]
-    (out / "P3.md").write_text("\n".join(lines))
+    (out / "P3.md").write_text("\n".join(lines), encoding="utf-8")
     print(f"wrote {out / 'P3.md'}")
     shutil.copy(exp.dir / "report/sensitivity/sensitivity.pdf", out / "P3_sensitivity.pdf")
 

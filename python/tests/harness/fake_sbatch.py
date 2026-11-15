@@ -29,8 +29,8 @@ STATE = Path(os.environ.get("FAKE_SLURM_STATE", "/tmp/fake-slurm-jobid"))
 
 
 def next_job_id() -> int:
-    n = int(STATE.read_text()) + 1 if STATE.exists() else 1000
-    STATE.write_text(str(n))
+    n = int(STATE.read_text(encoding="utf-8")) + 1 if STATE.exists() else 1000
+    STATE.write_text(str(n), encoding="utf-8")
     return n
 
 
@@ -49,7 +49,7 @@ def finished(exp_dir: str) -> int:
 def main(argv: list[str]) -> int:
     script = Path([a for a in argv if not a.startswith("--")][-1])
     job = next_job_id()
-    text = script.read_text()
+    text = script.read_text(encoding="utf-8")
     m = re.search(r"^#SBATCH --array=(\d+)-(\d+)", text, re.M)
     tasks = range(int(m.group(1)), int(m.group(2)) + 1) if m else [None]
     cancel_after = os.environ.get("FAKE_SLURM_CANCEL_AFTER")
@@ -60,7 +60,7 @@ def main(argv: list[str]) -> int:
         if t is not None:
             env["SLURM_ARRAY_TASK_ID"] = str(t)
         log = script.parent / f"fake-{job}-{t}.out"
-        with log.open("w") as out:
+        with log.open("w", encoding="utf-8") as out:
             p = subprocess.Popen(
                 ["bash", str(script)],
                 env=env,

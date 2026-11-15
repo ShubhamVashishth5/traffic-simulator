@@ -130,7 +130,7 @@ def stage_path(root: str | Path, k: int) -> Path:
 
 def read_stage(root: str | Path, k: int) -> dict[str, Any] | None:
     p = stage_path(root, k)
-    return yaml.safe_load(p.read_text()) if p.exists() else None
+    return yaml.safe_load(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
 class Stage:
@@ -367,7 +367,9 @@ class Stage:
         if recovery is not None:
             doc["recovery"] = dict(recovery)
         p = stage_path(self.root, self.k)
-        p.write_text(yaml.safe_dump(_plain(doc), sort_keys=False, allow_unicode=True))
+        p.write_text(
+            yaml.safe_dump(_plain(doc), sort_keys=False, allow_unicode=True), encoding="utf-8"
+        )
         return p
 
     def freeze(self) -> Path:
@@ -381,7 +383,7 @@ class Stage:
         self.check_writable(list(doc.get("params", {})))
         doc["status"] = "frozen"
         doc["frozen"] = _dt.datetime.now(_dt.UTC).isoformat(timespec="seconds")
-        p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True))
+        p.write_text(yaml.safe_dump(doc, sort_keys=False, allow_unicode=True), encoding="utf-8")
         Register(self.params_dir, self.root)  # the core validates the frozen set
         return p
 

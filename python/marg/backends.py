@@ -45,7 +45,7 @@ def pending(exp_dir: Path, entries: list[dict[str, Any]]) -> list[dict[str, Any]
     for e in entries:
         m = Path(exp_dir) / e["path"] / "manifest.json"
         try:
-            j = json.loads(m.read_text())
+            j = json.loads(m.read_text(encoding="utf-8"))
             if j.get("status") == "ok" and j.get("run_hash") == e["run_hash"]:
                 continue
         except (OSError, ValueError):
@@ -98,7 +98,9 @@ class Local(Backend):
             ids = ",".join(str(e["run_id"]) for e in chunk)
             args = cmd + ["batch", str(exp_dir), "--ids", ids]
             args += ["--threads", str(self.threads_per_run)]
-            p = subprocess.run(args, capture_output=True, text=True)
+            p = subprocess.run(
+                args, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            )
             out = _last_json(p.stdout)
             if p.returncode != 0 and out is None:
                 errors.append(p.stderr.strip()[-2000:])
@@ -204,14 +206,20 @@ class Slurm(Backend):
             "",
         ]
         a, c = sdir / "array.sh", sdir / "collect.sh"
-        a.write_text("\n".join(array))
-        c.write_text("\n".join(collect))
+        a.write_text("\n".join(array), encoding="utf-8")
+        c.write_text("\n".join(collect), encoding="utf-8")
         a.chmod(0o755)
         c.chmod(0o755)
         return a, c
 
     def _submit(self, args: list[str]) -> str:
-        p = subprocess.run(list(self.sbatch) + args, capture_output=True, text=True)
+        p = subprocess.run(
+            list(self.sbatch) + args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         if p.returncode != 0:
             raise RuntimeError(f"sbatch failed: {p.stderr.strip()}")
         m = re.search(r"(\d+)", p.stdout)
@@ -237,7 +245,13 @@ class Slurm(Backend):
 
 def _squeue_has(job: str) -> bool:
     try:
-        p = subprocess.run(["squeue", "-h", "-j", job], capture_output=True, text=True)
+        p = subprocess.run(
+            ["squeue", "-h", "-j", job],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
     except FileNotFoundError:
         return False
     return p.returncode == 0 and bool(p.stdout.strip())
@@ -294,7 +308,9 @@ class Function(Backend):
                     "rep": e["rep"],
                 },
             }
-            (tmp / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n")
+            (tmp / "manifest.json").write_text(
+                json.dumps(manifest, indent=1) + "\n", encoding="utf-8"
+            )
             shutil.rmtree(final, ignore_errors=True)
             tmp.rename(final)
 

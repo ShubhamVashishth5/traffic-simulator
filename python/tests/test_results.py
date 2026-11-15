@@ -89,3 +89,23 @@ def test_summaries_and_plots(exp, tmp_path: Path) -> None:
     }.items():
         out = style.save(fig, str(tmp_path / name), formats=("png", "pdf"))
         assert all(Path(f).stat().st_size > 1000 for f in out)
+
+
+def test_run_of_file_reads_the_run_from_any_form_of_its_path() -> None:
+    """The first Windows wheel lost every row: results were joined on the file
+    path string, and Polars on Windows reports it in another form than given."""
+    from marg.results import run_of_file
+
+    run = "scenario=s/point=0/arm=observed/rep=1/run=ab12"
+    forms = [
+        f"exp/{run}/kpis.parquet",
+        "exp\\" + run.replace("/", "\\") + "\\kpis.parquet",
+        "D:\\a\\_temp\\exp\\" + run.replace("/", "\\") + "\\kpis.parquet",
+        "\\\\?\\D:\\a\\_temp\\exp\\" + run.replace("/", "\\") + "\\kpis.parquet",
+        f"D:/a/_temp/exp/{run}/kpis.parquet",
+        f"file:///D:/a/_temp/exp/{run}/kpis.parquet",
+        "exp\\" + run + "/kpis.parquet",
+        f"/abs/scenario=x/point=0/arm=a/rep=0/run=zz/exp/{run}/kpis.parquet",
+    ]
+    got = pl.DataFrame({"__file": forms}).select(run_of_file("__file", 5))["__run"].to_list()
+    assert got == [run] * len(forms)

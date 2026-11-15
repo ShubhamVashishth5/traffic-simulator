@@ -48,7 +48,9 @@ PARAMS = REPO / "params/base"
 OUT = REPO / "reports/phases"
 TARGETS = {
     t["id"]: t
-    for t in yaml.safe_load((REPO / "validation/targets/patterns.yaml").read_text())["targets"]
+    for t in yaml.safe_load(
+        (REPO / "validation/targets/patterns.yaml").read_text(encoding="utf-8")
+    )["targets"]
 }
 #: Composition of the sweep: Kanagaraj & Treiber's medium-traffic density
 #: shares (2W 170, car 55, bus 10, auto 15 veh/km), split into sub-types.
@@ -413,6 +415,8 @@ def guard_property_test() -> str | None:
         cwd=REPO,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     m = re.search(r"P5\.5 guard: .*", out.stderr + out.stdout)
     return m.group(0) if m else None
@@ -434,13 +438,15 @@ def bench(repeat: int = 5) -> dict:
             capture_output=True,
             text=True,
             check=True,
+            encoding="utf-8",
+            errors="replace",
         )
         xs.append(json.loads(out.stdout))
     ns = sorted(x["ns_per_agent_step"] for x in xs)
     cpu = next(
         (
             line.split(":", 1)[1].strip()
-            for line in Path("/proc/cpuinfo").read_text().splitlines()
+            for line in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines()
             if line.startswith("model name")
         ),
         platform.processor(),
@@ -467,10 +473,12 @@ def main() -> None:
         df, sweep_runs = sweep(tmp, args.seeds)
         dens_md, dens = density_table(df)
         res["speed_flow"] = speed_flow_figure(df, OUT / "P5_speed_flow.png")
-        corridor = yaml.safe_load((REPO / "scenarios/corridor_2km.yaml").read_text())
+        corridor = yaml.safe_load(
+            (REPO / "scenarios/corridor_2km.yaml").read_text(encoding="utf-8")
+        )
         corridor["outputs"] = {"trajectories": {"every_s": 1.0}}
-        mb = (REPO / "scenarios/moving_bottleneck_e_rickshaw.yaml").read_text()
-        bq = (REPO / "scenarios/barrier_queue.yaml").read_text()
+        mb = (REPO / "scenarios/moving_bottleneck_e_rickshaw.yaml").read_text(encoding="utf-8")
+        bq = (REPO / "scenarios/barrier_queue.yaml").read_text(encoding="utf-8")
         seeds = range(1, args.seeds + 1)
         jobs = [(yaml.safe_dump(corridor), 1, str(tmp / "corridor"))]
         jobs += [(mb, s, str(tmp / f"mb_{s}")) for s in seeds]
@@ -490,7 +498,7 @@ def main() -> None:
     guard_line = None if args.skip_guard else guard_property_test()
     perf = None if args.skip_bench else bench()
     s3_path = OUT / "P5_stage3.json"
-    s3 = json.loads(s3_path.read_text()) if s3_path.exists() else None
+    s3 = json.loads(s3_path.read_text(encoding="utf-8")) if s3_path.exists() else None
     (OUT / "P5_milestone.json").write_text(
         json.dumps(
             {
@@ -505,7 +513,8 @@ def main() -> None:
             },
             indent=1,
             default=str,
-        )
+        ),
+        encoding="utf-8",
     )
     write_report(
         dens_md, dens, res, lat, lat_mb, shares, sides, seep, corridor_kpis, guard_line, perf, s3
@@ -752,7 +761,7 @@ Reference corridor KPIs (seed 1, 1 h): throughput {kpis["throughput_veh_h"]:,.0f
 mean delay {kpis["delay_mean_s"]:.1f} s, mean speed {kpis["network_mean_speed_m_s"]:.1f} m/s,
 {kpis["conflicts"]:.0f} conflict episodes, {kpis["lateral_moves"]:,.0f} lateral moves.
 """
-    (OUT / "P5.md").write_text(text)
+    (OUT / "P5.md").write_text(text, encoding="utf-8")
     print(f"wrote {OUT / 'P5.md'}")
 
 

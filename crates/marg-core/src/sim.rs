@@ -1834,7 +1834,7 @@ impl Simulation {
                 let a = &self.agents;
                 let l = a.length.iter().copied().fold(0.0, f64::max);
                 let w = a.width.iter().copied().fold(0.0, f64::max);
-                l.hypot(w)
+                libm::hypot(l, w)
             };
             let mut bodies: Vec<Body> = (0..n)
                 .map(|k| self.world_body(self.junctions.members[g][k].i as usize, false))

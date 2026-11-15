@@ -34,7 +34,7 @@ class ExperimentData:
     @cached_property
     def definition(self) -> dict[str, Any]:
         f = self.dir / "experiment.yaml"
-        return yaml.safe_load(f.read_text()) if f.exists() else {}
+        return yaml.safe_load(f.read_text(encoding="utf-8")) if f.exists() else {}
 
     @property
     def name(self) -> str:
@@ -107,10 +107,14 @@ class ExperimentData:
             raise LookupError(f"no runs match status={status!r} filters={filters!r}")
         files = self.files(table, runs)
         keys = list(RUN_KEYS) + (self.factors if with_factors else [])
-        meta = runs.select(keys).with_columns(pl.Series("__file", files))
+        depths = runs["path"].str.count_matches("/").unique().to_list()
+        if len(depths) != 1:
+            raise ValueError(f"run paths of different depths in {self.dir}: {depths}")
+        meta = runs.select(keys).with_columns(pl.Series("__run", runs["path"]))
         lf = pl.scan_parquet(files, include_file_paths="__file", missing_columns="insert")
         drop = [c for c in ("run_hash", "seed") if c in lf.collect_schema().names()]
-        return meta.lazy().join(lf.drop(drop), on="__file", how="inner").drop("__file")
+        lf = lf.drop(drop).with_columns(run_of_file("__file", depths[0] + 1)).drop("__file")
+        return meta.lazy().join(lf, on="__run", how="inner").drop("__run")
 
     def results(
         self,
@@ -140,8 +144,9 @@ class ExperimentData:
         con.register("runs", self.runs().to_arrow())
         hive = ("scenario", "point", "arm", "rep", "run", "run_hash", "seed")
         for t in tables:
-            pattern = str(self.dir / "scenario=*/point=*/arm=*/rep=*/run=*" / f"{t}.parquet")
-            if not any(self.dir.glob(f"scenario=*/point=*/arm=*/rep=*/run=*/{t}.parquet")):
+            glob = f"scenario=*/point=*/arm=*/rep=*/run=*/{t}.parquet"
+            pattern = (self.dir / glob).as_posix()
+            if not any(self.dir.glob(glob)):
                 continue
             cols = con.sql(
                 f"DESCRIBE SELECT * FROM read_parquet('{pattern}', hive_partitioning = true)"
@@ -155,6 +160,17 @@ class ExperimentData:
                 JOIN runs r ON r.run_hash = x.run"""
             )
         return con
+
+
+def run_of_file(col: str, depth: int) -> pl.Expr:
+    """``__run``: a run's path in the run list (``scenario=…/…/run=…``, ``depth``
+    parts) from the path of one of its files as Polars reports it.
+
+    Joining on the file path string itself breaks where Polars reports a path in
+    another form than it was given (Windows: separators, absolute or verbatim
+    prefixes), so only the run folder's own parts are compared."""
+    parts = pl.col(col).str.replace_all("\\", "/", literal=True).str.split("/")
+    return parts.list.slice(-(depth + 1), depth).list.join("/").alias("__run")
 
 
 def open_experiment(path: str | Path) -> ExperimentData:

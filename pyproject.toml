@@ -51,6 +51,10 @@ features = ["pyo3/extension-module"]
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
+# With PYTHONWARNDEFAULTENCODING=1 (set in CI), a text file opened without an encoding fails
+# the tests: on Windows it would be read as cp1252, not UTF-8. Only for marg's own code and
+# the tests (matplotlib, for one, opens files without one).
+filterwarnings = ["error::EncodingWarning:(marg|test_|conftest)"]
 
 [tool.ruff]
 line-length = 100

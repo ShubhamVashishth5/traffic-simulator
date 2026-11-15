@@ -210,16 +210,16 @@ fn arc_tangent_factor(turn: f64) -> f64 {
     if half < 1e-6 {
         1.0
     } else {
-        2.0 * (0.5 * half).tan() / half.sin()
+        2.0 * libm::tan(0.5 * half) / libm::sin(half)
     }
 }
 
 /// [`hermite`] with end tangents `scale` times the chord.
 fn hermite_scaled(p0: (f64, f64, f64), p1: (f64, f64, f64), scale: f64) -> Vec<[f64; 2]> {
-    let d = scale * (p1.0 - p0.0).hypot(p1.1 - p0.1);
+    let d = scale * libm::hypot(p1.0 - p0.0, p1.1 - p0.1);
     let (t0, t1) = (
-        [d * p0.2.cos(), d * p0.2.sin()],
-        [d * p1.2.cos(), d * p1.2.sin()],
+        [d * libm::cos(p0.2), d * libm::sin(p0.2)],
+        [d * libm::cos(p1.2), d * libm::sin(p1.2)],
     );
     (0..=MOVEMENT_SEGMENTS)
         .map(|k| {
@@ -243,7 +243,7 @@ fn hermite_scaled(p0: (f64, f64, f64), p1: (f64, f64, f64), scale: f64) -> Vec<[
 fn generated(id: String, polyline: Vec<[f64; 2]>, w0: (f64, f64), w1: (f64, f64)) -> Ribbon {
     let len: f64 = polyline
         .windows(2)
-        .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
+        .map(|w| libm::hypot(w[1][0] - w[0][0], w[1][1] - w[0][1]))
         .sum();
     let mut r = Ribbon::from_spec(&RibbonSpec {
         id,
@@ -503,7 +503,7 @@ pub(crate) fn build(
                     }
                     let rout = j.arms[t].outbound.expect("checked above");
                     let start = ribbons[rout].start_pose();
-                    if (start.0 - end.0).hypot(start.1 - end.1) > 1e-6 {
+                    if libm::hypot(start.0 - end.0, start.1 - end.1) > 1e-6 {
                         return Err(bad(
                             id,
                             format!(
@@ -735,8 +735,8 @@ fn arm_of_in(arms: &[Arm], name: &str) -> Option<usize> {
 /// A point of the ring and the heading of clockwise travel there.
 fn ring_pose(c: [f64; 2], radius: f64, angle: f64) -> (f64, f64, f64) {
     (
-        c[0] + radius * angle.cos(),
-        c[1] + radius * angle.sin(),
+        c[0] + radius * libm::cos(angle),
+        c[1] + radius * libm::sin(angle),
         angle - 0.5 * PI,
     )
 }
@@ -779,7 +779,7 @@ fn build_ring(
             a.outbound.map(|r| ribbons[r].start_pose()),
         ];
         for p in ends.into_iter().flatten() {
-            if (p.0 - c[0]).hypot(p.1 - c[1]) <= radius + half {
+            if libm::hypot(p.0 - c[0], p.1 - c[1]) <= radius + half {
                 return Err(bad(
                     id,
                     format!(
@@ -803,7 +803,7 @@ fn build_ring(
     // The lead is also kept below a share of the angle to the nearest end of
     // another arm, so that an arm's way on never moves past the next arm's
     // way off (the first exit stays the first).
-    let end_angle = |p: (f64, f64, f64)| (p.1 - c[1]).atan2(p.0 - c[0]);
+    let end_angle = |p: (f64, f64, f64)| libm::atan2(p.1 - c[1], p.0 - c[0]);
     let arm_angles: Vec<(usize, f64)> = (0..n)
         .flat_map(|a| {
             let ends = [
@@ -818,7 +818,7 @@ fn build_ring(
     let mut nodes = Vec::new();
     for a in 0..n {
         let reach = |p: (f64, f64, f64)| {
-            let d = (p.0 - c[0]).hypot(p.1 - c[1]);
+            let d = libm::hypot(p.0 - c[0], p.1 - c[1]);
             let angle = end_angle(p);
             let room = arm_angles
                 .iter()

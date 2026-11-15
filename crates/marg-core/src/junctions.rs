@@ -132,7 +132,7 @@ pub fn chord_pose(
         }
     };
     let (dx, dy) = (front.0 - rear.0, front.1 - rear.1);
-    let norm = dx.hypot(dy);
+    let norm = libm::hypot(dx, dy);
     let d = if norm > 0.0 {
         [dx / norm, dy / norm]
     } else {

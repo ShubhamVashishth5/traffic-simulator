@@ -288,7 +288,7 @@ class Experiment:
         defn["definition_hash"] = self.definition_hash()
         ef = d / "experiment.yaml"
         if ef.exists():
-            old = yaml.safe_load(ef.read_text()) or {}
+            old = yaml.safe_load(ef.read_text(encoding="utf-8")) or {}
             if old.get("definition_hash") != defn["definition_hash"]:
                 raise FileExistsError(
                     f"{d} holds a different experiment (definition hash "
@@ -305,7 +305,7 @@ class Experiment:
         self._write_scenarios(entries)
         _write_runs(d / "runs.jsonl", entries, append=False)
         self._write_design()
-        ef.write_text(yaml.safe_dump(defn, sort_keys=False, allow_unicode=True))
+        ef.write_text(yaml.safe_dump(defn, sort_keys=False, allow_unicode=True), encoding="utf-8")
         return d
 
     def _write_scenarios(self, entries: list[dict[str, Any]]) -> None:
@@ -318,7 +318,7 @@ class Experiment:
                     doc, _, _ = self._variant(s, p, arm)
                     f = _scenario_file(doc, s)
                     if f not in done:
-                        (sdir / f).write_text(doc.to_yaml())
+                        (sdir / f).write_text(doc.to_yaml(), encoding="utf-8")
                         done.add(f)
 
     def _write_design(self) -> None:
@@ -399,7 +399,8 @@ class Experiment:
                 if not stop:
                     want[(s.name, p)] = min(n + rule.step, rule.max)
         (self.dir / "replications.json").write_text(
-            json.dumps(decisions, indent=1, sort_keys=True, default=_json_num) + "\n"
+            json.dumps(decisions, indent=1, sort_keys=True, default=_json_num) + "\n",
+            encoding="utf-8",
         )
         if not want:
             return False
@@ -435,7 +436,7 @@ def _write_runs(path: Path, entries: list[dict[str, Any]], append: bool) -> None
     for i, e in enumerate(entries):
         e = dict(e, run_id=start + i)
         lines.append(json.dumps(e, sort_keys=True, separators=(",", ":")))
-    with path.open("a" if append else "w") as f:
+    with path.open("a" if append else "w", encoding="utf-8") as f:
         for line in lines:
             f.write(line + "\n")
 
@@ -444,7 +445,9 @@ def read_runs(path: Path) -> list[dict[str, Any]]:
     """Read a ``runs.jsonl`` run list."""
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 def register_digest(params_dir: Path) -> str:

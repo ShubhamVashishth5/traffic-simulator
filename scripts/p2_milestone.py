@@ -62,12 +62,16 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    scenario = yaml.safe_load((REPO / "scenarios/free_flow_early_morning.yaml").read_text())
+    scenario = yaml.safe_load(
+        (REPO / "scenarios/free_flow_early_morning.yaml").read_text(encoding="utf-8")
+    )
     scenario["outputs"] = {"trajectories": {"every_s": 0.5, "s_from": 700, "s_to": 800}}
     text = yaml.safe_dump(scenario)
     targets = {
         t["id"]: t
-        for t in yaml.safe_load((REPO / "validation/targets/patterns.yaml").read_text())["targets"]
+        for t in yaml.safe_load(
+            (REPO / "validation/targets/patterns.yaml").read_text(encoding="utf-8")
+        )["targets"]
     }
     target = targets["free_flow_speed_by_subclass"]
     tol = target["tolerance"]
@@ -199,7 +203,7 @@ def main() -> None:
         f"mean delay {k['delay_mean_s'].mean():.1f} s, collision-guard events {int(k['collision_guard_events'].sum())}.",
         "",
     ]
-    (REPO / "reports/phases/P2.md").write_text("\n".join(lines))
+    (REPO / "reports/phases/P2.md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines[:3]))
     print(sim)
 

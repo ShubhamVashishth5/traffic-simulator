@@ -22,7 +22,7 @@ class Scenario:
 
     @classmethod
     def load(cls, path: str | Path) -> Scenario:
-        return cls.from_yaml(Path(path).read_text())
+        return cls.from_yaml(Path(path).read_text(encoding="utf-8"))
 
     @classmethod
     def from_yaml(cls, text: str) -> Scenario:

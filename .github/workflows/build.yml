@@ -5,11 +5,15 @@ name: build
 #
 # - the `marg` CLI: Linux x86_64 static (musl; runs on any Linux, e.g. HPC
 #   clusters and the Apptainer image in deploy/marg.def), Linux x86_64 (glibc;
-#   about 7% faster) and, opt-in, macOS arm64, each packaged with the parameter register
-#   and the shipped scenarios;
+#   about 7% faster), Windows x86_64 (MSVC; a .zip) and, opt-in, macOS arm64,
+#   each packaged with the parameter register and the shipped scenarios;
 # - Python wheels (abi3: one wheel per platform for Python >= 3.11) and the
 #   source distribution;
 # - the web viewer bundle.
+#
+# Every CLI build also runs three scenarios with seed 1 and reports their
+# output hashes; the `same-results` job fails unless every build reports the
+# same ones (results are bitwise identical on every platform, ADR-0003).
 #
 # macOS builds are opt-in: set the repository variable BUILD_MACOS to `true`
 # (Settings → Secrets and variables → Actions → Variables) once macOS runners
@@ -52,7 +56,9 @@ jobs:
         run: |
           cli='{"name":"linux-x86_64-musl","os":"ubuntu-latest","target":"x86_64-unknown-linux-musl"}'
           cli="$cli"',{"name":"linux-x86_64-gnu","os":"ubuntu-latest","target":"x86_64-unknown-linux-gnu"}'
+          cli="$cli"',{"name":"windows-x86_64","os":"windows-latest","target":"x86_64-pc-windows-msvc","exe":".exe"}'
           wheels='{"name":"linux-x86_64","os":"ubuntu-latest","target":"x86_64"}'
+          wheels="$wheels"',{"name":"windows-x86_64","os":"windows-latest","target":"x64"}'
           if [ "$BUILD_MACOS" = "true" ]; then
             mac='{"name":"macos-arm64","os":"macos-14","target":"aarch64-apple-darwin"}'
             cli="$cli,$mac"
@@ -70,6 +76,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.cli) }}
+    defaults:
+      run:
+        # Git Bash on Windows (it has tar, sha256sum and 7z on the runner).
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.97.0
@@ -95,28 +105,85 @@ jobs:
         env:
           MARG_PARAMS_DIR: params/base
         run: |
-          bin=target/${{ matrix.target }}/release/marg
+          bin=target/${{ matrix.target }}/release/marg${{ matrix.exe }}
           "$bin" version
           "$bin" run scenarios/free_flow_early_morning.yaml --seed 1 --out "$RUNNER_TEMP/smoke"
           test -s "$RUNNER_TEMP/smoke/kpis.parquet"
+      - name: Output hashes (compared across builds by `same-results`)
+        env:
+          MARG_PARAMS_DIR: params/base
+        run: |
+          bin=target/${{ matrix.target }}/release/marg${{ matrix.exe }}
+          mkdir -p hashes
+          for s in corridor_2km priority_crossing signal_crossing; do
+            "$bin" run "scenarios/$s.yaml" --seed 1 --out "$RUNNER_TEMP/hash-$s" > /dev/null
+            h=$(sed -n 's/.*"output_hash": *"\([0-9a-f]*\)".*/\1/p' "$RUNNER_TEMP/hash-$s/manifest.json")
+            if [ -z "$h" ]; then echo "::error::no output_hash for $s"; exit 1; fi
+            echo "$s $h" | tee -a "hashes/hashes-${{ matrix.name }}.txt"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hashes-${{ matrix.name }}
+          path: hashes/hashes-${{ matrix.name }}.txt
+          if-no-files-found: error
       - name: Package
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then ver="$GITHUB_REF_NAME"; else ver="${GITHUB_SHA::8}"; fi
           dir="marg-$ver-${{ matrix.name }}"
+          bin="marg${{ matrix.exe }}"
           mkdir -p "dist/$dir/scenarios"
-          cp "target/${{ matrix.target }}/release/marg" "dist/$dir/"
-          strip "dist/$dir/marg"
+          cp "target/${{ matrix.target }}/release/$bin" "dist/$dir/"
+          # MSVC keeps debug info in a separate .pdb, so there is nothing to strip.
+          if [ "$RUNNER_OS" != Windows ]; then strip "dist/$dir/$bin"; fi
           cp -R params LICENSE README.md "dist/$dir/"
           cp scenarios/*.yaml "dist/$dir/scenarios/"
-          tar -C dist -czf "dist/$dir.tar.gz" "$dir"
-          (cd dist && shasum -a 256 "$dir.tar.gz" > "$dir.tar.gz.sha256")
+          if [ "$RUNNER_OS" = Windows ]; then
+            archive="$dir.zip"
+            (cd dist && 7z a -tzip "$archive" "$dir" > /dev/null)
+          else
+            archive="$dir.tar.gz"
+            tar -C dist -czf "dist/$archive" "$dir"
+          fi
+          if command -v sha256sum > /dev/null; then sum=sha256sum; else sum="shasum -a 256"; fi
+          (cd dist && $sum "$archive" > "$archive.sha256" && cat "$archive.sha256")
       - uses: actions/upload-artifact@v4
         with:
           name: cli-${{ matrix.name }}
           path: |
             dist/*.tar.gz
+            dist/*.zip
             dist/*.sha256
           if-no-files-found: error
+
+  same-results:
+    name: Same results on every build
+    needs: [plan, cli]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hashes-*
+          path: hashes
+          merge-multiple: true
+      - name: Every build reports the same output hashes
+        env:
+          CLI: ${{ needs.plan.outputs.cli }}
+        run: |
+          cd hashes
+          want=$(echo "$CLI" | jq '.include | length')
+          got=$(ls hashes-*.txt | wc -l)
+          if [ "$got" -ne "$want" ]; then
+            echo "::error::$got of $want builds reported hashes"; exit 1
+          fi
+          ref=hashes-linux-x86_64-gnu.txt
+          fail=0
+          for f in hashes-*.txt; do
+            echo "== $f"; cat "$f"
+            if ! diff -u "$ref" "$f"; then
+              echo "::error::${f#hashes-} gives different results from ${ref#hashes-}"; fail=1
+            fi
+          done
+          exit $fail
 
   wheels:
     name: Python wheel (${{ matrix.name }})
@@ -125,6 +192,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.wheels) }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: PyO3/maturin-action@v1
@@ -148,7 +218,12 @@ jobs:
           # An experiment runs through \`python -m marg batch\` when no CLI is installed.
           exp = marg.Experiment('smoke', sys.argv[1], replications=marg.Replications(n=2))
           exp.run(marg.backends.Local(workers=2))
-          assert exp.results('kpis').height == 2
+          import polars as pl
+          files = exp.data().files('kpis')
+          seen = pl.scan_parquet(files, include_file_paths='f').collect()['f'].to_list()
+          print('run files', files, 'as Polars reports them', seen)
+          res = exp.results('kpis')
+          assert res.height == 2, (res.height, exp.data().index().select('status', 'path').rows())
           " "$GITHUB_WORKSPACE/scenarios/free_flow_early_morning.yaml"
       - uses: actions/upload-artifact@v4
         with:
@@ -199,7 +274,7 @@ jobs:
   release:
     name: GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [cli, wheels, sdist, web]
+    needs: [cli, same-results, wheels, sdist, web]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -215,6 +290,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: Keep only the release files (drop the hash reports)
+        run: rm -f artifacts/hashes-*.txt && ls -l artifacts
       - name: Release notes from CHANGELOG.md
         env:
           LINK_BASE: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}

@@ -75,7 +75,7 @@ def frozen_root(tmp: Path) -> Path:
             "params": {},
             "notes": "register values (synthetic test)",
         }
-        (root / f"stage_{k}.yaml").write_text(yaml.safe_dump(doc))
+        (root / f"stage_{k}.yaml").write_text(yaml.safe_dump(doc), encoding="utf-8")
     return root
 
 
@@ -149,7 +149,7 @@ def main() -> None:
                 f"{r['path'].removeprefix(L):36s} truth {r['truth']:8.3f} est {r['estimate']:8.3f} "
                 f"95% CI [{r['ci_lo']:.3f}, {r['ci_hi']:.3f}] covered {r['covered']}"
             )
-    args.out.write_text(json.dumps(result, indent=1))
+    args.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
     print(f"wrote {args.out}")
 
 

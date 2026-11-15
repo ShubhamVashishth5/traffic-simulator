@@ -42,12 +42,12 @@ GROUPS = {
 
 
 def run(seed: int, duration: int, out: Path) -> Path:
-    text = SCENARIO.read_text()
+    text = SCENARIO.read_text(encoding="utf-8")
     text = text.replace("duration_s: 1800", f"duration_s: {duration}")
     text = text.replace("warmup_s: 300", "warmup_s: 0")
     text += "outputs:\n  trajectories: {every_s: 0.1}\n"
     spec = out / f"scenario_{seed}.yaml"
-    spec.write_text(text)
+    spec.write_text(text, encoding="utf-8")
     folder = out / f"run_{seed}"
     subprocess.run(
         [str(MARG), "run", str(spec), "--seed", str(seed), "--out", str(folder)],
@@ -154,7 +154,7 @@ def main() -> None:
             f"  {'within' if within else 'outside'}"
         )
     out = ROOT / "reports" / "phases" / "P7_signal.json"
-    out.write_text(json.dumps(report, indent=2))
+    out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"wrote {out.relative_to(ROOT)}")
 
 

@@ -26,8 +26,8 @@ tracks progress task by task.
 ## Install a release
 
 [Releases](https://github.com/ShubhamVashishth5/traffic-simulator/releases) carry ready-built
-files for x86_64 Linux, so you need no Rust toolchain. On Windows, use WSL; native builds are
-planned (STATUS P0.9).
+files for x86_64 Linux and Windows, so you need no Rust toolchain. Every build gives the same
+results bit for bit for the same scenario and seed.
 
 ```bash
 # The command line, with the parameter register and the shipped scenarios
@@ -39,6 +39,18 @@ export MARG_PARAMS_DIR=$PWD/params/base
 # one MARG_PARAMS_DIR points at (above: the CLI archive's), or the nearest params/base above
 # the working directory.
 pip install marg-0.1.0-*.whl
+```
+
+On Windows, in PowerShell:
+
+```powershell
+Expand-Archive marg-v0.1.0-windows-x86_64.zip -DestinationPath .
+cd marg-v0.1.0-windows-x86_64
+$env:MARG_PARAMS_DIR = "$PWD\params\base"
+.\marg.exe run scenarios\corridor_2km.yaml --seed 1 --out runs\reference
+
+# The Python package: the wheel whose name ends in win_amd64
+pip install marg-0.1.0-cp311-abi3-win_amd64.whl
 ```
 
 ## Build from source

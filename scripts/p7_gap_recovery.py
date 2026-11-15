@@ -43,7 +43,7 @@ FLOWS = {"e": 300, "w": 300, "n": 150, "s": 150}
 
 
 def scenario(duration: int) -> dict:
-    spec = yaml.safe_load(SCENARIO.read_text())
+    spec = yaml.safe_load(SCENARIO.read_text(encoding="utf-8"))
     spec["name"] = "gap_recovery"
     spec["duration_s"] = duration
     for e in spec["demand"]["entries"]:
@@ -63,7 +63,7 @@ def run(spec_path: Path, seed: int, out: Path) -> Path:
 
 
 def truths() -> dict[str, dict[str, float]]:
-    reg = yaml.safe_load(REGISTER.read_text())["entries"]
+    reg = yaml.safe_load(REGISTER.read_text(encoding="utf-8"))["entries"]
     out = {}
     for c in CLASSES:
         v = reg[f"gap_acceptance.critical_gap.{c}"]["value"]
@@ -81,7 +81,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         spec_path = tmp / "gap_recovery.yaml"
-        spec_path.write_text(yaml.safe_dump(scenario(args.duration), sort_keys=False))
+        spec_path.write_text(yaml.safe_dump(scenario(args.duration), sort_keys=False), encoding="utf-8")
         with ThreadPoolExecutor() as pool:
             folders = list(pool.map(lambda s: run(spec_path, s, tmp), range(1, args.seeds + 1)))
         tables = []
@@ -133,7 +133,7 @@ def main() -> None:
         },
     }
     out = ROOT / "reports" / "phases" / "P7_gaps.json"
-    out.write_text(json.dumps(result, indent=2) + "\n")
+    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(f"gaps against heavy vehicles: {heavy}")
     for c, r in per.items():
         print(

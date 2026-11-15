@@ -37,7 +37,10 @@ jobs:
       - run: uv sync
       - run: uv run maturin develop --release
       - run: uv run ruff check python scripts
-      - run: uv run pytest
+      - name: pytest (a text file opened without an encoding fails, as Windows reads it as cp1252)
+        env:
+          PYTHONWARNDEFAULTENCODING: "1"
+        run: uv run pytest
 
   web:
     runs-on: ubuntu-latest
