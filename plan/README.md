@@ -54,6 +54,10 @@ Comment inline on the PR, or edit the files directly. Both work.
 | Stop-anywhere: pull over or stop in the stream by a per-class probability; events per vehicle-km, multiplied at attractors | accepted (your choice, P6.3) | [ADR-0014](decisions/ADR-0014-stop-anywhere.md) |
 | Bus stops, potholes, humps, gradients, water and pedestrians: the rules chosen while building them | proposed (P6.4–P6.7), for your review | [ADR-0015](decisions/ADR-0015-bus-stops-surface-pedestrians.md) |
 | The violation decision rule: one-shot decisions and an integrated-hazard clock, imitation counts, field of view, how κ links to per-class spreads; distraction episodes | accepted (your choices at the P8.1 gate: T2, I1, F1, K2; distraction: stop re-deciding); parts marked *(mine)* for your review | [ADR-0018](decisions/ADR-0018-decision-rule-timing.md) |
+| Violations at signals and signal control states; a dark junction is mutual deference, and the cooperative twin takes turns there, first come first served | proposed; the dark regime **D1** accepted (your choice, 2026-11-16); parts marked *(mine)* for your review | [ADR-0019](decisions/ADR-0019-signal-violations-and-control-states.md) |
+| Footpaths, undivided roads and wrong-way paths in the network; seepage, late merging, footpath riding, opposite encroachment, wrong way, stop-anywhere by thinning | accepted (your choices, 2026-11-16); parts marked *(mine)* for your review | [ADR-0020](decisions/ADR-0020-strips-and-remaining-violations.md) |
+| Splits: drift over from the moment a driver knows, patience at the deadline, late realisers who learn at the line stop | A2 + B2 + C2 accepted (your choice, 2026-11-16) | [ADR-0017](decisions/ADR-0017-splits-and-mandatory-moves.md) |
+| The left hook: a vehicle on the inside of a turning one keeps out of its sweep, and the turning one waits at its line | (c) both, accepted (your choice, 2026-11-16) | [ADR-0016](decisions/ADR-0016-junctions.md) |
 
 ## Folder map
 

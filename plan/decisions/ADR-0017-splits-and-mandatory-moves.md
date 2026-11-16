@@ -1,8 +1,8 @@
 # ADR-0017: Splits and mandatory lateral moves
 
-- **Status:** proposed. **Run for the first time on 2026-11-14 (P7.6 and the P7 milestone):
-  the forms below do not produce what P7.6 asks for. Three of them need your decision**
-  (options at the end). The ⚑ of plan/03-model-design.md §9 stays open until then
+- **Status:** accepted: the user chose **A2, B2 and C2** on 2026-11-16 (see the end). Before
+  that, run for the first time on 2026-11-14 (P7.6 and the P7 milestone), the forms below did
+  not produce what P7.6 asks for
 - **Date:** 2026-11-13
 - **Phase / task:** P7.6 (also used by P7.5 U-turns and by turns at boxes)
 

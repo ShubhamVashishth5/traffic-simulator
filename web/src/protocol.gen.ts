@@ -893,6 +893,22 @@ export interface ArmSpec {
    * The ribbon that leaves from here.
    */
   out?: string | null;
+  /**
+   * This arm leaves by a wrong-way path (ADR-0020 part 4): a vehicle
+   * whose turn is this arm decides here, once, whether to ride it or take
+   * the legal route.
+   */
+  wrong_way?: WrongWaySpec | null;
+}
+/**
+ * The legal route instead of a wrong-way path.
+ */
+export interface WrongWaySpec {
+  /**
+   * The arm the legal route leaves by; it turns back at the first median
+   * opening downstream with a U-turn from its approach.
+   */
+  legal: string;
 }
 /**
  * One stage of a fixed-time plan: green for every movement from `arms`
@@ -1024,11 +1040,23 @@ export interface PotholeFieldSpec {
  * kerb is on the left (`y_max`) and the median on the right (`y_min`).
  */
 export interface RibbonSpec {
+  /**
+   * A footpath beside the kerb (`y_max`): footpath riding (ADR-0020
+   * part 2). Its width and bollards are site data.
+   */
+  footpath?: FootpathSpec | null;
   id: string;
   /**
    * The ribbon traffic continues onto at the end, if any.
    */
   next?: string | null;
+  /**
+   * Ribbons that carry the other direction over the same ground (at most
+   * two): the other carriageway of an undivided road, or a wrong-way path
+   * over this one (ADR-0020 parts 3–4). Each must name this ribbon too,
+   * and its polyline must be this one's reversed.
+   */
+  opposite?: string[];
   /**
    * Reference line vertices in world metres (UTM or local), at least two.
    */
@@ -1038,6 +1066,24 @@ export interface RibbonSpec {
    * (piecewise linear between stations, constant beyond the ends).
    */
   width: WidthPoint[];
+}
+/**
+ * A footpath beside a ribbon's kerb.
+ */
+export interface FootpathSpec {
+  /**
+   * Stretches `[from_s, to_s]` with bollards: no vehicle can get on.
+   */
+  bollards?: [number, number][];
+  /**
+   * Where it runs along the ribbon (m; default: the whole ribbon).
+   */
+  from_s?: number | null;
+  to_s?: number | null;
+  /**
+   * Width of the footpath beyond the kerb (m).
+   */
+  width: number;
 }
 /**
  * Lateral bounds of the carriageway at station `s`.

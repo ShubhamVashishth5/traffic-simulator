@@ -135,6 +135,7 @@ pub fn strip_end(net: &Network, r: usize, s: f64, strip: u8) -> f64 {
 /// and `y` its lateral position, both in `r`'s frame. It moves towards the
 /// vehicle at its own speed.
 #[inline]
+#[allow(clippy::too_many_arguments)]
 pub fn partner_window(
     net: &Network,
     a: &AgentStore,

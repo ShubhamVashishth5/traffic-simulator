@@ -2,8 +2,9 @@
 
 - **Status:** proposed (rules added while building P7.1–P7.4; **please review**). Your
   decisions of 2026-11-13: **D** for vehicles on other ribbons (open problem 1, part 4) and
-  **permitted turns wait for their gap inside the box** (open problem 2, part 3). The rules I
-  added to make those work are marked *(mine)*
+  **permitted turns wait for their gap inside the box** (open problem 2, part 3); of
+  2026-11-16: **(c)** for open problem 3, the left hook. The rules I added to make those work
+  are marked *(mine)*
 - **Date:** 2026-11-13
 - **Phase / task:** P7.1–P7.4, P7.7, read by P7.5, P7.6, P7.8, P8, P11
 
@@ -158,7 +159,8 @@ the vehicle arriving later at a crossing point follows.
    the bus does not check its inside before it turns. It is the cause of the remaining guard
    events (up to 0.5 m of overlap, held for up to minutes). Options: (a) a vehicle beside a long
    vehicle that will turn its way keeps out of its sweep; (b) a long vehicle does not move on
-   while something is level with it within its sweep; (c) both. **Your decision.**
+   while something is level with it within its sweep; (c) both. **Your decision (2026-11-16):
+   (c), built as in "Decision on open problem 3" at the end.**
 4. Saturation: with every turn at 700 veh/h per arm the crossing saturates (about 1,050 of 1,330
    vehicles through in 30 min). The compliant right turn is the bottleneck: the register's
    critical gaps (car median 8.15 s, from uncontrolled junctions in Warangal) are rarely offered

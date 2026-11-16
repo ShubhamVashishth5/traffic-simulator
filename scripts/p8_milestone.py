@@ -15,12 +15,18 @@ none: G§4.1 grade C) and nothing tuned towards any check:
    violators-moving coefficient βs⁺ for two values of the compliers-waiting coefficient βs⁻:
    the early-start share (acts per episode).
 4. **P8.8, persona shares.** The delivery-rider share (within two-wheelers) against the
-   e-rickshaw share of the stream, every violation rule on: KPIs over both.
-5. **Milestone: the dark-signal experiment (G§6.6).** The crossing working (fixed plan,
+   e-rickshaw share of the stream, every violation rule on: KPIs over both. The shares come
+   from `marg.templates` (the reusable form of this sweep: `marg.templates.persona_shares`).
+5. **P8.4, the new types.** Stop-line seepage against the measured saturation flow (G§4.2:
+   standing past the line raises it, a check); opposite-carriageway encroachment at a level
+   crossing on an undivided road (`scenarios/undivided_level_crossing.yaml`), against its
+   intercept.
+6. **Milestone: the dark-signal experiment (G§6.6).** The crossing working (fixed plan,
    countdown) and dark, each with its cooperative twin (`marg.bundles.cooperative`: no
-   violations, squeezing at the 25th-percentile κ), swept over the aggressive-persona (rushed
-   driver) share: throughput, delay, conflicts, gridlock and the social efficiency deficit
-   (excess of total delay over the twin).
+   violations, squeezing at the 25th-percentile κ, and at a dark junction first come first
+   served at the lines, ADR-0019 D1), swept over the aggressive-persona (rushed driver) share:
+   throughput, delay, conflicts, gridlock and the social efficiency deficit (excess of total
+   delay over the twin).
 
 Writes reports/phases/P8.md, reports/phases/P8_milestone.json and reports/phases/P8_dark.png.
 
@@ -37,9 +43,11 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import marg
 import numpy as np
 import polars as pl
 import yaml
+from marg import templates
 from scipy import stats as sps
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -79,7 +87,10 @@ BETA_MINUS = [0.0, 1.0]
 RUSHED = [0.0, 0.25, 0.5]
 DELIVERY = [0.0, 0.15, 0.3]
 E_RICKSHAW = [0.03, 0.10, 0.20]
-SOLE = ["e_rickshaw_driver", "auto_rickshaw_driver", "bus_driver", "truck_lcv_driver", "cyclist"]
+#: P8.4: assumed intercepts for the new types (no rates in the guide), and the level-crossing
+#: sweep over the encroachment intercept.
+SEEPAGE = -3.0
+ENCROACH = [-10.0, -8.0, -6.0]
 
 FINDINGS = """
 ## Findings
@@ -185,27 +196,18 @@ def crossing(countdown: str = "none", control: dict | None = None, composition=N
     return spec
 
 
-def with_e_rickshaws(comp: dict, share: float) -> dict:
-    rest = {k: v for k, v in comp.items() if k != "e_rickshaw"}
-    total = sum(rest.values())
-    out = {k: v * (1.0 - share) / total for k, v in rest.items()}
-    out["e_rickshaw"] = share
-    return out
+with_e_rickshaws = templates.with_e_rickshaws
 
 
 def personas(rushed: float = 0.15, delivery: float = 0.1) -> dict[str, float]:
-    """All ten persona shares (a population is all or none, ADR-0018 part 6). Shares are
+    """All ten persona shares (a population is all or none, ADR-0018 part 6), from
+    `marg.templates`: the delivery rider is exactly `delivery` of two-wheelers. Shares are
     renormalised within each vehicle class; classes with one persona take it whatever the
     share."""
-    shares = {
-        "average_commuter": max(0.85 - rushed - delivery, 0.0),
-        "rushed_driver": rushed,
-        "delivery_rider": delivery,
-        "bike_taxi_rider": 0.05,
-        "cautious_driver": 0.1,
-    }
-    shares.update({p: 1.0 for p in SOLE})
-    return {f"personas.shares.{k}": v for k, v in shares.items()}
+    return templates.persona_overrides(
+        delivery,
+        {"average_commuter": max(0.85 - rushed, 0.0), "rushed_driver": rushed},
+    )
 
 
 def run_marg(spec: dict, seed: int, sets: dict, tmp: Path, tag: str) -> Path:
@@ -516,8 +518,64 @@ def persona_sweep(pool, tmp: Path, seeds: list[int], b0: float) -> list[dict]:
     return rows
 
 
+def saturation(folder: Path) -> float:
+    """Median saturation flow per metre of approach over the cycles measured (veh/h/m)."""
+    cyc = pl.read_parquet(folder / "signal_cycles.parquet").filter(pl.col("t_green") >= WARMUP)
+    vals = cyc["saturation_flow_per_m"].drop_nulls().drop_nans()
+    return float(vals.median()) if vals.len() else math.nan
+
+
+def catalogue(pool, tmp: Path, seeds: list[int]) -> dict:
+    """P8.4's new types: seepage against saturation flow at the crossing; encroachment at
+    the level crossing on an undivided road, against its intercept."""
+    spec = crossing("working")
+    jobs = []
+    for on in (False, True):
+        sets = {**SHARED, **({"violations.stopline_seepage.intercept": SEEPAGE} if on else {})}
+        for s in seeds:
+            jobs.append(("seep", on, s, spec, sets))
+    road = yaml.safe_load((SCEN / "undivided_level_crossing.yaml").read_text(encoding="utf-8"))
+    for b in [None, *ENCROACH]:
+        sets = {**SHARED, **({"violations.opposite_encroachment.intercept": b} if b else {})}
+        for s in seeds:
+            jobs.append(("road", b, s, road, sets))
+
+    def one(j):
+        kind, x, s, sp, sets = j
+        folder = run_marg(sp, s, sets, tmp, f"cat_{kind}_{x}_{s}".replace("-", "m"))
+        k = kpis(folder)
+        out = {
+            "spawned": k["spawned"],
+            "exited": k["exited"],
+            "delay_mean": k["delay_mean_s"],
+            "guard": k["collision_guard_events"],
+            "conflicts_per_1000": 1000.0 * k["conflicts"] / max(k["spawned"], 1.0),
+        }
+        if kind == "seep":
+            out["saturation_per_m"] = saturation(folder)
+            out["seepages"] = k["stopline_seepages"]
+        else:
+            out["encroachments_per_1000"] = (
+                1000.0 * k["opposite_encroachments"] / max(k["spawned"], 1.0)
+            )
+            out["gridlock_share"] = k["gridlock_share"]
+            out["exited_share"] = k["exited"] / max(k["spawned"], 1.0)
+        return kind, x, out
+
+    res = list(pool.map(one, jobs))
+    seep = []
+    for on in (False, True):
+        got = [r[2] for r in res if r[0] == "seep" and r[1] == on]
+        seep.append({"on": on, **{k: ci([g[k] for g in got]) for k in got[0]}})
+    road_rows = []
+    for b in [None, *ENCROACH]:
+        got = [r[2] for r in res if r[0] == "road" and r[1] == b]
+        road_rows.append({"intercept": b, **{k: ci([g[k] for g in got]) for k in got[0]}})
+    return {"seepage": seep, "level_crossing": road_rows}
+
+
 def dark_experiment(pool, tmp: Path, seeds: list[int], b0: float) -> list[dict]:
-    coop = {"violations.enabled": 0.0, "personas.cooperative.squeeze_kappa_quantile": 0.25}
+    coop = marg.bundles.cooperative()
     jobs = []
     for r in RUSHED:
         for state in ("fixed", "dark"):
@@ -703,9 +761,45 @@ def report(res: dict) -> str:
             f"{fmt(*r['red_runs_per_1000'], 1)} | {fmt(*r['conflicts_per_1000'], 1)} | "
             f"{r.get('locked_runs', 0)} of {len(r.get('runs', [])) or 3} |"
         )
+    cat = res.get("catalogue")
+    if cat:
+        lines += [
+            "",
+            "## 5. P8.4: the new types",
+            "",
+            f"**Stop-line seepage** (intercept {SEEPAGE}, assumed; the other types off), the same",
+            "crossing: median saturation flow per metre of approach over the measured cycles",
+            "(P7.3's measure). G§4.2: vehicles standing past the line raise it (Ramireddy et al.",
+            "2020; a check).",
+            "",
+            "| Seepage | Saturation flow (veh/h/m) | Seepages per run | Mean delay (s) | Guard events |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+        for r in cat["seepage"]:
+            lines.append(
+                f"| {'on' if r['on'] else 'off'} | {fmt(*r['saturation_per_m'])} | "
+                f"{fmt(*r['seepages'], 1)} | {fmt(*r['delay_mean'], 1)} | {fmt(*r['guard'], 1)} |"
+            )
+        lines += [
+            "",
+            "**Opposite-carriageway encroachment at a level crossing**",
+            "(`scenarios/undivided_level_crossing.yaml`: an undivided road, 3.5 m each way; the",
+            "barrier closes the eastbound side 90 s in every 180 s; 1,200 veh/h east, 500 west).",
+            "",
+            "| Intercept | Encroachments /1000 veh | Vehicles through (of those in) | Mean delay (s) | Gridlock share | Conflicts /1000 veh | Guard events |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+        ]
+        for r in cat["level_crossing"]:
+            b = "off" if r["intercept"] is None else f"{r['intercept']}"
+            lines.append(
+                f"| {b} | {fmt(*r['encroachments_per_1000'], 1)} | "
+                f"{fmt(100 * r['exited_share'][0], 100 * r['exited_share'][1])}% | "
+                f"{fmt(*r['delay_mean'], 1)} | {fmt(*r['gridlock_share'], 2)} | "
+                f"{fmt(*r['conflicts_per_1000'], 1)} | {fmt(*r['guard'], 1)} |"
+            )
     lines += [
         "",
-        "## 5. Milestone: the dark-signal experiment",
+        "## 6. Milestone: the dark-signal experiment",
         "",
         "Identical demand and personas; the crossing working (fixed plan, countdown) or dark from",
         "the start; each against its cooperative twin. SED: excess of total delay (on the road and",
@@ -742,7 +836,9 @@ def main() -> None:
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--from-json", action="store_true")
     ap.add_argument(
-        "--only", default="", help="comma-separated steps: fit,countdown,imitation,personas,dark"
+        "--only",
+        default="",
+        help="comma-separated steps: fit,countdown,imitation,personas,catalogue,dark",
     )
     args = ap.parse_args()
     js = OUT / "P8_milestone.json"
@@ -754,7 +850,7 @@ def main() -> None:
         steps = (
             args.only.split(",")
             if args.only
-            else ["fit", "countdown", "imitation", "personas", "dark"]
+            else ["fit", "countdown", "imitation", "personas", "catalogue", "dark"]
         )
         res["seeds"] = args.seeds
         with tempfile.TemporaryDirectory() as td, ThreadPoolExecutor(args.jobs) as pool:
@@ -776,6 +872,10 @@ def main() -> None:
             if "personas" in steps:
                 res["personas"] = persona_sweep(pool, tmp, seeds[:3], b0)
                 print("personas done")
+                js.write_text(json.dumps(res, indent=1), encoding="utf-8")
+            if "catalogue" in steps:
+                res["catalogue"] = catalogue(pool, tmp, seeds)
+                print("catalogue done")
                 js.write_text(json.dumps(res, indent=1), encoding="utf-8")
             if "dark" in steps:
                 res["dark"] = dark_experiment(pool, tmp, seeds, b0)

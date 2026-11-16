@@ -1,7 +1,8 @@
 # ADR-0019: Violations at signals, and signal control states
 
-- **Status:** proposed. Built as written, so that P8.5–P8.8 and the milestone could run; every
-  part marked *(mine)* is a choice plan/03 and ADR-0018 do not settle, for your review
+- **Status:** proposed; the dark regime is decided (**D1**, the user, 2026-11-16, at the end).
+  Built as written, so that P8.5–P8.8 and the milestone could run; every part marked *(mine)*
+  is a choice plan/03 and ADR-0018 do not settle, for your review
 - **Date:** 2026-11-15
 - **Phase / task:** P8.4 (`red_light`, `early_start`, `amber_go`, `box_blocking`), P8.7
 

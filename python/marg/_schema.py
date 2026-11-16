@@ -9,19 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from typing_extensions import TypeAliasType
 
 
-class ArmSpec(BaseModel):
-    model_config = ConfigDict(
-        extra='forbid',
-    )
-    id: str
-    in_: str | None = Field(
-        None,
-        alias='in',
-        description='The ribbon that arrives here; its end is the stop line.',
-    )
-    out: str | None = Field(None, description='The ribbon that leaves from here.')
-
-
 class AttractorSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -267,6 +254,27 @@ class FlowInterval(BaseModel):
     veh_per_h: float
 
 
+Bollard = TypeAliasType(
+    "Bollard", Annotated[list[float], Field(max_length=2, min_length=2)]
+)
+
+
+class FootpathSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    bollards: list[Bollard] | None = Field(
+        None,
+        description='Stretches `[from_s, to_s]` with bollards: no vehicle can get on.',
+    )
+    from_s: float | None = Field(
+        None,
+        description='Where it runs along the ribbon (m; default: the whole ribbon).',
+    )
+    to_s: float | None = None
+    width: float = Field(..., description='Width of the footpath beyond the kerb (m).')
+
+
 class HumpSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -482,6 +490,33 @@ class WidthPoint(BaseModel):
     y_min: float
 
 
+class WrongWaySpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    legal: str = Field(
+        ...,
+        description='The arm the legal route leaves by; it turns back at the first median\nopening downstream with a U-turn from its approach.',
+    )
+
+
+class ArmSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    id: str
+    in_: str | None = Field(
+        None,
+        alias='in',
+        description='The ribbon that arrives here; its end is the stop line.',
+    )
+    out: str | None = Field(None, description='The ribbon that leaves from here.')
+    wrong_way: WrongWaySpec | None = Field(
+        None,
+        description='This arm leaves by a wrong-way path (ADR-0020 part 4): a vehicle\nwhose turn is this arm decides here, once, whether to ride it or take\nthe legal route.',
+    )
+
+
 class BarrierSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -613,9 +648,17 @@ class RibbonSpec(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
+    footpath: FootpathSpec | None = Field(
+        None,
+        description='A footpath beside the kerb (`y_max`): footpath riding (ADR-0020\npart 2). Its width and bollards are site data.',
+    )
     id: str
     next: str | None = Field(
         None, description='The ribbon traffic continues onto at the end, if any.'
+    )
+    opposite: list[str] | None = Field(
+        None,
+        description="Ribbons that carry the other direction over the same ground (at most\ntwo): the other carriageway of an undivided road, or a wrong-way path\nover this one (ADR-0020 parts 3–4). Each must name this ribbon too,\nand its polyline must be this one's reversed.",
     )
     polyline: list[PolylineItem] = Field(
         ...,

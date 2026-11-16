@@ -96,7 +96,7 @@ impl Network {
                 let j = *by_id
                     .get(o)
                     .ok_or_else(|| bad(format!("opposite: unknown ribbon `{o}`")))?;
-                if j == i || !spec.ribbons[j].opposite.iter().any(|x| *x == r.id) {
+                if j == i || !spec.ribbons[j].opposite.contains(&r.id) {
                     return Err(bad(format!(
                         "opposite: `{o}` must be another ribbon that names `{}` as its opposite too",
                         r.id

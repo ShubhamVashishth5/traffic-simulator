@@ -96,7 +96,10 @@ fn opening(half: f64, flow: u32, duration: u32) -> String {
 #[test]
 fn u_turn_paths_follow_the_road_width_rule() {
     for (half, six) in [(3.5, false), (5.25, true)] {
-        let out = run(&opening(half, 500, 900), &[], 1);
+        // 1,200 s for a sample of U-turns: since the left-hook rules (ADR-0016
+        // open problem 3) a two-wheeler no longer turns abreast on the inside
+        // of a car within its sweep, and fewer turn in 900 s.
+        let out = run(&opening(half, 500, 1200), &[], 1);
         let turns = events(&out, "u_turn");
         assert!(turns.len() > 60, "{} U-turns", turns.len());
         let paths: Vec<f64> = turns
@@ -172,23 +175,46 @@ fn a_driver_that_never_learns_its_branch_takes_the_one_it_is_in() {
 /// P7.6: a driver that learns its branch just before its deadline and is on
 /// the wrong side stops before the line to wait for room, when it is one
 /// that stops (probability 1 here), and crosses over once there is room.
+/// Since ADR-0017 C2 so does one that learns it after its deadline while it
+/// can still stop, and since B2 a wait ends after the patience (30 s here,
+/// assumed): without it, with every late realiser stopping, swaps lock the
+/// split.
 #[test]
 fn a_late_realiser_on_the_wrong_side_stops_and_waits() {
-    let (yaml, ov) = blind_split("1", "60");
+    let (yaml, mut ov) = blind_split("1", "60");
+    ov.push(("road.split.wait_patience", "30".into()));
     let ov: Vec<(&str, &str)> = ov.iter().map(|(k, v)| (*k, v.as_str())).collect();
     let out = run(&yaml, &ov, 1);
-    let waits = events(&out, "split_decision");
+    let all = events(&out, "split_decision");
+    let waits: Vec<_> = all
+        .iter()
+        .copied()
+        .filter(|e| attr_str(e, "decision") != "give_up_after_wait")
+        .collect();
     assert!(waits.len() > 10, "{} decisions", waits.len());
     assert!(
         waits
             .iter()
             .all(|e| attr_str(e, "decision") == "stop_and_wait")
     );
+    assert!(
+        waits
+            .iter()
+            .any(|e| e.attrs.contains("\"realised_after_deadline\":true"))
+    );
+    let exited = out.agents.iter().filter(|a| a.exited).count();
+    assert!(
+        exited as f64 > 0.8 * out.agents.len() as f64,
+        "{exited} out"
+    );
     // It waits before the line, on its own side.
     for e in &waits {
         assert!(e.s < 700.0 && e.attrs.contains("\"late_realiser\":true"));
     }
     assert_eq!(kpi(&out, "split_stop_and_wait") as usize, waits.len());
+    // Every wait ends: the driver crosses over or gives up after waiting.
+    let gave_up = all.len() - waits.len();
+    assert!(gave_up > 0 && gave_up < waits.len());
     assert_eq!(kpi(&out, "collision_guard_events"), 0.0);
     // Most of them get over to their branch and out.
     let through = waits
@@ -199,9 +225,12 @@ fn a_late_realiser_on_the_wrong_side_stops_and_waits() {
                 .any(|a| a.agent_id == w.agent_id && a.exited)
         })
         .filter(|w| {
+            // A late realiser may take the branch it is in at its deadline and
+            // then learn its own and wait for it (ADR-0017 C2): only a miss
+            // after it decided to wait counts.
             !events(&out, "missed_branch")
                 .iter()
-                .any(|m| m.agent_id == w.agent_id)
+                .any(|m| m.agent_id == w.agent_id && m.t >= w.t)
         })
         .count();
     assert!(
