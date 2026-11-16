@@ -90,81 +90,100 @@ E_RICKSHAW = [0.03, 0.10, 0.20]
 #: P8.4: assumed intercepts for the new types (no rates in the guide), and the level-crossing
 #: sweep over the encroachment intercept.
 SEEPAGE = -3.0
+#: More seeds for seepage: at 400 veh/h the crossing locks on some seeds in either arm.
+SEEPAGE_SEEDS = 8
 ENCROACH = [-10.0, -8.0, -6.0]
 
 FINDINGS = """
 ## Findings
 
 Nothing below was tuned. The coefficients are assumed, and only the red-light intercept was
-fitted, to its rate.
+fitted, to its rate. Since the previous report the code changed in six ways (the user's
+decisions of 2026-11-16):
+
+- the cooperative twin takes turns at a dark junction, first come first served (ADR-0019 D1);
+- the field of view is measured from mid-length (ADR-0018);
+- the left-hook rules (ADR-0016 open problem 3);
+- the split options A2, B2 and C2 (ADR-0017);
+- the delivery-rider share is exact within two-wheelers (`marg.templates`);
+- the new violation types (ADR-0020);
+- at amber onset, a vehicle that can still stop loses any gate it had (ADR-0016).
 
 1. **P8.5, rate.** The red-light intercept fits 1 in 17, but noisily.
-   - The share is not monotone in β0 near the fit (−7.67 gives 6.5%, −7.72 gives 5.2%). Runners
-     change the traffic around them: who is at the front, imitation, and a locked run (1 of 5
-     at the fitted value).
-   - β0 = −7.68 gave 7.3% at its own evaluation, against the 5.9% target. Treat the fit as
-     β0 ≈ −7.7 ± 0.1.
-   - At 500 veh/h per arm the same fit gave −8.9; the intercept is not portable across demand.
+   - The share is not monotone in β0 near the fit (−8.094 gives 7.2%, −8.141 gives 5.4%).
+     Runners change the traffic around them: who is at the front, imitation, locked runs.
+   - β0 = −8.11 gave 6.0% against the 5.9% target. Treat the fit as β0 ≈ −8.1 ± 0.1. It was
+     −7.68 before the left-hook rules and the closed gates at amber (ADR-0016) changed the
+     junction's traffic.
 2. **P8.5, timing regimes (a check): partly met.**
-   - 36% of red runs fall in the first third of the red and 40% in the last; Mumbai has about a
-     third and two-thirds. The after-red-starts regime emerges (time saved is largest and the
-     cross streams are still in their all-red).
-   - The before-green regime is weaker than observed. Its terms are the cross streams emptying
-     at their amber and all-red, and waiting time.
-   - At 500 veh/h the split was 40% / 25%: the end-of-red share depends on how many vehicles
-     stand at the line.
+   - 31% of red runs fall in the first third of the red, 24% in the middle and 45% in the
+     last. Mumbai has about a third and two-thirds.
+   - The after-red-starts regime emerges: time saved is largest and the cross streams are
+     still in their all-red.
+   - The before-green regime is weaker than observed. Its terms are the cross streams
+     emptying at their amber and all-red, and waiting time.
 3. **P8.5, countdown (a check): not met with equal intercepts.**
-   - With a working countdown and the early-start intercept equal to the red-light one, cycles
-     with a red crossing at the start of red fall from 9.4% to 7.0% (Sharma's direction, inside
-     the CIs). At the end of red they stay at about 9%; early starts are rare (about 3 per run).
-   - The sensitivity rows show the mechanism can produce the shift: 3 or 6 above the red-light
-     intercept gives 25% and 41% at the end of red, with the start of red at 10% and 6.5%.
-   - Sharma's 12% → 75% would need early start to be far more likely, per second, than running
-     the red. That is a calibration question (stage 6), not a fit to make here.
-4. **P8.6, imitation (done-when not met).** The early-start share rises from 7% at βs⁺ = 0 to
-   9–12% at βs⁺ ≥ 4, with no sharp tipping. βs⁻ = 1 lowers it at 6 of 8 points, all inside
-   the CIs.
-   - Imitation does act: at βs⁺ = 10, 40 of 98 early starts had a moving violator in view, 4 of
-     65 at βs⁺ = 0.
-   - What is missing is a crowd to tip. An early-start episode has on average 0.22 standing
-     compliers in view.
-   - The field of view (ADR-0018 F1) is a sector from the vehicle's *front* centre, so
-     neighbours standing abreast at the line, whose centres are slightly behind it, are outside
-     it until one moves ahead.
-   - For review: measure the sector from the driver's position (mid-length), or a larger front
-     row (more two-wheelers, wider approaches).
-5. **P8.8, persona shares.**
-   - Violations per 1,000 vehicles rise with the delivery-rider share: 65–78 at 0, 81–97 at a
-     third of two-wheelers. Red runs follow: 36–44 → 50–57. The CIs overlap (3 seeds per
-     point).
-   - Delay (about 26 s) and throughput do not move measurably with either share.
-   - E-rickshaws (3–20% of the stream) change nothing at this junction. Their low speed matters
-     on links, not at a signal that meters the flow.
-6. **Milestone: the dark-signal experiment does not show a negative-sum game.**
-   - **Dark.** Violations (almost all forced entries, 360–410 per 1,000 vehicles) *cut* total
-     delay by 73–81% against the twin. Without them the dark junction serves only about 1,220
-     of the 1,600 veh/h, at 160–200 s of delay, with 2–3 times the conflicts per vehicle.
-   - **Fixed signal.** Red-light running (40–70 per 1,000) cuts delay by 6–12%.
-   - The rushed-driver share raises violations but moves neither result.
-   - **Two modelling choices drive this; both are for review (ADR-0019 part 5).**
-     - Dark is built as *every movement gives way to every other*. With nobody forcing, that is
-       not a cooperative regime but mutual deference: approaches go only when every one has
-       stopped and all release together, which is slow and conflict-prone.
-     - The twin (ADR-0007) is "the same rules without violations". Under a signal that is
-       compliance; when dark it is that mutual deference.
-     - A twin that coordinates instead (first come first served at the lines, or giving way
-       to traffic from the right, as the Rules of the Road Regulations 1989 ask at an
-       unregulated junction) would test the guide's claim. So would a dark regime in which
-       drivers yield by a convention rather than to everyone (ADR-0019 part 5, options D1–D3).
-7. **Robustness: the P7.2 limit is reached at 400 veh/h with personas on.**
-   - Up to 2 of 5 fixed-signal runs and 3 of 5 dark runs locked. The fixed signal's cooperative
-     twin locked too (0–1 of 5); the dark twin never did. Means above exclude locked runs,
-     which are counted apart.
-   - Two dark runs with forced entry held pairs in the collision guard every step: 40,318 and
-     4,652 events, against 0–4 in the other dark runs. This is ADR-0016's open problem 3, still
-     waiting on your decision.
-   - At 500 veh/h, 1–2 of 5 fixed-signal runs locked in every arm.
-   - A hang in the arbitration's ring breaker was found and fixed (ADR-0016, rings).
+   - With a working countdown and the early-start intercept equal to the red-light one, the
+     start and end of red barely move (5.4% → 6.8%, 8.9% → 7.7%). Early starts are rare
+     (about 2 per run).
+   - 3 or 6 above the red-light intercept gives 20% and 50% at the end of red, with the start
+     of red at 4.6% and 5.2%: the mechanism can produce Sharma's shift.
+   - Sharma's 12% → 75% would need early start to be far more likely, per second, than
+     running the red. That is a calibration question (stage 6).
+4. **P8.6, imitation (done-when still not met).** With the field of view measured from
+   mid-length, the early-start share rises from 5.6% at βs⁺ = 0 to about 10% at βs⁺ ≥ 6
+   (3.8% → 9–10% with βs⁻ = 1). It roughly doubles, then levels off, with no sharp tipping.
+   βs⁻ = 1 lowers it at 7 of 8 points, mostly inside the CIs.
+   - An early-start episode lasts at most the 5 s change interval, and only vehicles standing
+     at the front of the line are in one. Few are in view of each other at once, and a crowd
+     to tip does not form.
+   - What could: early start decided further back in the queue, or a longer window (W2 in
+     ADR-0019). Both are modelling choices, for review.
+5. **P8.8, persona shares** (now `marg.templates.persona_shares`).
+   - Violations per 1,000 vehicles do not move measurably with the delivery-rider share:
+     64–71 at 0, 67–90 at 30% of two-wheelers, with wide CIs (3 seeds per point). The
+     previous report's rise (65–78 → 81–97) is within the noise.
+   - Delay (about 27 s) and throughput do not move measurably with either share.
+   - E-rickshaws (3–20% of the stream) change nothing at this junction.
+6. **P8.4, the new types.**
+   - **Seepage (check not met).** About 240 vehicles a run crept past a red line. The
+     saturation flow measured at the line rose from 227 ± 34 to 246 ± 85 veh/h/m, G§4.2's
+     direction but well inside the CI.
+     - The measure counts the queue crossing the line at green. A vehicle already past the
+       line is not in it, and the queue behind starts no sooner.
+     - A head start measured where the field counts it (Ramireddy et al.) needs their
+       definition of the discharge; not built.
+     - Locked runs: 0 of 8 without seepage, 1 of 8 with it. 2 of 8 held a pair in the guard.
+   - **Opposite encroachment at a level crossing: a negative-sum game.**
+     - Each encroacher saves itself the queue, and everyone loses: vehicles through 86% →
+       73%, 42%, 20% as the intercept rises, gridlock share 0 → 0.10, 0.38, 0.50, conflicts
+       three to six times as many.
+     - When the gate opens, the two streams meet head on with nowhere to go (vehicles cannot
+       reverse in the model), as at Indian level crossings.
+     - At −8 a run can hold a head-on pair in the collision guard (441 ± 1,142 events per run).
+7. **Milestone: the dark-signal experiment, with the coordinated twin (D1).**
+   - **Dark.** Violations (forced entries, 350–410 per 1,000 vehicles) no longer clearly cut
+     delay: SED −28 ± 47%, +10 ± 142%, −7 ± 40% for rushed shares 0, 0.25 and 0.5. Every CI
+     spans zero. The previous report's −73% to −81% came from a twin that waited for gaps that
+     rarely came.
+   - Taking turns, the twin serves the same throughput at 55–61 s of mean delay, against
+     48–56 s observed, with about as many conflicts per vehicle. At 400 veh/h per arm, the
+     agreed order is about as slow as the Chicken of the observed drivers.
+   - **The guide's negative-sum game does not appear at the dark junction.** It does appear
+     at the level crossing (6).
+   - **Fixed signal.**
+     - With a quarter of drivers rushed, red-light running cuts delay by 12 ± 4% (5 pairs).
+     - With none, the SED is +120 ± 371%: one observed run nearly locked (818 veh/h, just
+       above the lock threshold).
+     - With half rushed, −9 ± 30% over the 2 pairs that did not lock.
+8. **Robustness.**
+   - The dark runs' guard loops are gone after the left-hook rules: at most 6 guard events
+     per run, against 40,318 and 4,652 before.
+   - Junction lock-ups at 400 veh/h remain (ADR-0016 open problem 1), in every arm: 0–2 of 5
+     runs.
+   - One fixed-signal run with red runners held a pair in the guard (23,078 events).
+   - A gap taken far upstream for a wait inside the box no longer opens a line that turns red
+     (ADR-0016): without violations nobody now crosses on red but those that could not stop.
 """
 
 
@@ -532,7 +551,7 @@ def catalogue(pool, tmp: Path, seeds: list[int]) -> dict:
     jobs = []
     for on in (False, True):
         sets = {**SHARED, **({"violations.stopline_seepage.intercept": SEEPAGE} if on else {})}
-        for s in seeds:
+        for s in range(1, SEEPAGE_SEEDS + 1):
             jobs.append(("seep", on, s, spec, sets))
     road = yaml.safe_load((SCEN / "undivided_level_crossing.yaml").read_text(encoding="utf-8"))
     for b in [None, *ENCROACH]:
@@ -554,6 +573,7 @@ def catalogue(pool, tmp: Path, seeds: list[int]) -> dict:
         if kind == "seep":
             out["saturation_per_m"] = saturation(folder)
             out["seepages"] = k["stopline_seepages"]
+            out["locked"] = float(k["exited"] < LOCKED_SHARE * k["spawned"])
         else:
             out["encroachments_per_1000"] = (
                 1000.0 * k["opposite_encroachments"] / max(k["spawned"], 1.0)
@@ -566,7 +586,16 @@ def catalogue(pool, tmp: Path, seeds: list[int]) -> dict:
     seep = []
     for on in (False, True):
         got = [r[2] for r in res if r[0] == "seep" and r[1] == on]
-        seep.append({"on": on, **{k: ci([g[k] for g in got]) for k in got[0]}})
+        moving = [g for g in got if not g["locked"]] or got
+        seep.append(
+            {
+                "on": on,
+                **{k: ci([g[k] for g in moving]) for k in got[0]},
+                "locked_runs": int(sum(g["locked"] for g in got)),
+                "runs": len(got),
+                "guard_runs": int(sum(g["guard"] > 100 for g in got)),
+            }
+        )
     road_rows = []
     for b in [None, *ENCROACH]:
         got = [r[2] for r in res if r[0] == "road" and r[1] == b]
@@ -768,17 +797,19 @@ def report(res: dict) -> str:
             "## 5. P8.4: the new types",
             "",
             f"**Stop-line seepage** (intercept {SEEPAGE}, assumed; the other types off), the same",
-            "crossing: median saturation flow per metre of approach over the measured cycles",
-            "(P7.3's measure). G§4.2: vehicles standing past the line raise it (Ramireddy et al.",
-            "2020; a check).",
+            f"crossing, {SEEPAGE_SEEDS} seeds: median saturation flow per metre of approach over the",
+            "measured cycles (P7.3's measure, over vehicles that did not cross on red). G§4.2:",
+            "vehicles standing past the line raise it (Ramireddy et al. 2020; a check). Means over",
+            "the runs that did not lock.",
             "",
-            "| Seepage | Saturation flow (veh/h/m) | Seepages per run | Mean delay (s) | Guard events |",
-            "| --- | --- | --- | --- | --- |",
+            "| Seepage | Saturation flow (veh/h/m) | Seepages per run | Mean delay (s) | Locked runs | Runs with a pair held by the guard |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
         for r in cat["seepage"]:
             lines.append(
                 f"| {'on' if r['on'] else 'off'} | {fmt(*r['saturation_per_m'])} | "
-                f"{fmt(*r['seepages'], 1)} | {fmt(*r['delay_mean'], 1)} | {fmt(*r['guard'], 1)} |"
+                f"{fmt(*r['seepages'], 1)} | {fmt(*r['delay_mean'], 1)} | "
+                f"{r.get('locked_runs', 0)} of {r.get('runs', '?')} | {r.get('guard_runs', 0)} |"
             )
         lines += [
             "",

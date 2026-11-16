@@ -144,13 +144,15 @@ make long medians tempt riders (G§4.2, "detour saved versus the legal route").
 
 **Trigger** (continuous). Standing at the front of a red line (as for `red_light`), where its
 movement has room past the line. The room ends at the start of the first area its movement shares
-with a **crossing** movement (`network` conflict areas). The vehicle needs room for its standstill
+with a movement from another arm, crossing or merging (`network` conflict areas) *(mine: crossing areas alone let a seeper stand where another movement's edge passes)*. The vehicle needs room for its standstill
 gap and at least part of its body.
 
 **Act.** A flag `seeps`. The line no longer holds it; it moves on and stands with its front its
 standstill gap short of that area while its movement shows red. Standing there it has not
 committed to the junction (no entry ticket, as a permitted movement waiting inside, ADR-0016), so
-streams with green are not held for it. At green it goes on.
+streams with green are not held for it. At green it goes on, and from then it is in the junction
+like any other vehicle *(mine: built first so that the hold lasted until it left the junction,
+seepers still in the box when their light turned red again stopped dead there and locked it)*.
 
 **Features** *(mine)*. κ, waiting time and imitation. Time saved 0: the head start at green is not
 estimated. Risk 0: it stands short of every crossing stream. It competes with `red_light` and
@@ -227,3 +229,29 @@ and wrong-way arms are network data in the scenario.
 - With no pairing, no footpath, no wrong-way arm and every new intercept unset (the shipped
   register and scenarios), the corridor and box scenarios do not move. ADR-0016's left-hook rules
   and ADR-0017's options change junction and split runs, which is why those hashes change.
+
+## What running it showed (2026-11-16)
+
+- **Seepage** (`reports/phases/P8.md` §5). Built first, it locked the signal crossing on every
+  seed. There were three causes, all fixed *(mine)*:
+  - seepers still in the box when their light turned red again stopped dead there;
+  - the keep-clear rule took a seeper for a vehicle being let out, and held the green cross
+    streams for the whole red;
+  - holding short of crossing areas only, a seeper stood where another arm's movement passes.
+
+  Now about 240 seepers a run (intercept −3, assumed) leave throughput as without seepage.
+  Lock-ups: 0 of 8 runs without seepage, 1 of 8 with it. **The check is not met.** Saturation
+  flow measured at the line rises from 227 ± 34 to 246 ± 85 veh/h/m, the guide's direction but
+  well inside the CI. A vehicle already past the line is not in the green discharge, and the
+  queue behind starts no sooner. The measure now leaves out crossings on red, which had stretched
+  it.
+- **Opposite encroachment at a level crossing** (`scenarios/undivided_level_crossing.yaml`):
+  - vehicles through fall from 86% to 73%, 42% and 20% as the intercept rises from −10 to −6,
+    and gridlock share rises to 0.5;
+  - each encroacher saves its own queue and everyone loses, a negative-sum game;
+  - when the barrier opens, the streams meet head on with nowhere to go (vehicles do not
+    reverse);
+  - built first, two cars' corners swung over the centreline while they turned on the spot.
+    Hence the rule that the line is a wall while an oncoming vehicle is beside a vehicle.
+- **Wrong way** (`scenarios/wrong_way.yaml`, intercept −1, 10 minutes): 20 riders and 27
+  drivers on the legal route, every one of them turning back at the opening; no guard events.

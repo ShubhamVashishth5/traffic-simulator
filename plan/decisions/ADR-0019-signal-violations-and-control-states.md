@@ -236,3 +236,13 @@ junction that is dark or blinking without a major arm:
 No ring can form: the stamps are a total order. The twin then differs from the observed arm in
 two ways, no violations and an agreed order, which is what the guide's claim compares. The
 milestone experiment was re-run with it (`reports/phases/P8.md`).
+
+### The milestone with D1 (2026-11-16, `reports/phases/P8.md` §6)
+
+At 400 veh/h per arm with 5 seeds, dark violations (350–410 per 1,000 vehicles) no longer
+clearly cut delay against the coordinated twin. SED is −28 ± 47%, +10 ± 142% and −7 ± 40% for
+rushed shares 0, 0.25 and 0.5, with every CI spanning zero. The twin's turn-taking costs about as
+much as the observed Chicken: mean delay 55–61 s against 48–56 s, with about as many conflicts. The
+negative-sum game does not appear at this junction. It does appear at the level crossing of
+ADR-0020, where encroachment is the violation. Under the fixed signal, with a quarter of drivers
+rushed, red-light running cuts delay by 12 ± 4%.

@@ -962,7 +962,9 @@ pub fn data_dictionary() -> String {
                     "saturation_vehicles",
                     "u32",
                     "veh",
-                    "queued vehicles the saturation flow is measured over (0: fewer than eight queued)",
+                    "queued vehicles the saturation flow is measured over: those that did not cross \
+                     on red (a red-light runner or a vehicle that crept over the line, ADR-0020, \
+                     belongs to no discharge); 0: fewer than eight",
                 ),
                 ("t_green", "f64", "s", "start of green"),
                 (

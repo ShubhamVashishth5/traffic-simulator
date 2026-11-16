@@ -1117,6 +1117,18 @@ impl Simulation {
     /// and has since left its branch's part of the road takes the one it is
     /// in as it reaches the line (ADR-0017).
     fn apply_junction(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        // A vehicle that crept past its red line is released at its green:
+        // from then on it is in the junction like any other (it clears the
+        // box if the light changes again before it is out).
+        if self.agents.seeps[i] {
+            let r = self.agents.ribbon[i] as usize;
+            let light = self.junctions.light[r];
+            if self.net.ribbon(r).internal
+                && (light == crate::junctions::LIGHT_GREEN || light == crate::junctions::LIGHT_NONE)
+            {
+                self.agents.seeps[i] = false;
+            }
+        }
         self.record_junction(i, jo, t);
         if self.p.violations.active(Kind::ForcedEntry) {
             self.forced_entry(i, jo, t);

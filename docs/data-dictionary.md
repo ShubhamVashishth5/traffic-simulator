@@ -122,7 +122,7 @@ One row per arm of a signalised junction and cycle, from the start of the arm's 
 | cycle, phase | u32 |  | cycle number of the arm; stage that gives it green |
 | queue_at_green | u32 | veh | vehicles that had stood at the closed line when green began |
 | discharged, discharged_from_queue | u32 | veh | vehicles that crossed the stop line in the cycle; those that had stood in the queue |
-| saturation_vehicles | u32 | veh | queued vehicles the saturation flow is measured over (0: fewer than eight queued) |
+| saturation_vehicles | u32 | veh | queued vehicles the saturation flow is measured over: those that did not cross on red (a red-light runner or a vehicle that crept over the line, ADR-0020, belongs to no discharge); 0: fewer than eight |
 | t_green | f64 | s | start of green |
 | green_s, amber_s, red_s | f64 | s | red runs from the end of amber to the next green (to the end of the run for the last cycle) |
 | saturation_headway | f64? | s | mean time between queued vehicles, whole approach |

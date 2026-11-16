@@ -604,9 +604,11 @@ impl MoveCtx<'_> {
                     && !(signal && light == LIGHT_GREEN)
                     && self.orders[c].iter().any(|&k| {
                         let k = k as usize;
+                        // One that crept past its red line stands short of the
+                        // crossing streams: it is not being let out.
                         k != i
                             && a.s[k] - 0.5 * a.length[k] < c_s.1
-                            && (leaving || a.s[k] + 0.5 * a.length[k] > c_s.0)
+                            && ((leaving && !a.seeps[k]) || a.s[k] + 0.5 * a.length[k] > c_s.0)
                     })
             })
     }

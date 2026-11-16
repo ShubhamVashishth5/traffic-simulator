@@ -171,7 +171,8 @@ struct ArmCycle {
     queue_at_green: u32,
     /// Stop-line crossings since green began: time, and whether the
     /// vehicle had stood in the queue.
-    crossings: Vec<(f64, bool)>,
+    /// Also whether it crossed on red (a red-light runner, a seeper).
+    crossings: Vec<(f64, bool, bool)>,
     /// Who showed the lights (fixed plan or officer).
     control: ControlState,
     /// Crossings on red, by third of the red (plan/04).
@@ -297,7 +298,8 @@ pub struct Junctions {
     /// Hour of day at time 0, for the blinker schedule.
     start_hour: Option<f64>,
     /// Per movement ribbon under a signal: the station on it where the
-    /// first area it shares with a crossing movement starts (NaN: none).
+    /// first area it shares with a movement from another arm starts (NaN:
+    /// none).
     /// A vehicle creeping past its red line stands short of it
     /// (`stopline_seepage`, ADR-0020 part 5).
     pub seep_hold: Vec<f64>,
@@ -931,7 +933,13 @@ impl Junctions {
                             }
                             if gap <= 0.0 || a.v[i] * a.v[i] > 2.0 * p.safe_decel * gap {
                                 a.gate_open[i] = true;
-                            } else if amber_go && gap <= a.v[i] * ph.amber_s {
+                                continue;
+                            }
+                            // One that can stop does, whatever let it on before:
+                            // a gap taken upstream for a wait inside the junction
+                            // does not open a line that is turning red.
+                            a.gate_open[i] = false;
+                            if amber_go && gap <= a.v[i] * ph.amber_s {
                                 let f = first.expect("green for it");
                                 self.amber_options.push(AmberOption {
                                     i: i as u32,
@@ -1108,7 +1116,7 @@ impl Junctions {
         if let Some(sg) = self.signals.iter_mut().find(|s| s.junction == junction) {
             let cyc = &mut sg.arms[arm];
             if cyc.open {
-                cyc.crossings.push((t, queued));
+                cyc.crossings.push((t, queued, on_red));
                 if let Some((into, length)) = red
                     && length > 0.0
                     && !seeping
@@ -1155,8 +1163,16 @@ fn close_cycle(
         .expect("a measured arm has an arriving ribbon");
     let (lo, hi) = net.ribbon(rin).y_bounds(net.ribbon(rin).length());
     // Saturation flow: the queued vehicles after the first few, over the
-    // time from the last of those few to the last queued vehicle.
-    let queued: Vec<f64> = cyc.crossings.iter().filter(|c| c.1).map(|c| c.0).collect();
+    // time from the last of those few to the last queued vehicle, of those
+    // that crossed while the movement was not red (a red-light runner or a
+    // vehicle that crept over the line belongs to no discharge).
+    let all_queued = cyc.crossings.iter().filter(|c| c.1).count();
+    let queued: Vec<f64> = cyc
+        .crossings
+        .iter()
+        .filter(|c| c.1 && !c.2)
+        .map(|c| c.0)
+        .collect();
     let (mut headway, mut flow, mut n_sat) = (f64::NAN, f64::NAN, 0u32);
     if queued.len() >= SATURATION_SKIP + SATURATION_MIN {
         let span = queued[queued.len() - 1] - queued[SATURATION_SKIP - 1];
@@ -1178,7 +1194,7 @@ fn close_cycle(
         red_s: (t_end - cyc.t_green - cyc.green_s - cyc.amber_s).max(0.0),
         queue_at_green: cyc.queue_at_green,
         discharged: cyc.crossings.len() as u32,
-        discharged_from_queue: queued.len() as u32,
+        discharged_from_queue: all_queued as u32,
         saturation_vehicles: n_sat,
         saturation_headway: headway,
         saturation_flow: flow,
@@ -1295,15 +1311,16 @@ fn police_plan(
     Ok((built, cycle))
 }
 
-/// Per movement ribbon: where the first area it shares with a crossing
-/// movement starts on it (NaN: none).
+/// Per movement ribbon: where the first area it shares with a movement
+/// from another arm (crossing or merging) starts on it (NaN: none).
 fn seep_holds(net: &Network) -> Vec<f64> {
     let mut hold = vec![f64::NAN; net.len()];
     for j in &net.junctions {
+        let arm_of = |r: usize| j.movements.iter().find(|m| m.first == r).map(|m| m.from);
         for m in &j.movements {
             let start = j
                 .conflicts_of(m.first)
-                .filter(|c| c.3 == marg_net::ConflictKind::Crossing)
+                .filter(|c| c.3 != marg_net::ConflictKind::Diverge && arm_of(c.0) != Some(m.from))
                 .map(|c| c.1.0)
                 .fold(f64::INFINITY, f64::min);
             if start.is_finite() {

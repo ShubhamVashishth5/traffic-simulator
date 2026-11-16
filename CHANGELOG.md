@@ -57,6 +57,19 @@ the persona-share experiment template.
   - the turning one holds at its line while something is level inside its sweep.
 - The field of view for imitation is measured from mid-length, so vehicles abreast count
   (ADR-0018).
+- `signal_cycles` measures saturation flow over the queued vehicles that did not cross on red.
+  A red-light runner or a seeper belongs to no discharge. Without violations nothing changes.
+
+### Results (`reports/phases/P8.md`)
+
+- With the coordinated twin, violations at a dark junction no longer clearly cut delay: the
+  SED CIs span zero (it was −73% to −81%). No negative-sum game appears there.
+- Opposite-carriageway encroachment at a level crossing is a negative-sum game: throughput
+  falls from 86% to 20% and both streams gridlock.
+- Seepage raises saturation flow as measured at the line only inside its CI, and imitation
+  still does not tip: both are checks, not met.
+- At amber onset, a vehicle that can still stop loses any gate it had, so a gap taken far
+  upstream for a wait inside the box no longer lets it cross on red (ADR-0016).
 
 Output hashes: the nine scenarios without junctions are unchanged. `median_opening`,
 `priority_crossing`, `roundabout`, `signal_crossing` and `split_corridor` change (left-hook

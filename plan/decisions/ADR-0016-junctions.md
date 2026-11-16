@@ -223,3 +223,12 @@ until it leaves the movement's curved ribbons.
   Built first so that it also braked in its turn, it stopped buses half turned, and their
   corners stood in the path of the two-wheelers beside them: 9,480 guard events on seed 3 of
   the signal crossing (8 before). Rule (a) keeps the vehicle beside it out of the sweep.
+
+### A gate is closed at amber (2026-11-16) *(mine)*
+
+A permitted movement can take its gap for the wait inside the box from far upstream (its desired
+gap at speed is over 100 m). That gap opened its line, and a vehicle still moving when the light
+turned red crossed it (once in a 10-minute run of the signal crossing at 300 veh/h). Now, at
+amber onset, a vehicle that can still stop at the safe braking limit loses any gate it had. It
+stops, unless it decides to go (`amber_go`, ADR-0019 part 3). Without violations nobody now
+crosses on red except a vehicle that could not stop.
