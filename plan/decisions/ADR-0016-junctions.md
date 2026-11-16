@@ -217,4 +217,7 @@ until it leaves the movement's curved ribbons.
   sweep if it is level. The turn is taken as visible (indicator, road position).
 - **(b) The turning vehicle waits.** While a body is level with it on the inside, nearer than its
   sweep plus the minimum clearance, it does not move on. It holds at its line if it can still
-  stop there at the safe braking limit. Already in its turn, it brakes at its comfortable rate.
+  stop there at the safe braking limit. *(Mine.)* Once its front is past the line it goes on.
+  Built first so that it also braked in its turn, it stopped buses half turned, and their
+  corners stood in the path of the two-wheelers beside them: 9,480 guard events on seed 3 of
+  the signal crossing (8 before). Rule (a) keeps the vehicle beside it out of the sweep.

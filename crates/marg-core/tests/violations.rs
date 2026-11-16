@@ -185,7 +185,8 @@ fn a_rule_without_its_inputs_is_refused() {
     .err()
     .unwrap()
     .to_string();
-    assert!(err.contains("not built"), "{err}");
+    // Every type is built since P8.4: it is refused only for its missing inputs.
+    assert!(err.contains("violations.coefficients"), "{err}");
 }
 
 /// Measurement for STATUS (not a check): the priority crossing, 30 min,

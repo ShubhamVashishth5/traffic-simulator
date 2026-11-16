@@ -16,7 +16,9 @@
 
 use crate::model::decision::{Coefficients, Features, HazardClock, Terms, hazard, one_shot};
 use crate::personas::{N_TRAITS, PersonaParams};
-use marg_params::{Persona, ResolveError, ResolvedSpec};
+use marg_params::{Persona, ResolveError, ResolvedSpec, VehicleClass};
+
+const N_CLASSES: usize = VehicleClass::ALL.len();
 use std::collections::BTreeMap;
 
 /// Counter base of violation decisions in an agent's `Decisions` stream:
@@ -24,8 +26,8 @@ use std::collections::BTreeMap;
 pub const VIOLATION_BASE: u64 = 8 << 40;
 const KIND_BLOCK: u64 = 1 << 36;
 
-/// The violation types of plan/03 §7 (stop-anywhere keeps its own module,
-/// ADR-0014).
+/// The violation types of plan/03 §7. Stop-anywhere keeps its own module
+/// (ADR-0014) and enters the rule by thinning (ADR-0020 part 7).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Kind {
     RedLight = 0,
@@ -38,9 +40,10 @@ pub enum Kind {
     LateMerge = 7,
     BoxBlocking = 8,
     OppositeEncroachment = 9,
+    StopAnywhere = 10,
 }
 
-pub const N_KINDS: usize = 10;
+pub const N_KINDS: usize = 11;
 
 impl Kind {
     pub const ALL: [Kind; N_KINDS] = [
@@ -54,6 +57,7 @@ impl Kind {
         Kind::LateMerge,
         Kind::BoxBlocking,
         Kind::OppositeEncroachment,
+        Kind::StopAnywhere,
     ];
 
     pub fn key(self) -> &'static str {
@@ -68,29 +72,26 @@ impl Kind {
             Kind::LateMerge => "late_merge",
             Kind::BoxBlocking => "box_blocking",
             Kind::OppositeEncroachment => "opposite_encroachment",
+            Kind::StopAnywhere => "stop_anywhere",
         }
     }
 
     /// Continuous (a hazard) or one-shot (ADR-0018 part 1).
     pub fn continuous(self) -> bool {
-        !matches!(self, Kind::AmberGo | Kind::WrongWay)
-    }
-
-    /// Whether the type's trigger and act exist yet (P8.4 adds the rest).
-    pub fn built(self) -> bool {
-        matches!(
-            self,
-            Kind::ForcedEntry
-                | Kind::RedLight
-                | Kind::EarlyStart
-                | Kind::AmberGo
-                | Kind::BoxBlocking
-        )
+        !matches!(self, Kind::AmberGo | Kind::WrongWay | Kind::StopAnywhere)
     }
 
     /// The types whose act is to cross a red line (ADR-0019).
     pub fn crosses_red(self) -> bool {
         matches!(self, Kind::RedLight | Kind::EarlyStart)
+    }
+
+    /// The types decided at a red stop line, whose clocks compete.
+    pub fn at_red_line(self) -> bool {
+        matches!(
+            self,
+            Kind::RedLight | Kind::EarlyStart | Kind::StoplineSeepage
+        )
     }
 }
 
@@ -117,6 +118,9 @@ pub struct ViolationParams {
     pub coefficient: [Option<f64>; 7],
     /// Added to every intercept of a delivery rider (G§3.2, stage 6).
     pub delivery_shift: Option<f64>,
+    /// Added to the intercept of type `k` for a vehicle of class `c`
+    /// (`violations.<type>.intercept_shift.<class>`; unset: 0).
+    pub class_shift: [[f64; N_CLASSES]; N_KINDS],
     /// `λ_max` (1/s).
     pub max_rate: f64,
     /// Violators of any type count in imitation.
@@ -140,6 +144,15 @@ impl ViolationParams {
         for k in Kind::ALL {
             intercept[k as usize] = optional(spec, &format!("violations.{}.intercept", k.key()))?;
         }
+        let mut class_shift = [[0.0; N_CLASSES]; N_KINDS];
+        for k in Kind::ALL {
+            for c in VehicleClass::ALL {
+                let path = format!("violations.{}.intercept_shift.{}", k.key(), c.key());
+                if spec.contains(&path) {
+                    class_shift[k as usize][c.index()] = optional(spec, &path)?.unwrap_or(0.0);
+                }
+            }
+        }
         let mut coefficient = [None; 7];
         for (c, name) in COEFFICIENTS.iter().enumerate() {
             coefficient[c] = optional(spec, &format!("violations.coefficients.{name}"))?;
@@ -149,6 +162,7 @@ impl ViolationParams {
             intercept,
             coefficient,
             delivery_shift: optional(spec, "personas.delivery_rider.violation_intercept_shift")?,
+            class_shift,
             max_rate: spec.scalar_si("violations.hazard.max_rate")?,
             any_type: spec.scalar_si("violations.imitation.any_type")? != 0.0,
             fov_radius: spec.scalar_si("violations.imitation.fov_radius")?,
@@ -161,14 +175,6 @@ impl ViolationParams {
         for k in Kind::ALL {
             if self.intercept[k as usize].is_none() {
                 continue;
-            }
-            if !k.built() {
-                return Err(format!(
-                    "violations.{}.intercept is set, but the {} violation is not built yet \
-                     (P8.4); unset it",
-                    k.key(),
-                    k.key()
-                ));
             }
             let missing: Vec<&str> = COEFFICIENTS
                 .iter()
@@ -202,12 +208,14 @@ impl ViolationParams {
         self.active(Kind::RedLight) || self.active(Kind::EarlyStart)
     }
 
-    /// The coefficients of type `k` for an agent with persona `persona` and
-    /// traits `z`: the shared ones, scaled by the agent's traits (a
-    /// random-coefficient logit, ADR-0018 part 2).
+    /// The coefficients of type `k` for an agent of class `class` with
+    /// persona `persona` and traits `z`: the shared ones, scaled by the
+    /// agent's traits (a random-coefficient logit, ADR-0018 part 2); the
+    /// intercept carries the persona's and the class's shifts.
     pub fn coefficients(
         &self,
         k: Kind,
+        class: u8,
         persona: u8,
         z: &[f64; N_TRAITS],
         pp: &PersonaParams,
@@ -222,7 +230,8 @@ impl ViolationParams {
                     self.delivery_shift.unwrap_or(0.0)
                 } else {
                     0.0
-                },
+                }
+                + self.class_shift[k as usize][usize::from(class)],
             aggressiveness: c(0),
             time_saved: c(1) * libm::exp(g_pi * pi),
             waiting_time: c(2) * libm::exp(g_pi * pi),
@@ -314,19 +323,18 @@ pub fn episode_counter(kind: Kind, serial: u32) -> u64 {
     VIOLATION_BASE + kind as u64 * KIND_BLOCK + u64::from(serial)
 }
 
-/// A world pose: position of the centre, heading (rad), front-centre
-/// offset (half the length), speed.
+/// A world pose: position of the centre, heading (rad), speed.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Pose {
     pub x: f64,
     pub y: f64,
     pub heading: f64,
-    pub half_length: f64,
     pub v: f64,
 }
 
 /// Violators moving and compliers waiting of type `kind` inside the field of
-/// view of `me` (agent id `agent`): a sector from its front centre, radius
+/// view of `me` (agent id `agent`): a sector from its centre (mid-length, so
+/// that vehicles abreast count: the user's change to F1, 2026-11-16), radius
 /// `p.fov_radius`, half-angle `acos(p.fov_cos)`, about its heading.
 pub fn counts_in_view(
     p: &ViolationParams,
@@ -338,7 +346,7 @@ pub fn counts_in_view(
     stop_speed: f64,
 ) -> (u32, u32) {
     let (ux, uy) = (libm::cos(me.heading), libm::sin(me.heading));
-    let (fx, fy) = (me.x + me.half_length * ux, me.y + me.half_length * uy);
+    let (fx, fy) = (me.x, me.y);
     let (mut violating, mut complying) = (0, 0);
     for e in &episodes.list {
         if e.agent == agent {
@@ -456,6 +464,7 @@ mod tests {
             intercept: [None; N_KINDS],
             coefficient: [Some(0.0); 7],
             delivery_shift: None,
+            class_shift: [[0.0; N_CLASSES]; N_KINDS],
             max_rate: 1.0,
             any_type: false,
             fov_radius: 30.0,
@@ -496,42 +505,36 @@ mod tests {
                 x: 0.0,
                 y: 0.0,
                 heading: 0.0,
-                half_length: 2.0,
                 v: 0.0,
             },
             Pose {
                 x: 12.0,
                 y: 3.0,
                 heading: 0.0,
-                half_length: 2.0,
                 v: 5.0,
             }, // violator ahead
             Pose {
                 x: 8.0,
                 y: -2.0,
                 heading: 0.0,
-                half_length: 2.0,
                 v: 0.0,
             }, // complier ahead
             Pose {
                 x: -10.0,
                 y: 0.0,
                 heading: 0.0,
-                half_length: 2.0,
                 v: 0.0,
             }, // behind
             Pose {
                 x: 60.0,
                 y: 0.0,
                 heading: 0.0,
-                half_length: 2.0,
                 v: 6.0,
             }, // too far
             Pose {
                 x: 15.0,
                 y: 0.0,
                 heading: 0.0,
-                half_length: 2.0,
                 v: 0.0,
             }, // acted, standing
         ];
@@ -568,6 +571,28 @@ mod tests {
         };
         let c = counts_in_view(&all_round, &eps, 0, Kind::ForcedEntry, poses[0], pose, 0.1);
         assert_eq!(c, (1, 2));
+        // Measured from mid-length: a complier abreast at the line counts.
+        let abreast = [
+            poses[0],
+            Pose {
+                x: 0.5,
+                y: 2.0,
+                heading: 0.0,
+                v: 0.0,
+            },
+        ];
+        let mut eps = Episodes::default();
+        eps.list.push(episode(1, 1, Kind::ForcedEntry, false));
+        let c = counts_in_view(
+            &p,
+            &eps,
+            0,
+            Kind::ForcedEntry,
+            abreast[0],
+            |i: u32| abreast[i as usize],
+            0.1,
+        );
+        assert_eq!(c, (0, 1));
     }
 
     #[test]
@@ -580,8 +605,10 @@ mod tests {
         let mut pp = crate::personas::PersonaParams::from_test();
         pp.coefficient_link = pp_links;
         let z = [9.0, 1.0, 2.0, -1.0, 0.0, 9.0, 9.0];
+        p.class_shift[Kind::ForcedEntry as usize][VehicleClass::TwoWheeler.index()] = 0.25;
         let c = p.coefficients(
             Kind::ForcedEntry,
+            VehicleClass::Car.index() as u8,
             Persona::DeliveryRider.index() as u8,
             &z,
             &pp,
@@ -593,17 +620,37 @@ mod tests {
         assert!((c.risk - (-1.0f64).exp()).abs() < 1e-12);
         assert!((c.imitation_violators - (-0.5f64).exp()).abs() < 1e-12);
         assert_eq!((c.imitation_compliers, c.enforcement), (1.0, 1.0));
-        let other = p.coefficients(Kind::ForcedEntry, 0, &z, &pp);
+        let other = p.coefficients(
+            Kind::ForcedEntry,
+            VehicleClass::Car.index() as u8,
+            0,
+            &z,
+            &pp,
+        );
         assert_eq!(other.intercept, -4.0);
+        // A class shift adds to the intercept of its type only.
+        let rider = p.coefficients(
+            Kind::ForcedEntry,
+            VehicleClass::TwoWheeler.index() as u8,
+            0,
+            &z,
+            &pp,
+        );
+        assert_eq!(rider.intercept, -3.75);
+        let red = p.coefficients(
+            Kind::RedLight,
+            VehicleClass::TwoWheeler.index() as u8,
+            0,
+            &z,
+            &pp,
+        );
+        assert_eq!(red.intercept, 0.0);
     }
 
     #[test]
     fn a_type_on_without_its_inputs_is_refused() {
         let mut p = params();
         assert!(p.check().is_ok() && !p.any_active());
-        p.intercept[Kind::Footpath as usize] = Some(-3.0);
-        assert!(p.check().unwrap_err().contains("not built"));
-        p.intercept[Kind::Footpath as usize] = None;
         p.intercept[Kind::ForcedEntry as usize] = Some(-3.0);
         p.coefficient[6] = None;
         assert!(p.check().unwrap_err().contains("risk"));

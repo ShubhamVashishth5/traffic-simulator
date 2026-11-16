@@ -173,6 +173,20 @@ pub struct ArmSpec {
     /// The ribbon that leaves from here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub out: Option<String>,
+    /// This arm leaves by a wrong-way path (ADR-0020 part 4): a vehicle
+    /// whose turn is this arm decides here, once, whether to ride it or take
+    /// the legal route.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wrong_way: Option<WrongWaySpec>,
+}
+
+/// The legal route instead of a wrong-way path.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WrongWaySpec {
+    /// The arm the legal route leaves by; it turns back at the first median
+    /// opening downstream with a U-turn from its approach.
+    pub legal: String,
 }
 
 /// Who goes first at a junction.
@@ -639,6 +653,32 @@ pub struct RibbonSpec {
     /// The ribbon traffic continues onto at the end, if any.
     #[serde(default)]
     pub next: Option<String>,
+    /// A footpath beside the kerb (`y_max`): footpath riding (ADR-0020
+    /// part 2). Its width and bollards are site data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub footpath: Option<FootpathSpec>,
+    /// Ribbons that carry the other direction over the same ground (at most
+    /// two): the other carriageway of an undivided road, or a wrong-way path
+    /// over this one (ADR-0020 parts 3–4). Each must name this ribbon too,
+    /// and its polyline must be this one's reversed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opposite: Vec<String>,
+}
+
+/// A footpath beside a ribbon's kerb.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FootpathSpec {
+    /// Width of the footpath beyond the kerb (m).
+    pub width: f64,
+    /// Where it runs along the ribbon (m; default: the whole ribbon).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_s: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_s: Option<f64>,
+    /// Stretches `[from_s, to_s]` with bollards: no vehicle can get on.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bollards: Vec<[f64; 2]>,
 }
 
 /// Lateral bounds of the carriageway at station `s`.

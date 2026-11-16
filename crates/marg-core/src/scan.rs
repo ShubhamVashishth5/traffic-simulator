@@ -191,6 +191,8 @@ pub struct MoveCtx<'a> {
     pub v_max: f64,
     /// Signals, the vehicles near each junction, speed caps of curves.
     pub junctions: &'a Junctions,
+    /// Footpaths and opposite carriageways (ADR-0020).
+    pub strips: &'a crate::strips::Strips,
     pub seed: u64,
 }
 
@@ -375,6 +377,32 @@ impl MoveCtx<'_> {
         (dv + closing_slack) * self.dt + dv * dv / (2.0 * self.p.safe_decel)
     }
 
+    /// The clearance `i` adds to what it keeps from `j` because it is on the
+    /// inside of the turn `j` is about to make or is making: `j`'s sweep
+    /// (ADR-0016 open problem 3, rule a). 0 otherwise.
+    #[inline]
+    fn inside_sweep(&self, i: usize, j: usize) -> f64 {
+        let sw = self.a.sweep[j];
+        if sw == 0.0 {
+            return 0.0;
+        }
+        let dy = self.a.y[i] - self.a.y[j];
+        if (sw > 0.0 && dy > 0.0) || (sw < 0.0 && dy < 0.0) {
+            sw.abs()
+        } else {
+            0.0
+        }
+    }
+
+    /// Whether `j`, level with `i` with edge gap `gy`, is on the inside of
+    /// `i`'s turn nearer than its sweep plus `c_min` (rule b).
+    #[inline]
+    fn in_my_sweep(&self, i: usize, j: usize, gy: f64, c_min: f64) -> bool {
+        let sw = self.a.sweep[i];
+        let dy = self.a.y[j] - self.a.y[i];
+        ((sw > 0.0 && dy > 0.0) || (sw < 0.0 && dy < 0.0)) && gy < sw.abs() + c_min
+    }
+
     /// Whether `j` counts as being to the left of `i` (ties by id, so two
     /// agents at the same `y` still steer apart).
     #[inline]
@@ -457,6 +485,9 @@ impl MoveCtx<'_> {
             (f64::NEG_INFINITY, f64::NEG_INFINITY)
         };
         let mut turn_room = f64::INFINITY;
+        // Something level with it on the inside of its turn, within its
+        // sweep (ADR-0016 open problem 3, rule b).
+        let mut hook = false;
         // How far ahead the road surface can be seen: to the rear of the
         // nearest vehicle in the way (it hides a pothole beyond it).
         let mut seen_to = f64::INFINITY;
@@ -539,8 +570,12 @@ impl MoveCtx<'_> {
                     sides.limit(left, y, gy);
                 }
                 let cj = usize::from(a.class[j]);
-                let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+                let c_base = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+                let c_min = c_base + self.inside_sweep(i, j);
                 let excess = gy - c_min;
+                if gap_s <= 0.0 && a.sweep[i] != 0.0 && self.in_my_sweep(i, j, gy, c_base) {
+                    hook = true;
+                }
                 if excess > reach {
                     continue;
                 }
@@ -662,7 +697,11 @@ impl MoveCtx<'_> {
                     sides.behind(self.is_left(i, j), y, gy);
                 }
                 let cj = usize::from(a.class[j]);
-                let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+                let c_base = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+                if a.sweep[i] != 0.0 && self.in_my_sweep(i, j, gy, c_base) {
+                    hook = true;
+                }
+                let c_min = c_base + self.inside_sweep(i, j);
                 let excess = gy - c_min;
                 if excess > reach {
                     continue;
@@ -692,6 +731,140 @@ impl MoveCtx<'_> {
                     pos = self.orders[q].len();
                 }
                 None => break,
+            }
+        }
+        // Vehicles on the opposite ribbons, coming towards it (ADR-0020 part
+        // 3): only where one of a pair is across the line between their
+        // carriageways, or where the carriageways overlap (a wrong-way path).
+        if self.strips.any_opposite && !self.net.ribbon(r).opposite.is_empty() {
+            let rib = self.net.ribbon(r);
+            let lo = rib.y_bounds(s).0;
+            let me_across = y - hw < lo;
+            let me_near = y - hw - far < lo;
+            for (n, &o) in rib.opposite.iter().enumerate().take(2) {
+                let overlap = self.strips.overlap[r][n];
+                if !overlap && !me_near && self.strips.reach_in[r][n] <= lo {
+                    continue;
+                }
+                crate::strips::partner_window(
+                    self.net,
+                    a,
+                    self.orders,
+                    o,
+                    s,
+                    0.5 * (l + self.l_max),
+                    p.lookahead,
+                    |j, ds, yj| {
+                        let hwj = a.half_width[j];
+                        let gap_s = ds.abs() - 0.5 * (l + a.length[j]);
+                        if gap_s > 0.0 && ds < 0.0 {
+                            // Behind and going away.
+                            return;
+                        }
+                        let dv = v + a.v[j];
+                        if !overlap && !me_across && yj + hwj <= lo {
+                            // Each on its own side of the line: they do not
+                            // brake for each other, but while the other is
+                            // beside it or about to be, the line is a wall
+                            // for its moves (a body turning on the spot
+                            // would swing a corner over it).
+                            if me_near
+                                && yj + hwj + far > lo
+                                && gap_s <= self.no_cut_in_gap(dv, closing_slack)
+                            {
+                                sides.wall(false, y, y - hw - lo);
+                            }
+                            return;
+                        }
+                        let gy = edge_gap(y, hw, yj, hwj);
+                        if gy > far {
+                            return;
+                        }
+                        let left = yj > y || (yj == y && a.id[j] > a.id[i]);
+                        let cj = usize::from(a.class[j]);
+                        let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + a.v[j])).1;
+                        let excess = gy - c_min;
+                        // Head on: the time to contact of the two bodies.
+                        if gap_s <= 0.0 || dv * p.conflict_ttc > gap_s {
+                            let me = Body::from_tan(0.0, y, l, a.width[i], a.heading_tan[i]);
+                            let other =
+                                Body::from_tan(ds, yj, a.length[j], a.width[j], a.heading_tan[j]);
+                            if let Some((ttc, approach)) =
+                                time_to_contact(&me, &other, -a.v[j] - v, -a.vy[j] - vy)
+                                && ttc < p.conflict_ttc
+                                && conflict.is_none_or(|c| ttc < c.ttc)
+                            {
+                                let (kind, gap, rate) = match approach {
+                                    Approach::Lateral => (
+                                        CONFLICT_SIDESWIPE,
+                                        gy,
+                                        if left { vy + a.vy[j] } else { -a.vy[j] - vy },
+                                    ),
+                                    Approach::Longitudinal => (CONFLICT_HEAD_ON, gap_s, dv),
+                                };
+                                conflict = Some(Conflict {
+                                    other: j as u32,
+                                    ttc,
+                                    drac: if gap > 0.0 {
+                                        rate * rate / (2.0 * gap)
+                                    } else {
+                                        f64::NAN
+                                    },
+                                    kind,
+                                });
+                            }
+                        }
+                        if gap_s <= 0.0 {
+                            if excess <= reach {
+                                if edge_gap(y, 0.5 * a.width[i], yj, 0.5 * a.width[j]) < 0.0 {
+                                    acc = -p.emergency_decel;
+                                }
+                                sides.add(left, y, gy, excess, strength, p.steering_scale);
+                            }
+                            return;
+                        }
+                        // No steering into the path of one coming at us.
+                        if gap_s <= self.no_cut_in_gap(dv, closing_slack) {
+                            sides.limit(left, y, gy);
+                        }
+                        if excess > self.cut {
+                            return;
+                        }
+                        let leader = (free
+                            - idm.interaction(
+                                v,
+                                gap_s,
+                                dv,
+                                p.mult_time_gap[ci][cj],
+                                p.mult_standstill_gap[ci][cj],
+                            ))
+                        .max(-p.emergency_decel);
+                        let weighted =
+                            free + leader_weight(excess, p.braking_scale) * (leader - free);
+                        if weighted < lead.0 {
+                            lead = (weighted, a.id[j]);
+                        }
+                        acc = acc.min(weighted);
+                    },
+                );
+            }
+        }
+        // Rule b: it does not move on into its turn while something is level
+        // with it inside its sweep: it holds at its line if it can still
+        // stop there at the safe braking limit. Once its front is past the
+        // line it goes on: a body stopped half turned leaves its corner in
+        // the way of the vehicle beside it, which keeps out (rule a).
+        if hook
+            && !self.net.ribbon(r).internal
+            && let Some((_, dist)) = self.junctions.line[r]
+        {
+            let g = dist - s - 0.5 * l;
+            if g > 0.0 && v * v <= 2.0 * p.safe_decel * g {
+                let hold = (free - idm.interaction(v, g, v, 1.0, 1.0)).max(-p.emergency_decel);
+                if hold < lead.0 {
+                    lead = (hold, NO_AGENT);
+                }
+                acc = acc.min(hold);
             }
         }
         // The line the vehicle is steering for: the kerb while it pulls
@@ -1058,6 +1231,27 @@ impl MoveCtx<'_> {
                 }
             }
         }
+        // Using a strip beyond its ribbon's width, it must be back within
+        // the width before the strip ends (ADR-0020 part 1): within its
+        // stopping distance of that point it makes for it, and stops short
+        // if it cannot get there.
+        if a.strip[i] != crate::agents::STRIP_NONE {
+            let (lo, hi) = self.net.ribbon(r).y_bounds(s);
+            let (clo, chi) = centre_bounds(lo, hi, half_body);
+            if y < clo || y > chi {
+                let end = crate::strips::strip_end(self.net, r, s, a.strip[i]);
+                let gap = end - s - 0.5 * l;
+                let stopping = v * v / (2.0 * idm.comfortable_decel) + idm.standstill_gap + l;
+                if gap <= stopping {
+                    land = Some(y.clamp(clo, chi));
+                    cap = cap.min(if gap > 0.0 {
+                        (free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel)
+                    } else {
+                        -p.emergency_decel
+                    });
+                }
+            }
+        }
         acc = acc.min(cap);
         // A vehicle that is stopping to pick up or set down (ADR-0014)
         // brakes for its stop point as for something standing there, and
@@ -1377,6 +1571,9 @@ impl MoveCtx<'_> {
                 let nearest = ((a.y[j] - y).abs() - range).max(0.0) - hw - hwj;
                 let cj = usize::from(a.class[j]);
                 let (c_des0, c_min0) = p.pair_clearance(ci, cj, 0.5 * (v + a.v[j]));
+                // Out of the sweep of a vehicle about to turn across it (rule a).
+                let extra = self.inside_sweep(i, j) / scale.max(f64::MIN_POSITIVE);
+                let (c_des0, c_min0) = (c_des0 + extra, c_min0 + extra);
                 let (c_des, c_min) = (scale * c_des0, scale * c_min0);
                 if nearest > c_des.max(c_min + self.cut) {
                     continue;
@@ -1458,6 +1655,8 @@ impl MoveCtx<'_> {
                 let nearest = ((a.y[j] - y).abs() - range).max(0.0) - hw - hwj;
                 let cj = usize::from(a.class[j]);
                 let (c_des0, c_min0) = p.pair_clearance(ci, cj, 0.5 * (v + a.v[j]));
+                let extra = self.inside_sweep(i, j) / scale.max(f64::MIN_POSITIVE);
+                let (c_des0, c_min0) = (c_des0 + extra, c_min0 + extra);
                 let c_min_f = a.clearance_scale[j] * c_min0;
                 if nearest > (scale * c_des0).max(c_min_f + self.cut) {
                     continue;
@@ -1504,6 +1703,63 @@ impl MoveCtx<'_> {
                     pos = self.orders[q].len();
                 }
                 None => break,
+            }
+        }
+        // Vehicles on the opposite ribbons coming towards it (ADR-0020 part
+        // 3), under the same rule as in the move phase.
+        if self.strips.any_opposite && !self.net.ribbon(r).opposite.is_empty() {
+            let rib = self.net.ribbon(r);
+            let lo_r = rib.y_bounds(s).0;
+            let me_across = y - hw < lo_r || a.strip[i] == crate::agents::STRIP_OPPOSITE;
+            for (n, &o) in rib.opposite.iter().enumerate().take(2) {
+                let overlap = self.strips.overlap[r][n];
+                if !overlap && !me_across && self.strips.reach_in[r][n] <= lo_r {
+                    continue;
+                }
+                crate::strips::partner_window(
+                    self.net,
+                    a,
+                    self.orders,
+                    o,
+                    s,
+                    0.5 * (l + self.l_max),
+                    p.lookahead,
+                    |j, ds, yj| {
+                        let hwj = a.half_width[j];
+                        if !overlap && !me_across && yj + hwj <= lo_r {
+                            return;
+                        }
+                        let nearest = ((yj - y).abs() - range).max(0.0) - hw - hwj;
+                        let cj = usize::from(a.class[j]);
+                        let (c_des0, c_min0) = p.pair_clearance(ci, cj, 0.5 * (v + a.v[j]));
+                        let (c_des, c_min) = (scale * c_des0, scale * c_min0);
+                        if nearest > c_des.max(c_min + self.cut) {
+                            return;
+                        }
+                        let gap_s = ds.abs() - 0.5 * (l + a.length[j]);
+                        if gap_s <= 0.0 {
+                            beside(nb, yj >= y, yj, hwj, c_des0, c_min0);
+                            return;
+                        }
+                        if ds < 0.0 {
+                            return;
+                        }
+                        let (mt, ms) = (p.mult_time_gap[ci][cj], p.mult_standstill_gap[ci][cj]);
+                        let cost = idm.interaction(v, gap_s, v + a.v[j], mt, ms);
+                        let near = gap_s < idm.standstill_gap * ms + v * idm.time_gap * mt;
+                        if !near && cost < p.switch_threshold {
+                            return;
+                        }
+                        nb.push_leader(LeaderTerm {
+                            y: yj,
+                            half_width: hwj,
+                            accel: (free - cost).max(-p.emergency_decel),
+                            c_min,
+                            c_des,
+                            near,
+                        });
+                    },
+                );
             }
         }
         // Road objects: leaders ahead, side neighbours when level.
@@ -1596,8 +1852,14 @@ impl MoveCtx<'_> {
             self.objects
                 .near(self.net, self.prev, r, s, 0.5 * l, p.lookahead, near);
         }
-        // The feasible interval: never across a side neighbour, never off the road.
-        let (edge_lo, edge_hi) = self.net.ribbon(r).y_bounds(s);
+        // The feasible interval: never across a side neighbour, never off the
+        // road (its own road: a strip it uses widens it, ADR-0020 part 1).
+        let (edge_lo, edge_hi) = if a.strip[i] == crate::agents::STRIP_NONE {
+            self.net.ribbon(r).y_bounds(s)
+        } else {
+            crate::strips::edges(self.net, self.strips, r, s, a.strip[i])
+        };
+        let own_lo = self.net.ribbon(r).y_bounds(s).0;
         let (road_lo, road_hi) = centre_bounds(edge_lo, edge_hi, hw);
         let (mut lo, mut hi) = (lo.min(y).max(road_lo), hi.max(y).min(road_hi));
         if lo > hi {
@@ -1621,7 +1883,7 @@ impl MoveCtx<'_> {
             edge_hi,
             free_band: with_bonus.free_accel(v),
             free_out: without.free_accel(v),
-            band_y: edge_lo + p.median_band_width,
+            band_y: own_lo + p.median_band_width,
             cap,
             target: a.y_target[i],
             // Where the carriageway narrows ahead, a line that runs into

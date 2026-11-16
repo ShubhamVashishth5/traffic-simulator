@@ -239,9 +239,11 @@ fn box_blocking_enters_a_junction_whose_way_out_is_blocked() {
 }
 
 /// G§4.4 regression (P8.4 done-when): filtering, staggered following and
-/// moving between notional lanes are physics. With every built violation
-/// type switched on, a dense mixed corridor (no junction) has lateral moves
-/// and not one violation decision.
+/// moving between notional lanes are physics. With every violation type
+/// that has a trigger on a plain road switched on, a dense mixed corridor
+/// (no junction, footpath or opposite carriageway) has lateral moves and
+/// not one violation decision. (Stop-anywhere is a decision wherever the
+/// class has a rate: the corridor has none.)
 #[test]
 fn baseline_filtering_is_never_a_violation() {
     let yaml = corridor(
@@ -250,7 +252,19 @@ fn baseline_filtering_is_never_a_violation() {
         3000.0,
         "{motorcycle: 0.4, scooter: 0.2, auto_rickshaw: 0.15, hatchback: 0.2, bus: 0.05}",
     );
-    let out = run(&yaml, &with(&[RED, EARLY, AMBER, BOX, FORCED]), 5);
+    let every = [
+        RED,
+        EARLY,
+        AMBER,
+        BOX,
+        FORCED,
+        ("violations.stopline_seepage.intercept", "-2.0"),
+        ("violations.wrong_way.intercept", "-1.0"),
+        ("violations.footpath.intercept", "-2.0"),
+        ("violations.late_merge.intercept", "-1.0"),
+        ("violations.opposite_encroachment.intercept", "-2.0"),
+    ];
+    let out = run(&yaml, &with(&every), 5);
     assert!(kpi(&out, "lateral_moves") > 100.0);
     assert!(
         out.events

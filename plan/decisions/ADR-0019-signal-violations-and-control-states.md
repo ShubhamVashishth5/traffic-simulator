@@ -220,9 +220,14 @@ by `marg.bundles.cooperative()` with `violations.enabled = 0` (ADR-0007). Under 
 junction that is dark or blinking without a major arm:
 
 - a vehicle at the front of its line is stamped with the time it got there (the first step its
-  line binds and it is within its desired gap of it);
+  line binds and it is within its desired gap of it). It loses the stamp if it is no longer at
+  the front (a two-wheeler squeezes in ahead of it) *(mine: a stamp held by a vehicle that
+  something stood in front of locked the junction)*;
 - it may enter when no vehicle on a conflicting movement (crossing or merging, not diverging)
-  holds an earlier stamp and still waits at its own line (ties by id);
+  holds an earlier stamp and still waits at its own line (ties by id), and no vehicle on such a
+  movement is inside the junction short of the end of the area they share, as at an all-way
+  stop *(mine: built first without it, two vehicles entered one after the other and each
+  stood in the other's path);*
 - the keep-clear rule and the arbitration inside the box (first come, first served by entry
   ticket, ADR-0016 part 4) are as before;
 - no gap is read, so forced entry has nothing to trigger on.

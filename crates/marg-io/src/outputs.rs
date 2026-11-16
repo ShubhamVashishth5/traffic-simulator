@@ -818,7 +818,8 @@ pub fn data_dictionary() -> String {
                      junction, arm, to, queued (it had stood at the closed line), waited_s, \
                      speed, light (0 none, 1 green, 2 amber, 3 red), control (the \
                      controller's state), act (the violation that took it over the line: \
-                     red_light, early_start, amber_go, box_blocking, or null), and on red \
+                     red_light, early_start, amber_go, box_blocking, stopline_seepage, or \
+                     null), and on red \
                      into_red_s and red_s (time since its red began, the red's length). \
                      gap_accepted (a vehicle that \
                      gives way takes a gap, G§2.4): junction, gap_s (time from its own \
@@ -830,14 +831,18 @@ pub fn data_dictionary() -> String {
                      junction, gap_s, critical_gap_s, rejected (how many so far), waited_s, \
                      against_class, speed. \
                      split_decision (at the deadline before a split or a U-turn, not on the \
-                     side it needs, G§6.7): junction, decision (stop_and_wait or give_up), \
-                     stop_and_wait_probability, urgency (0–1), needed_move_m, late_realiser, \
-                     speed. missed_branch (outside its branch's part of the road, it takes \
+                     side it needs, G§6.7): junction, decision (stop_and_wait, give_up, or \
+                     give_up_after_wait once it has waited `road.split.wait_patience`, with \
+                     waited_s and patience_s), stop_and_wait_probability, urgency (0–1), \
+                     needed_move_m, late_realiser, speed, realised_after_deadline (it learnt \
+                     its branch after taking the one it was in, ADR-0017 C2), late_merge (a \
+                     late merger waiting at its deadline to cut in, ADR-0020). missed_branch (outside its branch's part of the road, it takes \
                      the branch it is in: at its deadline if it gave up or never knew, at \
                      the line if it drifted out after deciding): junction, wanted, took, \
                      aware, gave_up, late_realiser. reroute (having taken a branch it did \
                      not want, it will turn back at the next median opening): missed_at, \
-                     via (that opening), u_turn_arm. u_turn (it starts a U-turn): junction, \
+                     via (that opening), u_turn_arm, cause (missed, or legal_detour: it took \
+                     the legal route instead of a wrong-way path, ADR-0020). u_turn (it starts a U-turn): junction, \
                      path_from_median_m (drawn), joins_at_y, receiving_width_m. gridlock (an \
                      area detector becomes gridlocked: its space-mean speed has stayed below \
                      `observers.gridlock.speed` for `observers.gridlock.duration`): area, \
@@ -845,7 +850,8 @@ pub fn data_dictionary() -> String {
                      violation (an agent acts on a violation episode, ADR-0018) and complied \
                      (the episode's trigger ended first): type, junction, episode, t_start, \
                      reason (acted, gap_accepted, trigger_ended, left, green, way_clear, \
-                     stopped, other_type_acted), features (kappa, \
+                     stopped, other_type_acted, merged, declined (a stop-anywhere opportunity \
+                     not taken), legal_route (wrong way not taken)), features (kappa, \
                      time_saved, waiting_time, n_violating, n_complying, enforcement, risk), \
                      coefficients (the agent's own, traits applied), terms (each coefficient \
                      times its feature; they add up to eta), eta, and for continuous types \
@@ -1069,9 +1075,11 @@ pub fn data_dictionary() -> String {
                      missed_branches, reroutes. gridlock_share: share of the measured window in \
                      which some area detector was gridlocked; gridlock_onset_s: start of the \
                      first slow spell that became a gridlock (NaN: none). Violations \
-                     (ADR-0018, ADR-0019): violations_per_1000_veh (every type), and acts by \
-                     type: forced_entries, red_light_runs, early_starts, amber_goes, \
-                     box_blocks",
+                     (ADR-0018, ADR-0019, ADR-0020): violations_per_1000_veh (every type), and \
+                     acts by type: forced_entries, red_light_runs, early_starts, amber_goes, \
+                     box_blocks, stopline_seepages, wrong_way_rides, footpath_rides, \
+                     late_merges, opposite_encroachments, stop_anywhere_taken (stop-anywhere \
+                     opportunities taken under the rule; 0 when its intercept is unset)",
                 ),
                 (
                     "trajectories: t, agent_id, ribbon, s, y",

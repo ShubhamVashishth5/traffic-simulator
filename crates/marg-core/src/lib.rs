@@ -23,6 +23,7 @@ pub mod rng;
 pub mod scan;
 pub mod sim;
 pub mod stopping;
+pub mod strips;
 pub mod surface;
 pub mod violations;
 pub mod width;

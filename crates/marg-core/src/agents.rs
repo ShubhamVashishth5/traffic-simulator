@@ -80,7 +80,8 @@ pub struct AgentStore {
     pub stop_point: Vec<f64>,
     /// While stopping: the dwell drawn (s). While standing: when it ends.
     pub stop_until: Vec<f64>,
-    /// Stop-anywhere events so far.
+    /// Stop-anywhere opportunities so far (taken or, under the rule,
+    /// declined: ADR-0020 part 7).
     pub stop_count: Vec<u32>,
     /// How far from the kerb a vehicle that pulls over aims to stand (m).
     pub stop_offset: Vec<f64>,
@@ -166,9 +167,39 @@ pub struct AgentStore {
     /// crossed its stop line, or, waiting inside for a gap, took the gap.
     /// Inside a junction the earlier ticket goes first (ADR-0016).
     pub box_ticket: Vec<f64>,
+    /// When it got to the front of its stop line (s; NaN: not there): its
+    /// turn at a dark junction under first come, first served (ADR-0019 D1).
+    pub line_arrival: Vec<f64>,
+    /// Its sweep towards the inside of the turn it is about to make or is
+    /// making, `L² / 8ρ` (m): positive inside to the left, negative to the
+    /// right, 0 when not turning (ADR-0016, open problem 3).
+    pub sweep: Vec<f64>,
+    /// It decided to creep past its red stop line (`stopline_seepage`).
+    pub seeps: Vec<bool>,
+    /// The strip it may use beyond its ribbon's width: one of `STRIP_*`
+    /// (ADR-0020 part 1).
+    pub strip: Vec<u8>,
+    /// At a split, the branch it wanted before it took the one it was in
+    /// without knowing (`NO_ARM`: none; ADR-0017 C2).
+    pub wanted_out: Vec<u8>,
+    /// It decided to merge late at the split ahead (`late_merge`).
+    pub late_merge: Vec<bool>,
+    /// It took the legal route instead of a wrong-way path: it turns back
+    /// at the first median opening with a U-turn from its approach.
+    pub legal_detour: Vec<bool>,
+    /// It decided to ride the wrong-way path at the junction ahead, or is
+    /// riding it.
+    pub rides_wrong_way: Vec<bool>,
     /// Set during the step when the agent leaves the network.
     pub exited: Vec<bool>,
 }
+
+/// Strips beyond the ribbon's width an agent may use (ADR-0020).
+pub const STRIP_NONE: u8 = 0;
+pub const STRIP_FOOTPATH: u8 = 1;
+pub const STRIP_OPPOSITE: u8 = 2;
+/// No arm stored.
+pub const NO_ARM: u8 = u8::MAX;
 
 /// Marker for "no ribbon" / "no junction".
 pub const NO_RIBBON: u32 = u32::MAX;
@@ -316,6 +347,14 @@ macro_rules! each_column {
         $m!($s.moved_off);
         $m!($s.line_held);
         $m!($s.box_ticket);
+        $m!($s.line_arrival);
+        $m!($s.sweep);
+        $m!($s.seeps);
+        $m!($s.strip);
+        $m!($s.wanted_out);
+        $m!($s.late_merge);
+        $m!($s.legal_detour);
+        $m!($s.rides_wrong_way);
         $m!($s.exited);
     };
 }
@@ -423,6 +462,14 @@ impl AgentStore {
         self.moved_off.push(f64::NAN);
         self.line_held.push(false);
         self.box_ticket.push(f64::NAN);
+        self.line_arrival.push(f64::NAN);
+        self.sweep.push(0.0);
+        self.seeps.push(false);
+        self.strip.push(STRIP_NONE);
+        self.wanted_out.push(NO_ARM);
+        self.late_merge.push(false);
+        self.legal_detour.push(false);
+        self.rides_wrong_way.push(false);
         self.exited.push(false);
         i
     }

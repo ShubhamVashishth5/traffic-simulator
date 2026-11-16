@@ -275,6 +275,15 @@ impl Arbiter {
             let mut turn = (a.turn_junction[i], a.turn_out[i]);
             // Its first ribbon inside the junction, the station its path
             // starts at there, and the distance to that station.
+            // One that crept past its red line stands short of the crossing
+            // streams until its green: a body there, not in the order.
+            if rib.internal
+                && a.seeps[i]
+                && light[r] != LIGHT_GREEN
+                && light[r] != crate::junctions::LIGHT_NONE
+            {
+                continue;
+            }
             let (first, s0, d0, arm, d_line) = if rib.internal {
                 let arm = net.junctions[j]
                     .movements
