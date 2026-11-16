@@ -202,3 +202,19 @@ the vehicle arriving later at a crossing point follows.
   column; the agent store gains `line_held` and `box_ticket` (run-time state only).
 - Per-agent draws gained four blocks (critical gap, heavy factor, late realiser, awareness
   distance). Existing draws keep their blocks: reference scenarios keep their output hashes.
+
+## Decision on open problem 3 (the user, 2026-11-16): (c), both rules
+
+A vehicle's **sweep** for its turn is `L² / 8ρ`, with ρ the smallest radius of its movement's
+ribbons, towards the inside of the turn. Every class has one; it is small except for long
+vehicles (0.2 m for a 4 m car on a 10 m radius, 1.25 m for a 10 m bus), so there is no class
+list. A vehicle is **about to turn** from when its front is within its own length of its line
+until it leaves the movement's curved ribbons.
+
+- **(a) Others keep out of it.** A vehicle on the inside of one that is about to turn adds that
+  sweep to the clearance it keeps from it, as a leader, as a side neighbour and in its lateral
+  choice. A two-wheeler then does not draw level inside a turning bus, and steers out of its
+  sweep if it is level. The turn is taken as visible (indicator, road position).
+- **(b) The turning vehicle waits.** While a body is level with it on the inside, nearer than its
+  sweep plus the minimum clearance, it does not move on. It holds at its line if it can still
+  stop there at the safe braking limit. Already in its turn, it brakes at its comfortable rate.

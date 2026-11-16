@@ -210,3 +210,23 @@ intercepts of `red_light`, `early_start`, `amber_go`, `box_blocking` (unset: off
   (it would be on a movement ribbon), plus `wrong_way`, `footpath` and
   `opposite_encroachment`, which need an opposite strip and a footpath in the network.
   `late_merge` waits on ADR-0017, and stop-anywhere's terms are also still to build.
+
+## Decision on the dark regime (the user, 2026-11-16): D1
+
+**D1.** A dark junction stays mutual deference with forced entry (the guide's Chicken), and the
+cooperative twin coordinates: **first come, first served at the stop lines**, as at an all-way
+stop. New register switch `road.signal.dark_first_come` (0/1, `scenario`, default 0), set to 1
+by `marg.bundles.cooperative()` with `violations.enabled = 0` (ADR-0007). Under it, at a
+junction that is dark or blinking without a major arm:
+
+- a vehicle at the front of its line is stamped with the time it got there (the first step its
+  line binds and it is within its desired gap of it);
+- it may enter when no vehicle on a conflicting movement (crossing or merging, not diverging)
+  holds an earlier stamp and still waits at its own line (ties by id);
+- the keep-clear rule and the arbitration inside the box (first come, first served by entry
+  ticket, ADR-0016 part 4) are as before;
+- no gap is read, so forced entry has nothing to trigger on.
+
+No ring can form: the stamps are a total order. The twin then differs from the observed arm in
+two ways, no violations and an agreed order, which is what the guide's claim compares. The
+milestone experiment was re-run with it (`reports/phases/P8.md`).

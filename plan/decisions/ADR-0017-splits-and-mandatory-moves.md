@@ -94,3 +94,18 @@ five seeds per point:
 ## Open
 All three new register entries, and the four that existed, are unset: the guide has no numbers.
 A scenario with a split or a U-turn is refused without them.
+
+## Decision (the user, 2026-11-16): A2 + B2 + C2
+
+- **A2.** A driver who knows its branch is pulled towards it from the moment it knows, beyond
+  the lookahead too: weight `w_route · max(û, û₀)`, `û₀ = road.split.base_urgency` (new; grade C,
+  sweep; unset = 0, the old behaviour).
+- **B2.** A driver waiting at its deadline gives up after standing `road.split.wait_patience`
+  (new; s; grade C, sweep; unset = never, the old behaviour) and takes the branch it is in
+  (`split_decision` with `decision: "give_up_after_wait"`).
+- **C2.** A driver that reaches its deadline without knowing its branch takes the branch it is in
+  at once, as before, but remembers the one it wanted. If it learns it (the sign, or its late
+  awareness distance) before the line while it can still stop there at the safe braking limit, it
+  decides as at a deadline: stop and wait (with `split.stop_and_wait_probability`, its wanted
+  branch restored) or give up (it keeps the branch it took).
+- `late_merge` is built on these (ADR-0020 part 6).

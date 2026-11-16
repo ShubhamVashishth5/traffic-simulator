@@ -47,3 +47,10 @@ For the scope of κ:
   resolved parameters differ.
 - P5 must read `personas.cooperative.squeeze_kappa_quantile` in its squeezing rule, and P8 must read
   `violations.enabled`. Both cards should cite this ADR.
+
+## Addendum (2026-11-16): dark junctions in the twin
+
+With ADR-0019's decision D1, `marg.bundles.cooperative()` also sets
+`road.signal.dark_first_come = 1`: at a dark or blinking junction the twin takes turns at the
+lines, first come first served, rather than waiting for gaps that rarely come. It changes
+nothing where no junction is dark.
