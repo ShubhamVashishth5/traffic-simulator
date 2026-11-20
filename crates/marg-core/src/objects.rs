@@ -544,6 +544,8 @@ mod tests {
             polyline: vec![[x0, 0.0], [x1, 0.0]],
             width,
             next: next.map(Into::into),
+            footpath: None,
+            opposite: Vec::new(),
         };
         Network::build(&NetworkSpec {
             ribbons: vec![

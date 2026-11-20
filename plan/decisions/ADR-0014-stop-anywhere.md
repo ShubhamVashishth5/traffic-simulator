@@ -155,3 +155,9 @@ noise.
 ## Recommendation (before the decision)
 
 1A and 2A, with P8 taking over the rate. This is a recommendation only.
+
+## P8: the rule enters by thinning (the user, 2026-11-16)
+
+The rate per class becomes the rate of stop opportunities; with
+`violations.stop_anywhere.intercept` set, each is taken with probability `σ(η)` (ADR-0020 part
+7). With it unset, every opportunity is taken: outputs as before.

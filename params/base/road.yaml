@@ -534,6 +534,36 @@ entries:
     guide: "§6.6"
     register_row: 9.6/officer_cycle_bias_compliance
     range: [0.0, 1.0]
+  signal.dark_first_come:
+    value: 0
+    unit: "1"
+    grade: C
+    role: scenario
+    source: "ADR-0019 decision D1 (the user, 2026-11-16): the cooperative twin coordinates at dark junctions"
+    guide: "§6.6, §8.4"
+    register_row: core/experiment_switches
+    range: [0.0, 1.0]
+    notes: "1 = at a junction that is dark or blinking without a major arm, vehicles take turns at the stop lines, first come first served (an all-way stop); 0 = every movement gives way to every movement it conflicts with (mutual deference, the observed regime). Set to 1 by marg.bundles.cooperative (ADR-0007)."
+  split.base_urgency:
+    value: null
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "No Indian study found (guide §6.7); form in ADR-0017 option A2 (the user, 2026-11-16)"
+    guide: "§6.7"
+    register_row: 9.6/route_awareness
+    range: [0.0, 1.0]
+    notes: "u0: a driver who knows its branch is pulled towards it from the moment it knows, with weight w_route * max(u, u0). Unset = 0: the pull acts only through the urgency u near the split (ADR-0017 A1)."
+  split.wait_patience:
+    value: null
+    unit: "s"
+    grade: C
+    role: sweep
+    source: "No Indian study found (guide §6.7); form in ADR-0017 option B2 (the user, 2026-11-16)"
+    guide: "§6.7"
+    register_row: 9.6/stop_and_wait
+    range: [0.0, 600.0]
+    notes: "A driver that stopped to wait at its deadline gives up after standing this long and takes the branch it is in. Unset = it waits until there is room (ADR-0017 B1)."
   split.awareness_distance:
     value: null
     unit: "m"

@@ -10,8 +10,9 @@
 //! a fixed order, so outputs are bitwise identical for any thread count.
 
 use crate::agents::{
-    AgentStore, NO_AGENT, NO_RIBBON, NewAgent, REMOVED, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE,
-    SPLIT_UNAWARE, SPLIT_WAIT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER, STOP_STANDING,
+    AgentStore, NO_AGENT, NO_ARM, NO_RIBBON, NewAgent, REMOVED, SPLIT_DECIDED, SPLIT_GAVE_UP,
+    SPLIT_NONE, SPLIT_UNAWARE, SPLIT_WAIT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER,
+    STOP_STANDING, STRIP_FOOTPATH, STRIP_NONE, STRIP_OPPOSITE,
 };
 use crate::demand::{Arrival, Demand, Draws, draw_one};
 use crate::gridlock::Gridlock;
@@ -156,10 +157,15 @@ pub struct Simulation {
     narrow: Narrowings,
     /// Junctions: signals, vehicles near each junction, cycle records.
     junctions: Junctions,
+    /// Footpaths and opposite carriageways (ADR-0020).
+    strips: crate::strips::Strips,
     /// Counts of what happened at splits (KPIs).
     split_waits: u64,
     split_give_ups: u64,
     missed_branches: u64,
+    /// Stop-anywhere opportunities met this step, with the attractor
+    /// multiplier where each was met (ADR-0020 part 7).
+    stop_offers: Vec<(u32, f64)>,
     reroutes: u64,
     gaps_accepted: u64,
     gaps_rejected: u64,
@@ -362,6 +368,7 @@ impl Simulation {
         );
         let decision_steps = decision_steps(&p, scenario.dt_s);
         let ou = ou_step(&p, decision_steps, scenario.dt_s);
+        let strips = crate::strips::Strips::new(&net);
         Ok(Self {
             dt: scenario.dt_s,
             scenario,
@@ -392,9 +399,11 @@ impl Simulation {
             widths,
             narrow,
             junctions,
+            strips,
             split_waits: 0,
             split_give_ups: 0,
             missed_branches: 0,
+            stop_offers: Vec::new(),
             reroutes: 0,
             gaps_accepted: 0,
             gaps_rejected: 0,
@@ -859,6 +868,7 @@ impl Simulation {
             c_min_cap,
             v_max: fold(&a.v),
             junctions: &self.junctions,
+            strips: &self.strips,
             seed: self.seed,
         }
     }
@@ -887,6 +897,7 @@ impl Simulation {
     // ---------------------------------------------------------------- move
 
     fn phase_move(&mut self) {
+        self.strips.update(&self.net, &self.agents, &self.orders);
         self.work.clear();
         for (r, order) in self.orders.iter().enumerate() {
             self.work
@@ -1090,6 +1101,9 @@ impl Simulation {
             if self.junctions.enabled {
                 self.apply_junction(i, &out.junction, t);
             }
+            if self.strips.any {
+                self.apply_strips(i, out, t);
+            }
         }
         if !self.episodes.is_empty() {
             self.close_untouched_episodes(t);
@@ -1103,12 +1117,61 @@ impl Simulation {
     /// and has since left its branch's part of the road takes the one it is
     /// in as it reaches the line (ADR-0017).
     fn apply_junction(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        // A vehicle that crept past its red line is released at its green:
+        // from then on it is in the junction like any other (it clears the
+        // box if the light changes again before it is out).
+        if self.agents.seeps[i] {
+            let r = self.agents.ribbon[i] as usize;
+            let light = self.junctions.light[r];
+            if self.net.ribbon(r).internal
+                && (light == crate::junctions::LIGHT_GREEN || light == crate::junctions::LIGHT_NONE)
+            {
+                self.agents.seeps[i] = false;
+            }
+        }
         self.record_junction(i, jo, t);
         if self.p.violations.active(Kind::ForcedEntry) {
             self.forced_entry(i, jo, t);
         }
-        if self.p.violations.red_light_rules() {
+        if self.p.violations.red_light_rules() || self.p.violations.active(Kind::StoplineSeepage) {
             self.red_light_rules(i, jo, t);
+        }
+        if self.p.violations.active(Kind::LateMerge) {
+            self.late_merge(i, jo, t);
+        }
+        if jo.wrong_way_due {
+            self.wrong_way(i, t);
+        }
+        // Waited at its deadline as long as it will: it gives up (ADR-0017 B2).
+        if let Some(patience) = self.p.junction.wait_patience {
+            let a = &self.agents;
+            if a.split_state[i] == SPLIT_WAIT
+                && !a.wait_since[i].is_nan()
+                && t - a.wait_since[i] >= patience
+            {
+                self.agents.split_state[i] = SPLIT_GAVE_UP;
+                self.split_give_ups += 1;
+                let a = &self.agents;
+                let junction = self
+                    .net
+                    .junctions
+                    .get(a.turn_junction[i] as usize)
+                    .map_or(String::new(), |j| j.id.clone());
+                self.events.push(EventRecord {
+                    t,
+                    kind: "split_decision",
+                    agent_id: a.id[i],
+                    ribbon: self.net.ribbon(a.ribbon[i] as usize).id.clone(),
+                    s: a.s[i],
+                    y: a.y[i],
+                    attrs: format!(
+                        "{{\"junction\":{},\"decision\":\"give_up_after_wait\",\"waited_s\":{},\"patience_s\":{patience},\"late_merge\":{}}}",
+                        json_string(&junction),
+                        t - a.wait_since[i],
+                        a.late_merge[i]
+                    ),
+                });
+            }
         }
         if self.p.violations.active(Kind::AmberGo) {
             self.keep_acted(i, Kind::AmberGo);
@@ -1143,6 +1206,44 @@ impl Simulation {
         if jo.aware && !a.aware[i] {
             a.aware[i] = true;
         }
+        // Its turn under first come first served: from when it got to the
+        // front; lost if something takes the front from it.
+        if !jo.at_line {
+            a.line_arrival[i] = f64::NAN;
+        } else if a.line_arrival[i].is_nan() {
+            a.line_arrival[i] = t;
+        }
+        // It learnt which branch it wanted after taking the one it was in
+        // (ADR-0017 C2): it stops to wait for it, or keeps the one it took.
+        if jo.realised && a.split_state[i] == SPLIT_UNAWARE {
+            a.split_state[i] = jo.split;
+            let waits = jo.split == SPLIT_WAIT;
+            if waits {
+                a.turn_out[i] = a.wanted_out[i];
+                a.missed[i] = false;
+                self.missed_branches -= 1;
+                self.split_waits += 1;
+            } else {
+                self.split_give_ups += 1;
+            }
+            a.wanted_out[i] = NO_ARM;
+            let ev = event(
+                a,
+                "split_decision",
+                format!(
+                    "{{\"junction\":{},\"decision\":\"{}\",\"stop_and_wait_probability\":{},\"urgency\":{},\"needed_move_m\":{},\"late_realiser\":{},\"speed\":{},\"realised_after_deadline\":true,\"late_merge\":false}}",
+                    json_string(&junction_id(a)),
+                    if waits { "stop_and_wait" } else { "give_up" },
+                    jo.split_p,
+                    jo.urgency,
+                    jo.needed_move,
+                    a.late_realiser[i],
+                    a.v[i]
+                ),
+            );
+            self.events.push(ev);
+        }
+        let a = &mut self.agents;
         if jo.split != SPLIT_NONE && a.split_state[i] == SPLIT_NONE {
             a.split_state[i] = jo.split;
             if jo.split == SPLIT_WAIT || jo.split == SPLIT_GAVE_UP {
@@ -1156,14 +1257,15 @@ impl Simulation {
                     a,
                     "split_decision",
                     format!(
-                        "{{\"junction\":{},\"decision\":\"{}\",\"stop_and_wait_probability\":{},\"urgency\":{},\"needed_move_m\":{},\"late_realiser\":{},\"speed\":{}}}",
+                        "{{\"junction\":{},\"decision\":\"{}\",\"stop_and_wait_probability\":{},\"urgency\":{},\"needed_move_m\":{},\"late_realiser\":{},\"speed\":{},\"realised_after_deadline\":false,\"late_merge\":{}}}",
                         json_string(&junction_id(a)),
                         if waits { "stop_and_wait" } else { "give_up" },
                         jo.split_p,
                         jo.urgency,
                         jo.needed_move,
                         a.late_realiser[i],
-                        a.v[i]
+                        a.v[i],
+                        jo.late_deadline
                     ),
                 );
                 self.events.push(ev);
@@ -1326,6 +1428,8 @@ impl Simulation {
         self.edge_stops.clear();
         let cruising = self.parking.any_cruising();
         let stopping = self.stopping.enabled();
+        let thinning = self.p.violations.intercept[Kind::StopAnywhere as usize].is_some();
+        self.stop_offers.clear();
         let speed_zones = self.surface.any_zones();
         let potholes = self.surface.any_potholes() && self.objects.any_active();
         for i in 0..a.len() {
@@ -1356,6 +1460,12 @@ impl Simulation {
             let (mut edge_lo, mut edge_hi) =
                 chain_bounds(&self.net, self.seed, a.id[i], turn, r, a.s[i]);
             let (mut road_lo, mut road_hi) = centre_bounds(edge_lo, edge_hi, 0.5 * a.width[i]);
+            // A strip it uses widens its own road (ADR-0020 part 1).
+            let strip = a.strip[i];
+            if strip != STRIP_NONE && a.s[i] < self.net.ribbon(r).length() {
+                let (xlo, xhi) = crate::strips::edges(&self.net, &self.strips, r, a.s[i], strip);
+                (road_lo, road_hi) = centre_bounds(xlo, xhi, 0.5 * a.width[i]);
+            }
             let (y0, (lim_lo, lim_hi)) = (a.y[i], self.y_limits[i]);
             // A body widens as it turns (ADR-0010 §4): its corners swing out
             // on both sides, so a move away from one neighbour can still
@@ -1526,7 +1636,11 @@ impl Simulation {
                     STOP_NONE => {
                         let multiplier = self.stopping.multiplier(r, a.s[i]);
                         a.stop_exposure[i] -= ds * multiplier;
-                        if a.stop_exposure[i] <= 0.0 {
+                        if a.stop_exposure[i] <= 0.0 && thinning {
+                            // An opportunity, decided by the rule once the
+                            // step's moves are done (ADR-0020 part 7).
+                            self.stop_offers.push((i as u32, multiplier));
+                        } else if a.stop_exposure[i] <= 0.0 {
                             let d = self.stopping.decide(a.id[i], class, a.stop_count[i]);
                             // Where its following model would begin to
                             // respond to something standing in its way.
@@ -1648,6 +1762,10 @@ impl Simulation {
         }
         self.max_step = max_step;
         self.agent_steps += a.len() as u64;
+        if !self.stop_offers.is_empty() {
+            self.stop_opportunities();
+        }
+        let a = &mut self.agents;
         if measured {
             self.measured_tts += a.len() as f64 * dt;
             self.measured_ttd += ttd;
@@ -1798,6 +1916,113 @@ impl Simulation {
         }
         if self.junctions.enabled {
             self.junction_guard(t, &mut any);
+        }
+        if self.strips.any_opposite {
+            self.opposite_guard(t, &mut any);
+        }
+    }
+
+    /// The collision guard between vehicles on opposite ribbons (ADR-0020
+    /// part 3), in the frame of the lower-numbered ribbon: a vehicle that
+    /// drove into one coming the other way this step goes back.
+    fn opposite_guard(&mut self, t: f64, any: &mut bool) {
+        let l_max = self.agents.length.iter().copied().fold(0.0, f64::max);
+        let w_max = self.agents.width.iter().copied().fold(0.0, f64::max);
+        let slack = self.max_step + w_max * self.p.max_heading_tan;
+        let mut pairs: Vec<(usize, usize)> = Vec::new();
+        for r in 0..self.net.len() {
+            let partners: [usize; 2] = {
+                let op = &self.net.ribbon(r).opposite;
+                [
+                    op.first().copied().unwrap_or(usize::MAX),
+                    op.get(1).copied().unwrap_or(usize::MAX),
+                ]
+            };
+            for (n, o) in partners.into_iter().enumerate() {
+                if o == usize::MAX || o < r {
+                    continue;
+                }
+                let shared = self.strips.overlap[r][n];
+                pairs.clear();
+                for &i in &self.orders[r] {
+                    let i = i as usize;
+                    let a = &self.agents;
+                    let lo_i = self.net.ribbon(r).y_bounds(a.s[i]).0;
+                    let reach = 0.5 * (a.length[i] + l_max) + slack;
+                    crate::strips::partner_window(
+                        &self.net,
+                        a,
+                        &self.orders,
+                        o,
+                        a.s[i],
+                        reach,
+                        reach,
+                        |j, ds, yj| {
+                            let across =
+                                a.y[i] - a.half_width[i] < lo_i || yj + a.half_width[j] > lo_i;
+                            if (shared || across)
+                                && edge_gap(a.y[i], a.half_width[i], yj, a.half_width[j]) <= 0.0
+                                && ds.abs() <= 0.5 * (a.length[i] + a.length[j]) + slack
+                            {
+                                pairs.push((i, j));
+                            }
+                        },
+                    );
+                }
+                let len_o = self.net.ribbon(o).length();
+                for &(i, j) in &pairs {
+                    let a = &self.agents;
+                    let bi = self.body(i, 0.0);
+                    let bj = Body::from_tan(
+                        len_o - a.s[j],
+                        -a.y[j],
+                        a.length[j],
+                        a.width[j],
+                        a.heading_tan[j],
+                    );
+                    if !overlap(&bi, &bj) {
+                        continue;
+                    }
+                    let before_i = Body::from_tan(
+                        a.s_prev[i],
+                        a.y_prev[i],
+                        a.length[i],
+                        a.width[i],
+                        a.heading_tan_prev[i],
+                    );
+                    let before_j = Body::from_tan(
+                        len_o - a.s_prev[j],
+                        -a.y_prev[j],
+                        a.length[j],
+                        a.width[j],
+                        a.heading_tan_prev[j],
+                    );
+                    if overlap(&before_i, &before_j) {
+                        continue;
+                    }
+                    if !*any {
+                        *any = true;
+                        self.guard_restored.clear();
+                        self.guard_restored.resize(self.agents.len(), false);
+                    }
+                    let depth = penetration(&bi, &bj);
+                    if !self.guard_restored[i] {
+                        self.guard_restore(i, Against::Agent(j), depth, t);
+                    }
+                    let a = &self.agents;
+                    let bi = self.body(i, 0.0);
+                    let bj = Body::from_tan(
+                        len_o - a.s[j],
+                        -a.y[j],
+                        a.length[j],
+                        a.width[j],
+                        a.heading_tan[j],
+                    );
+                    if overlap(&bi, &bj) && !self.guard_restored[j] {
+                        self.guard_restore(j, Against::Agent(i), depth, t);
+                    }
+                }
+            }
         }
     }
 
@@ -1976,6 +2201,7 @@ impl Simulation {
                         self.agents.s_prev[i] -= len;
                         self.agents.conflict_s[i] -= len;
                         self.agents.ribbon[i] = n as u32;
+                        self.agents.strip[i] = STRIP_NONE;
                         moved = true;
                         if self.junctions.enabled {
                             self.agents.turn_junction[i] = turn.0;
@@ -2073,6 +2299,7 @@ impl Simulation {
                 a.late_realiser[i]
             ),
         });
+        self.agents.wanted_out[i] = self.agents.turn_out[i];
         self.agents.turn_out[i] = mv.to as u8;
         self.agents.missed[i] = true;
     }
@@ -2090,7 +2317,9 @@ impl Simulation {
             } else {
                 t
             };
-            let red = self.junctions.crossed(j, arm, n, t_cross, a.queued[i]);
+            let red = self
+                .junctions
+                .crossed(j, arm, n, t_cross, a.queued[i], a.seeps[i]);
             let jn = &self.net.junctions[j];
             let out = usize::from(a.turn_out[i]);
             let movement = jn.movement_of[arm][out].map(|m| jn.movements[m].turn);
@@ -2186,8 +2415,12 @@ impl Simulation {
                 a.gate_open[i] = false;
             }
             // Committed to the junction from now, unless it is a permitted
-            // movement that will wait inside for its gap.
-            let waits = signal && !a.gate_open[i] && self.net.ribbon(n).rank > 1;
+            // movement that will wait inside for its gap, or crept past its
+            // red line to stand short of the crossing streams.
+            let waits = signal && !a.gate_open[i] && (self.net.ribbon(n).rank > 1 || a.seeps[i]);
+            a.line_arrival[i] = f64::NAN;
+            a.late_merge[i] = false;
+            a.wanted_out[i] = NO_ARM;
             a.box_ticket[i] = if waits { f64::NAN } else { t_cross };
             a.wait_since[i] = f64::NAN;
             a.gap_ref[i] = NO_AGENT;
@@ -2207,6 +2440,7 @@ impl Simulation {
             a.gate_open[i] = false;
             a.runs_red[i] = false;
             a.box_block[i] = false;
+            a.seeps[i] = false;
             a.wait_since[i] = f64::NAN;
             a.queued[i] = false;
             a.line_held[i] = false;
@@ -2221,11 +2455,14 @@ impl Simulation {
                     // It took a branch it did not want: it turns back at
                     // the next median opening (G§6.7).
                     let next = &self.net.junctions[j2];
-                    if a.missed[i]
-                        && next.kind == marg_params::spec::JunctionKind::Box
-                        && next.movement_of[arm2][arm2].is_some()
-                    {
+                    let u_turn = next.kind == marg_params::spec::JunctionKind::Box
+                        && next.movement_of[arm2][arm2].is_some();
+                    // Took the legal route instead of a wrong-way path: it
+                    // turns back at the first opening it reaches.
+                    let detour = a.legal_detour[i];
+                    if (a.missed[i] || detour) && u_turn {
                         a.turn_out[i] = arm2 as u8;
+                        a.legal_detour[i] = false;
                         self.reroutes += 1;
                         let missed_at = rib
                             .junction
@@ -2238,10 +2475,11 @@ impl Simulation {
                             s: a.s[i],
                             y: a.y[i],
                             attrs: format!(
-                                "{{\"missed_at\":{},\"via\":{},\"u_turn_arm\":{}}}",
+                                "{{\"missed_at\":{},\"via\":{},\"u_turn_arm\":{},\"cause\":\"{}\"}}",
                                 json_string(&missed_at),
                                 json_string(&next.id),
-                                json_string(&next.arms[arm2].id)
+                                json_string(&next.arms[arm2].id),
+                                if detour { "legal_detour" } else { "missed" }
                             ),
                         });
                     }
@@ -2249,6 +2487,10 @@ impl Simulation {
                 None => a.turn_junction[i] = NO_RIBBON,
             }
             a.missed[i] = false;
+            // Off the wrong-way path: the act is over.
+            if !self.strips.wrong_way_path[n] {
+                a.rides_wrong_way[i] = false;
+            }
         }
     }
 
@@ -2350,7 +2592,6 @@ impl Simulation {
             x,
             y,
             heading: h + libm::atan(a.heading_tan[i]),
-            half_length: 0.5 * a.length[i],
             v: a.v[i],
         }
     }
@@ -2464,7 +2705,13 @@ impl Simulation {
                 0.0
             },
         };
-        let c = vp.coefficients(kind, a.persona[i], &a.traits[i], &self.p.personas);
+        let c = vp.coefficients(
+            kind,
+            a.class[i],
+            a.persona[i],
+            &a.traits[i],
+            &self.p.personas,
+        );
         let reading = read(kind, t, &c, features, vp.max_rate);
         let fired = match found {
             None => {
@@ -2593,7 +2840,13 @@ impl Simulation {
         let t_start = found.map_or(t, |e| self.episodes.list[e].t_start);
         let f = features(self, counts, t_start);
         let a = &self.agents;
-        let c = vp.coefficients(kind, a.persona[i], &a.traits[i], &self.p.personas);
+        let c = vp.coefficients(
+            kind,
+            a.class[i],
+            a.persona[i],
+            &a.traits[i],
+            &self.p.personas,
+        );
         let reading = read(kind, t, &c, f, vp.max_rate);
         match found {
             None => {
@@ -2653,7 +2906,10 @@ impl Simulation {
     /// it crosses its line whatever the light shows; inside, the junction's
     /// arbitration decides who goes first (ADR-0016 part 4).
     fn red_light_rules(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
-        if self.keep_acted(i, Kind::RedLight) | self.keep_acted(i, Kind::EarlyStart) {
+        if self.keep_acted(i, Kind::RedLight)
+            | self.keep_acted(i, Kind::EarlyStart)
+            | self.keep_acted(i, Kind::StoplineSeepage)
+        {
             return;
         }
         let j = self.agents.turn_junction[i] as usize;
@@ -2764,18 +3020,87 @@ impl Simulation {
                 fired = Some(Kind::EarlyStart);
             }
         }
-        if let Some(kind) = fired {
-            // The competing clock is over: it went the other way.
-            let other = if kind == Kind::RedLight {
-                Kind::EarlyStart
+        // Stop-line seepage (ADR-0020 part 5): standing at the front of the
+        // red line, with room past it before the first crossing stream, it
+        // may creep on and stand there.
+        if fired.is_none() && self.p.violations.active(Kind::StoplineSeepage) {
+            let room = jo.seep_room.is_finite() && jo.seep_room > 0.0;
+            let seen = if at_red && jo.line_binds && room && standing {
+                Seen::On
+            } else if at_red {
+                Seen::Paused
             } else {
-                Kind::RedLight
+                Seen::Off(ended)
             };
-            if let Some(e) = self.episodes.find(self.agents.id[i], other) {
-                self.end_episode(e, t, "other_type_acted");
+            if self.continuous(i, Kind::StoplineSeepage, j, seen, t, |s, (nv, nc), _| {
+                Features {
+                    kappa: s.agents.kappa[i],
+                    time_saved: 0.0,
+                    waiting_time: waited,
+                    n_violating: nv,
+                    n_complying: nc,
+                    enforcement,
+                    risk: 0.0,
+                }
+            }) {
+                fired = Some(Kind::StoplineSeepage);
             }
-            self.agents.runs_red[i] = true;
-            self.agents.gate_open[i] = true;
+        }
+        if let Some(kind) = fired {
+            // The competing clocks are over: it went another way.
+            for other in Kind::ALL {
+                if other != kind
+                    && other.at_red_line()
+                    && let Some(e) = self.episodes.find(self.agents.id[i], other)
+                {
+                    self.end_episode(e, t, "other_type_acted");
+                }
+            }
+            if kind == Kind::StoplineSeepage {
+                self.agents.seeps[i] = true;
+            } else {
+                self.agents.runs_red[i] = true;
+                self.agents.gate_open[i] = true;
+            }
+        }
+    }
+
+    /// Late merging (ADR-0020 part 6): before a split, outside its branch's
+    /// part of the road while that part queues and its own side moves, a
+    /// driver may stay where it is and cut in at its deadline. A
+    /// continuous trigger; time saved is the queue it bypasses at its
+    /// desired speed, risk its urgency.
+    fn late_merge(&mut self, i: usize, jo: &crate::junction_scan::JunctionOut, t: f64) {
+        if self.keep_acted(i, Kind::LateMerge) {
+            return;
+        }
+        let j = self.agents.turn_junction[i] as usize;
+        if j >= self.net.junctions.len() {
+            return;
+        }
+        let a = &self.agents;
+        let queued = jo.branch_queue.is_finite() && jo.branch_queue > 0.0;
+        let seen = if queued && a.v[i] >= self.p.stop_speed_below {
+            Seen::On
+        } else if queued {
+            Seen::Paused
+        } else if jo.needed_move <= 0.0 {
+            Seen::Off("merged")
+        } else {
+            Seen::Off("trigger_ended")
+        };
+        let (queue, urgency, v0) = (jo.branch_queue, jo.urgency, a.v0[i]);
+        let enforcement = self.enforcement_at(j);
+        if self.continuous(i, Kind::LateMerge, j, seen, t, |s, (nv, nc), _| Features {
+            kappa: s.agents.kappa[i],
+            time_saved: queue / v0,
+            waiting_time: 0.0,
+            n_violating: nv,
+            n_complying: nc,
+            enforcement,
+            risk: urgency,
+        }) {
+            self.agents.late_merge[i] = true;
         }
     }
 
@@ -2853,7 +3178,13 @@ impl Simulation {
                 enforcement: self.enforcement_at(j),
                 risk: (o.gap / a.v[i] / o.amber_s).clamp(0.0, 1.0),
             };
-            let c = vp.coefficients(kind, a.persona[i], &a.traits[i], &self.p.personas);
+            let c = vp.coefficients(
+                kind,
+                a.class[i],
+                a.persona[i],
+                &a.traits[i],
+                &self.p.personas,
+            );
             let reading = read(kind, t, &c, f, vp.max_rate);
             let serial = self.episodes.next_serial(id, kind);
             let u = StreamRng::at(
@@ -2888,6 +3219,432 @@ impl Simulation {
         }
         self.junctions.amber_options = options;
         self.junctions.amber_options.clear();
+    }
+
+    /// Footpath riding and opposite encroachment (ADR-0020 parts 2–3): an
+    /// act under way goes on until the vehicle is back within its ribbon's
+    /// width and moving; otherwise their triggers are read.
+    fn apply_strips(&mut self, i: usize, out: &MoveOut, t: f64) {
+        let strip = self.agents.strip[i];
+        if self.agents.rides_wrong_way[i] {
+            self.keep_acted(i, Kind::WrongWay);
+        }
+        if strip != STRIP_NONE {
+            let kind = if strip == STRIP_FOOTPATH {
+                Kind::Footpath
+            } else {
+                Kind::OppositeEncroachment
+            };
+            let a = &self.agents;
+            let r = a.ribbon[i] as usize;
+            let (lo, hi) = self.net.ribbon(r).y_bounds(a.s[i]);
+            let half = 0.5 * a.width[i];
+            let back = a.y[i] - half >= lo && a.y[i] + half <= hi;
+            if back && a.v[i] >= self.p.stop_speed_below {
+                self.agents.strip[i] = STRIP_NONE;
+                if let Some(e) = self.episodes.find(self.agents.id[i], kind) {
+                    self.episodes.list.remove(e);
+                }
+            } else if let Some(e) = self.episodes.find(self.agents.id[i], kind) {
+                let ep = &mut self.episodes.list[e];
+                ep.touched = self.step;
+                ep.idx = i as u32;
+            }
+            return;
+        }
+        let vp = &self.p.violations;
+        let (footpath, opposite) = (
+            vp.active(Kind::Footpath),
+            vp.active(Kind::OppositeEncroachment),
+        );
+        if !footpath && !opposite {
+            return;
+        }
+        let a = &self.agents;
+        let r = a.ribbon[i] as usize;
+        let rib = self.net.ribbon(r);
+        let (s, v, w, l) = (a.s[i], a.v[i], a.width[i], a.length[i]);
+        let (lo, hi) = rib.y_bounds(s);
+        // In a queue: standing, held by a vehicle or a closed line ahead.
+        let queued = v < self.p.stop_speed_below && (out.blocker != NO_AGENT || out.junction.held);
+        // The standing queue ahead in its own line: what it would ride past.
+        let queue_ahead = if queued {
+            crate::strips::standing_ahead(
+                &self.agents,
+                &self.orders,
+                self.p.stop_speed_below,
+                r,
+                s,
+                l,
+                a.y[i] - 0.5 * w,
+                a.y[i] + 0.5 * w,
+                self.p.lookahead,
+            )
+        } else {
+            0.0
+        };
+        let mut fired = None;
+        if footpath {
+            let fp = rib.footpath.as_ref();
+            let beside = fp.is_some_and(|f| f.open_at(s) && w <= f.width);
+            // Nothing between its body and the kerb.
+            let kerb_clear = out.y_hi >= hi - 0.5 * w;
+            let seen = if beside && queued && kerb_clear {
+                Seen::On
+            } else if beside && queued {
+                Seen::Paused
+            } else {
+                Seen::Off("trigger_ended")
+            };
+            let saved = if beside { queue_ahead } else { 0.0 };
+            let v0 = a.v0[i];
+            if self.continuous(i, Kind::Footpath, usize::MAX, seen, t, |s, (nv, nc), t0| {
+                Features {
+                    kappa: s.agents.kappa[i],
+                    time_saved: saved / v0,
+                    waiting_time: t - t0,
+                    n_violating: nv,
+                    n_complying: nc,
+                    enforcement: 0.0,
+                    risk: 0.0,
+                }
+            }) {
+                fired = Some(Kind::Footpath);
+            }
+        }
+        if fired.is_none()
+            && opposite
+            && let Some((_, o)) = self.strips.abutting(&self.net, r)
+        {
+            let a = &self.agents;
+            // Nothing between its body and the median, and an oncoming gap:
+            // no oncoming vehicle beside it in the band it would move into.
+            let median_clear = out.y_lo <= lo + 0.5 * w;
+            let band = (lo - w, lo);
+            let mut level = false;
+            let mut gap_t = f64::INFINITY;
+            let mut against_heavy = false;
+            crate::strips::partner_window(
+                &self.net,
+                a,
+                &self.orders,
+                o,
+                s,
+                0.5 * l + 0.5 * a.length.iter().copied().fold(0.0, f64::max),
+                self.p.lookahead,
+                |j, ds, yj| {
+                    let hj = a.half_width[j];
+                    if yj + hj <= band.0 || yj - hj >= band.1 {
+                        return;
+                    }
+                    let gap_s = ds.abs() - 0.5 * (l + a.length[j]);
+                    if gap_s <= 0.0 {
+                        level = true;
+                    } else if ds > 0.0 {
+                        let closing = a.v[j] + v;
+                        if closing >= self.p.stop_speed_below && gap_s / closing < gap_t {
+                            gap_t = gap_s / closing;
+                            let c = VehicleClass::ALL[usize::from(a.class[j])];
+                            against_heavy = matches!(
+                                c,
+                                VehicleClass::Bus | VehicleClass::Truck | VehicleClass::Tractor
+                            );
+                        }
+                    }
+                },
+            );
+            let seen = if queued && median_clear && !level {
+                Seen::On
+            } else if queued {
+                Seen::Paused
+            } else {
+                Seen::Off("trigger_ended")
+            };
+            let needed = a.critical_gap[i]
+                * if against_heavy {
+                    a.heavy_factor[i]
+                } else {
+                    1.0
+                };
+            let risk = if gap_t.is_finite() && needed > 0.0 {
+                (1.0 - gap_t / needed).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let saved = queue_ahead;
+            let v0 = a.v0[i];
+            if self.continuous(
+                i,
+                Kind::OppositeEncroachment,
+                usize::MAX,
+                seen,
+                t,
+                |s, (nv, nc), t0| Features {
+                    kappa: s.agents.kappa[i],
+                    time_saved: saved / v0,
+                    waiting_time: t - t0,
+                    n_violating: nv,
+                    n_complying: nc,
+                    enforcement: 0.0,
+                    risk,
+                },
+            ) {
+                fired = Some(Kind::OppositeEncroachment);
+            }
+        }
+        if let Some(kind) = fired {
+            let other = if kind == Kind::Footpath {
+                Kind::OppositeEncroachment
+            } else {
+                Kind::Footpath
+            };
+            if let Some(e) = self.episodes.find(self.agents.id[i], other) {
+                self.end_episode(e, t, "other_type_acted");
+            }
+            self.agents.strip[i] = if kind == Kind::Footpath {
+                STRIP_FOOTPATH
+            } else {
+                STRIP_OPPOSITE
+            };
+            self.agents.decision_leader[i] = crate::agents::UNDECIDED;
+        }
+    }
+
+    /// Wrong-way riding (ADR-0020 part 4): a vehicle whose turn leaves by a
+    /// wrong-way path decides once, within its stopping distance of the
+    /// line, whether to ride it (the violation) or take the legal route and
+    /// turn back at the first opening. Time saved is the detour saved at
+    /// its desired speed; risk the shortfall of the gap to the first
+    /// vehicle coming the other way on the path.
+    fn wrong_way(&mut self, i: usize, t: f64) {
+        let kind = Kind::WrongWay;
+        let a = &self.agents;
+        let (j, out) = (a.turn_junction[i] as usize, usize::from(a.turn_out[i]));
+        let jn = &self.net.junctions[j];
+        let Some(legal) = jn.arms[out].wrong_way_legal else {
+            return;
+        };
+        let comply = |s: &mut Self| {
+            s.agents.turn_out[i] = legal as u8;
+            s.agents.legal_detour[i] = true;
+        };
+        if !self.p.violations.active(kind) {
+            comply(self);
+            return;
+        }
+        let detour = jn.wrong_way_detour[out];
+        let path = jn.arms[out].outbound.expect("checked when built");
+        // The first vehicle coming the other way on the path's start.
+        let mut gap_t = f64::INFINITY;
+        let mut against_heavy = false;
+        let v0 = a.v0[i];
+        for &o in self.net.ribbon(path).opposite.iter() {
+            crate::strips::partner_window(
+                &self.net,
+                a,
+                &self.orders,
+                o,
+                0.0,
+                0.0,
+                self.p.lookahead,
+                |k, ds, _| {
+                    let gap = ds - 0.5 * a.length[k];
+                    let closing = a.v[k] + v0;
+                    if gap > 0.0 && closing > 0.0 && gap / closing < gap_t {
+                        gap_t = gap / closing;
+                        let c = VehicleClass::ALL[usize::from(a.class[k])];
+                        against_heavy = matches!(
+                            c,
+                            VehicleClass::Bus | VehicleClass::Truck | VehicleClass::Tractor
+                        );
+                    }
+                },
+            );
+        }
+        let needed = a.critical_gap[i]
+            * if against_heavy {
+                a.heavy_factor[i]
+            } else {
+                1.0
+            };
+        let risk = if gap_t.is_finite() && needed > 0.0 {
+            (1.0 - gap_t / needed).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let id = a.id[i];
+        let vp = &self.p.violations;
+        let (nv, nc) = counts_in_view(
+            vp,
+            &self.episodes,
+            id,
+            kind,
+            self.pose(i),
+            |k| self.pose(k as usize),
+            self.p.stop_speed_below,
+        );
+        let a = &self.agents;
+        let f = Features {
+            kappa: a.kappa[i],
+            time_saved: detour / v0,
+            waiting_time: 0.0,
+            n_violating: nv,
+            n_complying: nc,
+            enforcement: self.enforcement_at(j),
+            risk,
+        };
+        let c = vp.coefficients(
+            kind,
+            a.class[i],
+            a.persona[i],
+            &a.traits[i],
+            &self.p.personas,
+        );
+        let reading = read(kind, t, &c, f, vp.max_rate);
+        let serial = self.episodes.next_serial(id, kind);
+        let u = StreamRng::at(
+            self.seed,
+            StreamKind::Decisions,
+            id,
+            episode_counter(kind, serial),
+        )
+        .uniform();
+        let go = decide_once(&reading, u);
+        self.episodes.list.push(Episode {
+            agent: id,
+            idx: i as u32,
+            kind,
+            serial,
+            t_start: t,
+            clock: HazardClock::start(t, 0.0, u),
+            draw: u,
+            acted: false,
+            junction: j as u32,
+            ribbon: self.agents.ribbon[i],
+            touched: self.step,
+            last: reading,
+        });
+        let e = self.episodes.list.len() - 1;
+        if go {
+            self.act(e, t);
+            self.agents.rides_wrong_way[i] = true;
+        } else {
+            self.end_episode(e, t, "legal_route");
+            comply(self);
+        }
+    }
+
+    /// Stop-anywhere by thinning (ADR-0020 part 7): each opportunity met
+    /// this step is taken with probability `σ(η)`, one draw each. Taken, the
+    /// vehicle stops as in ADR-0014; declined, it draws its next
+    /// opportunity. With `violations.enabled = 0` none is taken.
+    fn stop_opportunities(&mut self) {
+        let t = self.t + self.dt;
+        let kind = Kind::StopAnywhere;
+        let offers = std::mem::take(&mut self.stop_offers);
+        for &(i, multiplier) in &offers {
+            let i = i as usize;
+            let id = self.agents.id[i];
+            let class = usize::from(self.agents.class[i]);
+            let vp = &self.p.violations;
+            let (nv, nc) = counts_in_view(
+                vp,
+                &self.episodes,
+                id,
+                kind,
+                self.pose(i),
+                |k| self.pose(k as usize),
+                self.p.stop_speed_below,
+            );
+            let a = &self.agents;
+            let f = Features {
+                kappa: a.kappa[i],
+                time_saved: 0.0,
+                waiting_time: 0.0,
+                n_violating: nv,
+                n_complying: nc,
+                enforcement: 0.0,
+                risk: 0.0,
+            };
+            let c = vp.coefficients(
+                kind,
+                a.class[i],
+                a.persona[i],
+                &a.traits[i],
+                &self.p.personas,
+            );
+            let reading = read(kind, t, &c, f, vp.max_rate);
+            let serial = self.episodes.next_serial(id, kind);
+            let u = StreamRng::at(
+                self.seed,
+                StreamKind::Decisions,
+                id,
+                episode_counter(kind, serial),
+            )
+            .uniform();
+            let take = vp.enabled && decide_once(&reading, u);
+            self.episodes.list.push(Episode {
+                agent: id,
+                idx: i as u32,
+                kind,
+                serial,
+                t_start: t,
+                clock: HazardClock::start(t, 0.0, u),
+                draw: u,
+                acted: false,
+                junction: u32::MAX,
+                ribbon: self.agents.ribbon[i],
+                touched: self.step,
+                last: reading,
+            });
+            let e = self.episodes.list.len() - 1;
+            if !take {
+                self.end_episode(e, t, "declined");
+                let a = &mut self.agents;
+                a.stop_count[i] += 1;
+                a.stop_exposure[i] = self.stopping.exposure(id, class, a.stop_count[i]);
+                continue;
+            }
+            self.act(e, t);
+            self.episodes.list.remove(e);
+            let a = &mut self.agents;
+            let d = self.stopping.decide(id, class, a.stop_count[i]);
+            let idm = Idm {
+                v0: a.v0[i],
+                time_gap: a.time_gap[i],
+                standstill_gap: a.standstill_gap[i],
+                max_accel: a.max_accel[i],
+                comfortable_decel: a.comfortable_decel[i],
+                exponent: self.p.accel_exponent,
+            };
+            let ahead = idm.desired_gap(a.v[i], a.v[i], 1.0, 1.0);
+            a.stop_state[i] = if d.pull_over {
+                STOP_PULLING_OVER
+            } else {
+                STOP_IN_PLACE
+            };
+            a.stop_point[i] = a.distance[i] + ahead;
+            a.stop_offset[i] = 0.0;
+            a.stop_until[i] = d.dwell;
+            a.y_target[i] = a.y[i];
+            let r = a.ribbon[i] as usize;
+            self.events.push(EventRecord {
+                t,
+                kind: "stop_anywhere",
+                agent_id: id,
+                ribbon: self.net.ribbon(r).id.clone(),
+                s: a.s[i],
+                y: a.y[i],
+                attrs: format!(
+                    "{{\"rate_per_km\":{},\"multiplier\":{multiplier},\"pull_over\":{},\"pull_over_probability\":{},\"dwell_s\":{},\"stop_in_m\":{ahead}}}",
+                    self.stopping.rate(class) * METRES_PER_KM,
+                    d.pull_over,
+                    d.pull_over_probability,
+                    d.dwell
+                ),
+            });
+        }
+        self.stop_offers = offers;
     }
 
     /// Episode `e` acts: count it, log it with its terms, and let everybody
@@ -3180,6 +3937,40 @@ impl Simulation {
         let start = order.partition_point(|&j| a.s[j as usize] < s_e);
         let ci = class.index();
         let mut v = idm.v0;
+        // Vehicles on a partner ribbon across the line, or anywhere on one
+        // whose carriageway overlaps this one, are in the way as standing
+        // bodies: none level with the entry, and room to stop before one
+        // ahead (ADR-0020 part 3).
+        let lo = self.net.ribbon(r).y_bounds(s_e).0;
+        for (n, &o) in self.net.ribbon(r).opposite.iter().enumerate().take(2) {
+            let shared = self.strips.overlap[r][n];
+            let mut level = false;
+            crate::strips::partner_window(
+                &self.net,
+                a,
+                &self.orders,
+                o,
+                s_e,
+                0.5 * (length + l_max_of(a)),
+                p.lookahead,
+                |j, ds, yj| {
+                    let hj = a.half_width[j];
+                    let across = y - 0.5 * width < lo || yj + hj > lo;
+                    if !(shared || across) || edge_gap(y, 0.5 * width, yj, hj) > 0.0 {
+                        return;
+                    }
+                    let gap_s = ds.abs() - 0.5 * (length + a.length[j]);
+                    if gap_s <= 0.0 {
+                        level = true;
+                    } else if ds > 0.0 {
+                        v = v.min(idm.insertion_speed(gap_s, 0.0, 1.0, 1.0));
+                    }
+                },
+            );
+            if level {
+                return None;
+            }
+        }
         let l_max = a.length.iter().copied().fold(length, f64::max);
         // Leaders ahead (and vehicles level with the entry point).
         let mut cov = Coverage::new(y - 0.5 * width, y + 0.5 * width);
@@ -3456,6 +4247,30 @@ impl Simulation {
                 "box_blocks",
                 self.episodes.acts[Kind::BoxBlocking as usize] as f64,
             ),
+            (
+                "stopline_seepages",
+                self.episodes.acts[Kind::StoplineSeepage as usize] as f64,
+            ),
+            (
+                "wrong_way_rides",
+                self.episodes.acts[Kind::WrongWay as usize] as f64,
+            ),
+            (
+                "footpath_rides",
+                self.episodes.acts[Kind::Footpath as usize] as f64,
+            ),
+            (
+                "late_merges",
+                self.episodes.acts[Kind::LateMerge as usize] as f64,
+            ),
+            (
+                "opposite_encroachments",
+                self.episodes.acts[Kind::OppositeEncroachment as usize] as f64,
+            ),
+            (
+                "stop_anywhere_taken",
+                self.episodes.acts[Kind::StopAnywhere as usize] as f64,
+            ),
             ("gridlock_share", self.gridlock.share(self.t)),
             ("gridlock_onset_s", self.gridlock.onset()),
         ]
@@ -3604,4 +4419,9 @@ fn distraction_period(p: &CoreParams, seed: u64, id: u64, n: u64, episode: bool,
 /// Steps between an agent's scheduled lateral decisions.
 fn decision_steps(p: &CoreParams, dt: f64) -> u64 {
     ((p.decision_interval / dt).round() as u64).max(1)
+}
+
+/// Longest vehicle in the store (m).
+fn l_max_of(a: &AgentStore) -> f64 {
+    a.length.iter().copied().fold(0.0, f64::max)
 }

@@ -98,19 +98,24 @@ fn dense_traffic_crosses_without_guard_events() {
 }
 
 /// The same at 300 veh/h per arm, over several seeds: no guard events, and
-/// every vehicle but those still on their way gets through. Right turns
-/// under the signal wait for their gap inside the box.
+/// every vehicle but those still on their way gets through: none that
+/// entered more than three minutes before the end is still in the network
+/// (a 600 m trip with a red to wait). Right turns under the signal wait for
+/// their gap inside the box.
 #[test]
 fn moderate_traffic_every_turn_flows_on_every_seed() {
     let yaml = crossing(300, 900);
     for seed in 1..=3 {
         let out = run_crossing(&yaml, seed);
         assert_eq!(guards(&out), 0, "seed {seed}");
-        let exited = out.agents.iter().filter(|a| a.exited).count();
-        assert!(
-            exited as f64 > 0.9 * out.agents.len() as f64,
-            "seed {seed}: {exited} of {} out",
-            out.agents.len()
+        let stuck = out
+            .agents
+            .iter()
+            .filter(|a| !a.exited && a.t_entry < 900.0 - 180.0)
+            .count();
+        assert_eq!(
+            stuck, 0,
+            "seed {seed}: {stuck} vehicles still in from long ago"
         );
         let gaps: Vec<_> = out
             .events

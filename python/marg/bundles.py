@@ -23,16 +23,20 @@ def cooperative(kappa_quantile: float = COOPERATIVE_KAPPA_QUANTILE) -> dict[str,
     - every violation hazard off (``violations.enabled = 0``);
     - squeezing decisions use the kappa at ``kappa_quantile`` of the population
       distribution instead of each agent's own
-      (``personas.cooperative.squeeze_kappa_quantile``).
+      (``personas.cooperative.squeeze_kappa_quantile``);
+    - at a junction that is dark or blinking without a major arm, vehicles take
+      turns at the stop lines, first come first served
+      (``road.signal.dark_first_come = 1``; ADR-0019 decision D1).
 
     Everything else, including each agent's other draws, stays as in the
-    observed arm. The violation module (P8) and the squeezing rule (P5) read
-    these switches; until then the cooperative arm simulates exactly what the
-    observed arm does. What "cooperative" means is pending (ADR-0007).
+    observed arm. The violation module (P8), the squeezing rule (P5) and dark
+    junctions (P8.7) read these switches. What "cooperative" means is pending
+    (ADR-0007; its dark-junction part is decided, ADR-0019 D1).
     """
     if not 0.0 <= kappa_quantile <= 1.0:
         raise ValueError("kappa_quantile must be in [0, 1]")
     return {
         "violations.enabled": 0.0,
         "personas.cooperative.squeeze_kappa_quantile": float(kappa_quantile),
+        "road.signal.dark_first_come": 1.0,
     }

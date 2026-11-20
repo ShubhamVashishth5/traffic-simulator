@@ -280,6 +280,11 @@ pub struct JunctionParams {
     /// `w_route` (1/s²) and `γ_u`.
     pub route_weight: Option<f64>,
     pub urgency_link: Option<f64>,
+    /// `û₀`: the pull a driver who knows its branch feels from the moment
+    /// it knows (ADR-0017 A2), and how long a driver waits at its deadline
+    /// before it gives up (s; B2).
+    pub base_urgency: Option<f64>,
+    pub wait_patience: Option<f64>,
 }
 
 /// Signal control-state parameters (G§6.6, ADR-0019; `None`: unset).
@@ -297,6 +302,9 @@ pub struct SignalParams {
     pub officer_delay: Option<f64>,
     pub officer_cycle: Option<f64>,
     pub officer_bias: Option<f64>,
+    /// At a dark junction vehicles take turns at the lines, first come
+    /// first served (the cooperative twin, ADR-0019 D1).
+    pub dark_first_come: bool,
 }
 
 /// Stop-anywhere parameters as the register has them (`None`: unset).
@@ -464,6 +472,7 @@ impl CoreParams {
                     officer_delay: optional_scalar(spec, "road.signal.officer.arrival_delay")?,
                     officer_cycle: optional_scalar(spec, "road.signal.officer.cycle_length")?,
                     officer_bias: optional_scalar(spec, "road.signal.officer.major_bias")?,
+                    dark_first_come: spec.scalar_si("road.signal.dark_first_come")? != 0.0,
                 }
             },
             squeeze_scale,
@@ -566,6 +575,8 @@ impl CoreParams {
                 stop_and_wait: optional_scalar(spec, "road.split.stop_and_wait_probability")?,
                 route_weight: optional_scalar(spec, "road.split.route_weight")?,
                 urgency_link: optional_scalar(spec, "road.split.urgency_clearance_link")?,
+                base_urgency: optional_scalar(spec, "road.split.base_urgency")?,
+                wait_patience: optional_scalar(spec, "road.split.wait_patience")?,
             },
             stopping: {
                 let mut s = StopParams {

@@ -257,3 +257,1213 @@ entries:
     register_row: 9.4/pedestrian_red_crossing
     range: [-15.0, 15.0]
     notes: "Fit so 44.6% of pedestrians arriving on red cross against the signal."
+  red_light.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  red_light.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every red_light decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  early_start.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every early_start decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  amber_go.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every amber_go decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stopline_seepage.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stopline_seepage decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  wrong_way.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every wrong_way decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  footpath.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every footpath decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  forced_entry.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every forced_entry decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  late_merge.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every late_merge decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  box_blocking.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every box_blocking decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  opposite_encroachment.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every opposite_encroachment decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.bicycle:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class bicycle (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.cycle_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class cycle_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.two_wheeler:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class two_wheeler (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.e_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class e_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.auto_rickshaw:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class auto_rickshaw (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.car:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class car (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.lcv:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class lcv (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.bus:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class bus (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.truck:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class truck (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."
+  stop_anywhere.intercept_shift.tractor:
+    value: null
+    unit: "1"
+    grade: C
+    role: fit
+    stage: 6
+    source: "Guide §4.2 'who does it most' (no numbers)"
+    guide: "§4.2"
+    register_row: 9.4/intercepts
+    range: [-15.0, 15.0]
+    notes: "Added to beta_0 of every stop_anywhere decision by a vehicle of class tractor (ADR-0018 part 2, ADR-0020 part 8). Unset = 0."

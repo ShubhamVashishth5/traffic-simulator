@@ -30,6 +30,9 @@ pub struct Arm {
     pub id: String,
     pub inbound: Option<usize>,
     pub outbound: Option<usize>,
+    /// It leaves by a wrong-way path; the arm of the legal route instead
+    /// (ADR-0020 part 4).
+    pub wrong_way_legal: Option<usize>,
 }
 
 /// Which way a movement turns (left-hand traffic: a left turn is the near one).
@@ -154,6 +157,9 @@ pub struct Junction {
     pub control: Control,
     pub sign_visibility: Option<f64>,
     pub u_turn_path: Option<Dist>,
+    /// Per arm: for a wrong-way arm, the legal route's length less the
+    /// wrong-way path's (m; NaN for other arms). Set by the network.
+    pub wrong_way_detour: Vec<f64>,
 }
 
 impl Junction {
@@ -261,6 +267,8 @@ fn generated(id: String, polyline: Vec<[f64; 2]>, w0: (f64, f64), w1: (f64, f64)
             },
         ],
         next: None,
+        footpath: None,
+        opposite: Vec::new(),
     });
     r.internal = true;
     r.measure_radius();
@@ -355,9 +363,29 @@ pub(crate) fn build(
             id: a.id.clone(),
             inbound,
             outbound,
+            wrong_way_legal: None,
         });
     }
     let n = arms.len();
+    for (k, a) in spec.arms.iter().enumerate() {
+        let Some(w) = &a.wrong_way else { continue };
+        let legal = arms.iter().position(|b| b.id == w.legal).ok_or_else(|| {
+            bad(
+                id,
+                format!("arm `{}`: wrong_way.legal: unknown arm `{}`", a.id, w.legal),
+            )
+        })?;
+        if legal == k || arms[legal].outbound.is_none() || arms[k].outbound.is_none() {
+            return Err(bad(
+                id,
+                format!(
+                    "arm `{}`: a wrong-way arm and its legal arm `{}` must be different arms, both with an `out` ribbon",
+                    a.id, w.legal
+                ),
+            ));
+        }
+        arms[k].wrong_way_legal = Some(legal);
+    }
     let arm_of = |name: &str| arms.iter().position(|a| a.id == name);
     // Turning shares.
     let mut share = vec![vec![0.0; n]; n];
@@ -414,6 +442,7 @@ pub(crate) fn build(
         control: Control::Uncontrolled,
         sign_visibility: spec.sign_visibility_distance,
         u_turn_path: spec.u_turn_path.clone(),
+        wrong_way_detour: vec![f64::NAN; n],
     };
     let mut add =
         |ribbons: &mut Vec<Ribbon>, j: &mut Junction, mut r: Ribbon| -> Result<usize, NetError> {

@@ -1,0 +1,66 @@
+name: undivided_level_crossing
+description: >
+  An undivided two-way road, 3.5 m each way, with a 1.5 m footpath beside the eastbound kerb
+  (bollards over 150-250 m). A barrier closes the eastbound carriageway for 90 s in every 180 s
+  (a level crossing), and the queue behind it is where footpath riding and
+  opposite-carriageway encroachment are decided (P8.4, ADR-0020). Vehicles on the two
+  carriageways see each other head on, but only when one of them is across the centreline. With
+  the shipped register no violation runs, so the two streams never meet.
+duration_s: 900
+warmup_s: 0
+dt_s: 0.1
+network:
+  ribbons:
+    - id: east
+      polyline: [[0, 0], [600, 0]]
+      width: [{s: 0, y_min: 0, y_max: 3.5}]
+      footpath: {width: 1.5, bollards: [[150, 250]]}
+      opposite: [west]
+    - id: west
+      polyline: [[600, 0], [0, 0]]
+      width: [{s: 0, y_min: 0, y_max: 3.5}]
+      opposite: [east]
+  barriers:
+    - id: crossing
+      ribbon: east
+      s: 450
+      closed:
+        - {from_s: 60, to_s: 150}
+        - {from_s: 240, to_s: 330}
+        - {from_s: 420, to_s: 510}
+        - {from_s: 600, to_s: 690}
+        - {from_s: 780, to_s: 870}
+demand:
+  entries:
+    - id: east
+      ribbon: east
+      flow: [{from_s: 0, veh_per_h: 1200}]
+      composition:
+        motorcycle: 0.30
+        scooter: 0.18
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.22
+        sedan: 0.07
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+    - id: west
+      ribbon: west
+      flow: [{from_s: 0, veh_per_h: 500}]
+      composition:
+        motorcycle: 0.30
+        scooter: 0.18
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.22
+        sedan: 0.07
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+detectors:
+  - {kind: screenline, id: east_out, ribbon: east, s: 550, interval_s: 180}
+  - {kind: screenline, id: west_out, ribbon: west, s: 550, interval_s: 180}
+  - {kind: area, id: queue, ribbon: east, s_from: 250, s_to: 450, interval_s: 180}
+kpi:
+  throughput_detector: east_out

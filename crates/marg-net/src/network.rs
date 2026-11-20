@@ -24,7 +24,13 @@ pub enum NetError {
     UnknownRibbon(String),
     #[error("junction `{0}`: {1}")]
     Junction(String, String),
+    #[error("ribbon `{0}`: {1}")]
+    Ribbon(String, String),
 }
+
+/// Largest distance between a ribbon's reference line and its opposite's,
+/// reversed (m).
+const OPPOSITE_TOLERANCE: f64 = 0.01;
 
 /// A built network.
 #[derive(Debug, Clone, PartialEq)]
@@ -67,6 +73,49 @@ impl Network {
             }
         }
         let mut ribbons: Vec<Ribbon> = spec.ribbons.iter().map(Ribbon::from_spec).collect();
+        for (i, r) in spec.ribbons.iter().enumerate() {
+            let bad = |m: String| NetError::Ribbon(r.id.clone(), m);
+            if let Some(f) = &r.footpath {
+                let ok = f.width.is_finite()
+                    && f.width > 0.0
+                    && f.from_s.is_none_or(f64::is_finite)
+                    && f.to_s.is_none_or(f64::is_finite)
+                    && f.bollards
+                        .iter()
+                        .all(|b| b[0].is_finite() && b[1].is_finite());
+                if !ok {
+                    return Err(bad(
+                        "footpath: width must be positive and stations finite".into()
+                    ));
+                }
+            }
+            if r.opposite.len() > 2 {
+                return Err(bad("opposite: at most two ribbons".into()));
+            }
+            for o in &r.opposite {
+                let j = *by_id
+                    .get(o)
+                    .ok_or_else(|| bad(format!("opposite: unknown ribbon `{o}`")))?;
+                if j == i || !spec.ribbons[j].opposite.contains(&r.id) {
+                    return Err(bad(format!(
+                        "opposite: `{o}` must be another ribbon that names `{}` as its opposite too",
+                        r.id
+                    )));
+                }
+                let (a, b) = (&ribbons[i], &ribbons[j]);
+                let reversed = a.points().len() == b.points().len()
+                    && a.points()
+                        .iter()
+                        .zip(b.points().iter().rev())
+                        .all(|(p, q)| libm::hypot(p[0] - q[0], p[1] - q[1]) <= OPPOSITE_TOLERANCE);
+                if !reversed {
+                    return Err(bad(format!(
+                        "opposite: `{o}`'s polyline must be this ribbon's reversed (to {OPPOSITE_TOLERANCE} m)"
+                    )));
+                }
+                ribbons[i].opposite.push(j);
+            }
+        }
         for (i, r) in spec.ribbons.iter().enumerate() {
             if let Some(next) = &r.next {
                 let j = *by_id.get(next).ok_or_else(|| NetError::UnknownNext {
@@ -119,11 +168,101 @@ impl Network {
                 }
             };
         }
-        Ok(Self {
+        let mut net = Self {
             ribbons,
             junctions,
             by_id,
-        })
+        };
+        net.wrong_way_detours()?;
+        Ok(net)
+    }
+
+    /// Length along `next` from the start of `r` to the end of the chain or
+    /// the first stop line, and where it stops: `(length, junction and arm
+    /// reached)`.
+    fn run_length(&self, mut r: usize) -> (f64, Option<(usize, usize)>) {
+        let mut len = 0.0;
+        loop {
+            let rib = &self.ribbons[r];
+            len += rib.length();
+            if let (Some(j), Some(a)) = (rib.junction, rib.arm_in) {
+                return (len, Some((j, a)));
+            }
+            match rib.next {
+                Some(n) => r = n,
+                None => return (len, None),
+            }
+        }
+    }
+
+    /// The detour a wrong-way path saves at each wrong-way arm (ADR-0020
+    /// part 4): the legal route (to the first box downstream with a U-turn
+    /// from its approach, the U-turn, then on to where the network ends or
+    /// the next stop line) less the path (to where it ends).
+    fn wrong_way_detours(&mut self) -> Result<(), NetError> {
+        for j in 0..self.junctions.len() {
+            for a in 0..self.junctions[j].arms.len() {
+                let Some(legal) = self.junctions[j].arms[a].wrong_way_legal else {
+                    continue;
+                };
+                let bad = |m: &str| {
+                    NetError::Junction(
+                        self.junctions[j].id.clone(),
+                        format!("arm `{}`: {m}", self.junctions[j].arms[a].id),
+                    )
+                };
+                let path = self.junctions[j].arms[a]
+                    .outbound
+                    .expect("checked when built");
+                let (wrong, _) = self.run_length(path);
+                let mut r = self.junctions[j].arms[legal]
+                    .outbound
+                    .expect("checked when built");
+                let mut legal_len = 0.0;
+                let mut found = false;
+                for _ in 0..self.junctions.len() + 1 {
+                    let (len, at) = self.run_length(r);
+                    legal_len += len;
+                    let Some((j2, arm2)) = at else { break };
+                    let jn = &self.junctions[j2];
+                    if let Some(m) = jn.movement_of[arm2][arm2]
+                        && jn.kind == marg_params::spec::JunctionKind::Box
+                    {
+                        let first = jn.movements[m].first;
+                        legal_len += self.ribbons[first].length();
+                        if let Some(out) = jn.arms[arm2].outbound {
+                            legal_len += self.run_length(out).0;
+                        }
+                        found = true;
+                        break;
+                    }
+                    // Straight on through any other junction.
+                    let through = jn.movement_of[arm2]
+                        .iter()
+                        .flatten()
+                        .find(|&&m| jn.movements[m].turn == crate::junction::Turn::Through)
+                        .or_else(|| jn.movement_of[arm2].iter().flatten().next());
+                    match through {
+                        Some(&m) => {
+                            legal_len += self.ribbons[jn.movements[m].first].length();
+                            let to = jn.movements[m].to;
+                            match jn.arms[to].outbound {
+                                Some(out) => r = out,
+                                None => break,
+                            }
+                        }
+                        None => break,
+                    }
+                }
+                if !found {
+                    return Err(bad(
+                        "its legal route reaches no median opening with a U-turn from its approach",
+                    ));
+                }
+                self.junctions[j].wrong_way_detour[a] = (legal_len - wrong).max(0.0);
+            }
+        }
+        Ok(())
     }
 
     /// Index of a ribbon by id.
@@ -169,6 +308,8 @@ mod tests {
                 y_max: 3.5,
             }],
             next: next.map(Into::into),
+            footpath: None,
+            opposite: Vec::new(),
         }
     }
 

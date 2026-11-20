@@ -1,0 +1,99 @@
+name: wrong_way
+description: >
+  A divided road (two 7 m carriageways, a 1 m median) with a driveway joining the eastbound
+  carriageway from the north, and a median opening 400 m further east (P8.4, ADR-0020 part 4).
+  Of the vehicles leaving the driveway, 60% want to go west. The legal route goes east to the
+  opening, U-turns and comes back along the westbound carriageway. The wrong-way path is a 2 m
+  strip along the eastbound kerb, ridden westward against the eastbound traffic, which sees its
+  riders head on. Where the network ends to the west, both routes end. Each driver who wants
+  west decides once, before the driveway's line. With the shipped register no violation runs,
+  so every one of them takes the legal route. Placeholders for the U-turn and split inputs as
+  in median_opening.
+duration_s: 1200
+warmup_s: 0
+dt_s: 0.1
+network:
+  ribbons:
+    - id: e1
+      polyline: [[-600.0, 4.0], [-12.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+      opposite: [path]
+    - id: path
+      polyline: [[-12.0, 4.0], [-600.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: -1.5}]
+      opposite: [e1]
+    - id: e2
+      polyline: [[12.0, 4.0], [400.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: e3
+      polyline: [[412.0, 4.0], [700.0, 4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: w0
+      polyline: [[700.0, -4.0], [412.0, -4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: w1
+      polyline: [[400.0, -4.0], [-600.0, -4.0]]
+      width: [{s: 0, y_min: -3.5, y_max: 3.5}]
+    - id: drive
+      polyline: [[0.0, 80.0], [0.0, 10.0]]
+      width: [{s: 0, y_min: -2.0, y_max: 2.0}]
+  junctions:
+    - id: driveway
+      arms:
+        - {id: west, in: e1}
+        - {id: east, out: e2}
+        - {id: north, in: drive}
+        - {id: wrong, out: path, wrong_way: {legal: east}}
+      turns:
+        west: {east: 1.0}
+        north: {east: 0.4, wrong: 0.6}
+      control: {kind: uncontrolled, major: [west, east]}
+    - id: opening
+      arms:
+        - {id: a, in: e2, out: w1}
+        - {id: b, in: w0, out: e3}
+      turns:
+        a: {b: 0.95, a: 0.05}
+        b: {a: 0.95, b: 0.05}
+      control: {kind: uncontrolled, major: [a, b]}
+demand:
+  entries:
+    - id: east
+      ribbon: e1
+      flow: [{from_s: 0, veh_per_h: 600}]
+      composition: &mix
+        motorcycle: 0.30
+        scooter: 0.18
+        auto_rickshaw: 0.14
+        e_rickshaw: 0.03
+        hatchback: 0.22
+        sedan: 0.07
+        lcv: 0.03
+        bus: 0.02
+        bicycle: 0.01
+    - id: west
+      ribbon: w0
+      flow: [{from_s: 0, veh_per_h: 600}]
+      composition: *mix
+    - id: drive
+      ribbon: drive
+      flow: [{from_s: 0, veh_per_h: 240}]
+      composition: *mix
+detectors:
+  - {kind: screenline, id: e_mid, ribbon: e1, s: 300, interval_s: 300}
+  - {kind: screenline, id: w_end, ribbon: w1, s: 900, interval_s: 300}
+kpi:
+  throughput_detector: e_mid
+overrides:
+  road.junction.turn_lateral_acceleration: 2.0   # placeholder: not in the guide
+  interaction.gap_acceptance.u_turn.critical_gap_factor: 0.8
+  interaction.gap_acceptance.u_turn.path.four_lane: {dist: gamma, shape: 2.5, scale: 0.8}
+  interaction.gap_acceptance.u_turn.path.six_lane:
+    dist: mixture
+    components:
+      - {weight: 0.6, dist: {dist: gamma, shape: 4.0, scale: 0.3}}
+      - {weight: 0.4, dist: {dist: normal, mean: 5.5, sd: 0.8}}
+  road.split.stop_and_wait_probability: 0.5
+  road.split.route_weight: 1.0
+  road.split.urgency_clearance_link: 0.5
+  road.split.awareness_distance: {dist: uniform, min: 800, max: 3000}

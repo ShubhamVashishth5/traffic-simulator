@@ -15,7 +15,11 @@ DRAWS += ["max_accel", "comfortable_decel"]
 
 def test_cooperative_bundle_switches() -> None:
     b = marg.bundles.cooperative()
-    assert b == {"violations.enabled": 0.0, "personas.cooperative.squeeze_kappa_quantile": 0.25}
+    assert b == {
+        "violations.enabled": 0.0,
+        "personas.cooperative.squeeze_kappa_quantile": 0.25,
+        "road.signal.dark_first_come": 1.0,
+    }
     reg = marg.Register(PARAMS)
     for path in b:
         assert reg[path].role == "scenario"

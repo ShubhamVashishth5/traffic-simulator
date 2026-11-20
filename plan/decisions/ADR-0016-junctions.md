@@ -2,8 +2,9 @@
 
 - **Status:** proposed (rules added while building P7.1–P7.4; **please review**). Your
   decisions of 2026-11-13: **D** for vehicles on other ribbons (open problem 1, part 4) and
-  **permitted turns wait for their gap inside the box** (open problem 2, part 3). The rules I
-  added to make those work are marked *(mine)*
+  **permitted turns wait for their gap inside the box** (open problem 2, part 3); of
+  2026-11-16: **(c)** for open problem 3, the left hook. The rules I added to make those work
+  are marked *(mine)*
 - **Date:** 2026-11-13
 - **Phase / task:** P7.1–P7.4, P7.7, read by P7.5, P7.6, P7.8, P8, P11
 
@@ -158,7 +159,8 @@ the vehicle arriving later at a crossing point follows.
    the bus does not check its inside before it turns. It is the cause of the remaining guard
    events (up to 0.5 m of overlap, held for up to minutes). Options: (a) a vehicle beside a long
    vehicle that will turn its way keeps out of its sweep; (b) a long vehicle does not move on
-   while something is level with it within its sweep; (c) both. **Your decision.**
+   while something is level with it within its sweep; (c) both. **Your decision (2026-11-16):
+   (c), built as in "Decision on open problem 3" at the end.**
 4. Saturation: with every turn at 700 veh/h per arm the crossing saturates (about 1,050 of 1,330
    vehicles through in 30 min). The compliant right turn is the bottleneck: the register's
    critical gaps (car median 8.15 s, from uncontrolled junctions in Warangal) are rarely offered
@@ -202,3 +204,31 @@ the vehicle arriving later at a crossing point follows.
   column; the agent store gains `line_held` and `box_ticket` (run-time state only).
 - Per-agent draws gained four blocks (critical gap, heavy factor, late realiser, awareness
   distance). Existing draws keep their blocks: reference scenarios keep their output hashes.
+
+## Decision on open problem 3 (the user, 2026-11-16): (c), both rules
+
+A vehicle's **sweep** for its turn is `L² / 8ρ`, with ρ the smallest radius of its movement's
+ribbons, towards the inside of the turn. Every class has one; it is small except for long
+vehicles (0.2 m for a 4 m car on a 10 m radius, 1.25 m for a 10 m bus), so there is no class
+list. A vehicle is **about to turn** from when its front is within its own length of its line
+until it leaves the movement's curved ribbons.
+
+- **(a) Others keep out of it.** A vehicle on the inside of one that is about to turn adds that
+  sweep to the clearance it keeps from it, as a leader, as a side neighbour and in its lateral
+  choice. A two-wheeler then does not draw level inside a turning bus, and steers out of its
+  sweep if it is level. The turn is taken as visible (indicator, road position).
+- **(b) The turning vehicle waits.** While a body is level with it on the inside, nearer than its
+  sweep plus the minimum clearance, it does not move on. It holds at its line if it can still
+  stop there at the safe braking limit. *(Mine.)* Once its front is past the line it goes on.
+  Built first so that it also braked in its turn, it stopped buses half turned, and their
+  corners stood in the path of the two-wheelers beside them: 9,480 guard events on seed 3 of
+  the signal crossing (8 before). Rule (a) keeps the vehicle beside it out of the sweep.
+
+### A gate is closed at amber (2026-11-16) *(mine)*
+
+A permitted movement can take its gap for the wait inside the box from far upstream (its desired
+gap at speed is over 100 m). That gap opened its line, and a vehicle still moving when the light
+turned red crossed it (once in a 10-minute run of the signal crossing at 300 veh/h). Now, at
+amber onset, a vehicle that can still stop at the safe braking limit loses any gate it had. It
+stops, unless it decides to go (`amber_go`, ADR-0019 part 3). Without violations nobody now
+crosses on red except a vehicle that could not stop.

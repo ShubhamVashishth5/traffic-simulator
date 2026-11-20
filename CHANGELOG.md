@@ -10,6 +10,71 @@ wrote it.
 The release workflow publishes a version's section below as the body of its GitHub release.
 Tagging fails if the section is missing.
 
+## [Unreleased]
+
+Phase P8 completed: the rest of the violation catalogue, the decisions taken on 2026-11-16, and
+the persona-share experiment template.
+
+### Added
+
+- **The last six violation types** (ADR-0020), each with micro-scenario tests:
+  - `stopline_seepage`: at the front of a red line, creep past it and stand short of the first
+    crossing stream;
+  - `late_merge`: before a split, stay on the moving side and wait at the deadline to cut in;
+  - `footpath`: queued beside a footpath without bollards, ride it, for vehicles that fit on it;
+  - `opposite_encroachment`: queued on an undivided road, move onto the opposite carriageway
+    when there is an oncoming gap;
+  - `wrong_way`: decided once before a junction, ride a wrong-way path instead of the legal
+    route and its U-turn;
+  - `stop_anywhere` through the rule, by thinning. The class rate becomes a rate of
+    opportunities, each taken with probability σ(η). With its intercept unset nothing changes.
+- **New road features in the scenario format:**
+  - footpaths on ribbons (`footpath: {width, bollards, from_s, to_s}`);
+  - undivided roads as paired opposite ribbons (`opposite: [...]`), whose vehicles see each
+    other head on when one of them is across the centreline;
+  - wrong-way paths (`wrong_way: {legal: <arm>}` on a junction arm).
+- Per-class intercept shifts for every type (`violations.<type>.intercept_shift.<class>`, 110
+  register entries, unset).
+- Six KPIs: `stopline_seepages`, `wrong_way_rides`, `footpath_rides`, `late_merges`,
+  `opposite_encroachments`, `stop_anywhere_taken`.
+- `marg.templates.persona_shares` and `share_table`: the delivery-rider × e-rickshaw share
+  sweep as a reusable experiment, with KPIs as functions of both shares (P8.8).
+- Scenarios `undivided_level_crossing` and `wrong_way`.
+
+### Changed
+
+- **Dark junctions in the cooperative twin** (ADR-0019 D1). `marg.bundles.cooperative()` also
+  sets `road.signal.dark_first_come = 1`, so the twin takes turns at the lines, first come
+  first served, with the junction clear of conflicting traffic.
+- **Splits** (ADR-0017 A2, B2, C2):
+  - drivers who know their branch can drift over from the moment they know
+    (`road.split.base_urgency`, unset);
+  - a stop-and-wait ends after `road.split.wait_patience` (unset);
+  - a late realiser who learns its branch at the line while it can still stop decides again.
+    This last one needs no parameter, so it changes split and median-opening runs.
+- **The left hook** (ADR-0016 open problem 3, both rules):
+  - a vehicle on the inside of a turning one keeps its sweep `L²/8ρ` clear;
+  - the turning one holds at its line while something is level inside its sweep.
+- The field of view for imitation is measured from mid-length, so vehicles abreast count
+  (ADR-0018).
+- `signal_cycles` measures saturation flow over the queued vehicles that did not cross on red.
+  A red-light runner or a seeper belongs to no discharge. Without violations nothing changes.
+
+### Results (`reports/phases/P8.md`)
+
+- With the coordinated twin, violations at a dark junction no longer clearly cut delay: the
+  SED CIs span zero (it was −73% to −81%). No negative-sum game appears there.
+- Opposite-carriageway encroachment at a level crossing is a negative-sum game: throughput
+  falls from 86% to 20% and both streams gridlock.
+- Seepage raises saturation flow as measured at the line only inside its CI, and imitation
+  still does not tip: both are checks, not met.
+- At amber onset, a vehicle that can still stop loses any gate it had, so a gap taken far
+  upstream for a wait inside the box no longer lets it cross on red (ADR-0016).
+
+Output hashes: the nine scenarios without junctions are unchanged. `median_opening`,
+`priority_crossing`, `roundabout`, `signal_crossing` and `split_corridor` change (left-hook
+rules and C2). The P8 phase report was regenerated.
+
 ## [0.1.0] — 2026-11-15
 
 The first tagged version: phases P0–P8 of the 13-phase roadmap ([`plan/05-roadmap.md`](plan/05-roadmap.md)).

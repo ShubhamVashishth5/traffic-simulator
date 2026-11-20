@@ -36,6 +36,41 @@ pub struct Ribbon {
     pub min_radius: f64,
     /// The next junction reached by following `next`, and the arm arrived by.
     pub ahead: Option<(usize, usize)>,
+    /// A footpath beside the kerb (ADR-0020 part 2).
+    pub footpath: Option<Footpath>,
+    /// Ribbons over the same ground in the other direction (ADR-0020 part
+    /// 3): a point `(s, y)` here is `(L − s, −y)` on each.
+    pub opposite: Vec<usize>,
+}
+
+/// A footpath beside a ribbon's kerb: `width` m beyond `y_max`, over
+/// `[from, to]`, without bollards outside `bollards`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Footpath {
+    pub width: f64,
+    pub from: f64,
+    pub to: f64,
+    pub bollards: Vec<(f64, f64)>,
+}
+
+impl Footpath {
+    /// Whether a vehicle can get onto the footpath at station `s`.
+    pub fn open_at(&self, s: f64) -> bool {
+        s >= self.from && s <= self.to && !self.bollards.iter().any(|&(a, b)| s >= a && s <= b)
+    }
+
+    /// Where the open stretch containing `s` ends (bollards or the end);
+    /// `s` itself if the footpath is closed there.
+    pub fn open_until(&self, s: f64) -> f64 {
+        if !self.open_at(s) {
+            return s;
+        }
+        self.bollards
+            .iter()
+            .filter(|&&(a, _)| a > s)
+            .map(|&(a, _)| a)
+            .fold(self.to, f64::min)
+    }
 }
 
 impl Ribbon {
@@ -67,7 +102,23 @@ impl Ribbon {
             preds: 0,
             min_radius: f64::INFINITY,
             ahead: None,
+            footpath: spec.footpath.as_ref().map(|f| Footpath {
+                width: f.width,
+                from: f.from_s.unwrap_or(f64::NEG_INFINITY),
+                to: f.to_s.unwrap_or(f64::INFINITY),
+                bollards: f
+                    .bollards
+                    .iter()
+                    .map(|b| (b[0].min(b[1]), b[0].max(b[1])))
+                    .collect(),
+            }),
+            opposite: Vec::new(),
         }
+    }
+
+    /// The reference line's vertices.
+    pub fn points(&self) -> &[[f64; 2]] {
+        &self.pts
     }
 
     /// Smallest radius of curvature of the reference line: at each vertex,
@@ -242,6 +293,8 @@ mod tests {
                 },
             ],
             next: None,
+            footpath: None,
+            opposite: Vec::new(),
         })
     }
 
@@ -254,6 +307,21 @@ mod tests {
         assert_eq!(r.y_bounds(-10.0), (-5.0, 5.0));
         assert_eq!(r.y_bounds(50.0), (-4.0, 4.5));
         assert_eq!(r.y_bounds(500.0), (-3.0, 4.0));
+    }
+
+    #[test]
+    fn a_footpath_is_open_outside_its_bollards() {
+        let f = Footpath {
+            width: 1.5,
+            from: 10.0,
+            to: 300.0,
+            bollards: vec![(100.0, 150.0), (200.0, 220.0)],
+        };
+        assert!(!f.open_at(5.0) && f.open_at(50.0) && !f.open_at(120.0) && f.open_at(160.0));
+        assert_eq!(f.open_until(50.0), 100.0);
+        assert_eq!(f.open_until(160.0), 200.0);
+        assert_eq!(f.open_until(250.0), 300.0);
+        assert_eq!(f.open_until(120.0), 120.0);
     }
 
     proptest::proptest! {

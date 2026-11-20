@@ -310,3 +310,10 @@ are (unset; a run that enables a type without them is refused, as for P6's unset
   likelihood of the logged episodes; `λ_max` never moves.
 - With K2, a per-class distribution without a closed-form quantile (gamma, mixture) cannot carry
   a link; the loader refuses a non-zero `r_X` on one. Truncated normals gain a quantile.
+
+## Changes after P8.6 (the user, 2026-11-16)
+
+- **F1's origin moves to mid-length.** The field of view's sector is measured from the agent's
+  centre, not its front centre, so that vehicles abreast at a stop line are in view. This
+  matters only in runs with violations on; shipped scenarios keep their hashes.
+- **Per-class intercept shifts are built** (ADR-0020 part 8).

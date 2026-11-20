@@ -105,6 +105,17 @@
             "string",
             "null"
           ]
+        },
+        "wrong_way": {
+          "description": "This arm leaves by a wrong-way path (ADR-0020 part 4): a vehicle\nwhose turn is this arm decides here, once, whether to ride it or take\nthe legal route.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WrongWaySpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -967,6 +978,49 @@
         "veh_per_h"
       ]
     },
+    "FootpathSpec": {
+      "description": "A footpath beside a ribbon's kerb.",
+      "type": "object",
+      "properties": {
+        "bollards": {
+          "description": "Stretches `[from_s, to_s]` with bollards: no vehicle can get on.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "from_s": {
+          "description": "Where it runs along the ribbon (m; default: the whole ribbon).",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "to_s": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "width": {
+          "description": "Width of the footpath beyond the kerb (m).",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "width"
+      ]
+    },
     "HumpSpec": {
       "description": "A speed hump across the road, or part of it.",
       "type": "object",
@@ -1695,6 +1749,17 @@
       "description": "A ribbon: a reference polyline with a lateral width profile. `y` is\npositive to the left of the direction of travel; for left-hand traffic the\nkerb is on the left (`y_max`) and the median on the right (`y_min`).",
       "type": "object",
       "properties": {
+        "footpath": {
+          "description": "A footpath beside the kerb (`y_max`): footpath riding (ADR-0020\npart 2). Its width and bollards are site data.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FootpathSpec"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "id": {
           "type": "string"
         },
@@ -1705,6 +1770,13 @@
             "null"
           ],
           "default": null
+        },
+        "opposite": {
+          "description": "Ribbons that carry the other direction over the same ground (at most\ntwo): the other carriageway of an undivided road, or a wrong-way path\nover this one (ADR-0020 parts 3–4). Each must name this ribbon too,\nand its polyline must be this one's reversed.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "polyline": {
           "description": "Reference line vertices in world metres (UTM or local), at least two.",
@@ -1965,6 +2037,20 @@
         "s",
         "y_min",
         "y_max"
+      ]
+    },
+    "WrongWaySpec": {
+      "description": "The legal route instead of a wrong-way path.",
+      "type": "object",
+      "properties": {
+        "legal": {
+          "description": "The arm the legal route leaves by; it turns back at the first median\nopening downstream with a U-turn from its approach.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "legal"
       ]
     }
   }

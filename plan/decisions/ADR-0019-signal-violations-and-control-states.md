@@ -1,7 +1,8 @@
 # ADR-0019: Violations at signals, and signal control states
 
-- **Status:** proposed. Built as written, so that P8.5–P8.8 and the milestone could run; every
-  part marked *(mine)* is a choice plan/03 and ADR-0018 do not settle, for your review
+- **Status:** proposed; the dark regime is decided (**D1**, the user, 2026-11-16, at the end).
+  Built as written, so that P8.5–P8.8 and the milestone could run; every part marked *(mine)*
+  is a choice plan/03 and ADR-0018 do not settle, for your review
 - **Date:** 2026-11-15
 - **Phase / task:** P8.4 (`red_light`, `early_start`, `amber_go`, `box_blocking`), P8.7
 
@@ -210,3 +211,38 @@ intercepts of `red_light`, `early_start`, `amber_go`, `box_blocking` (unset: off
   (it would be on a movement ribbon), plus `wrong_way`, `footpath` and
   `opposite_encroachment`, which need an opposite strip and a footpath in the network.
   `late_merge` waits on ADR-0017, and stop-anywhere's terms are also still to build.
+
+## Decision on the dark regime (the user, 2026-11-16): D1
+
+**D1.** A dark junction stays mutual deference with forced entry (the guide's Chicken), and the
+cooperative twin coordinates: **first come, first served at the stop lines**, as at an all-way
+stop. New register switch `road.signal.dark_first_come` (0/1, `scenario`, default 0), set to 1
+by `marg.bundles.cooperative()` with `violations.enabled = 0` (ADR-0007). Under it, at a
+junction that is dark or blinking without a major arm:
+
+- a vehicle at the front of its line is stamped with the time it got there (the first step its
+  line binds and it is within its desired gap of it). It loses the stamp if it is no longer at
+  the front (a two-wheeler squeezes in ahead of it) *(mine: a stamp held by a vehicle that
+  something stood in front of locked the junction)*;
+- it may enter when no vehicle on a conflicting movement (crossing or merging, not diverging)
+  holds an earlier stamp and still waits at its own line (ties by id), and no vehicle on such a
+  movement is inside the junction short of the end of the area they share, as at an all-way
+  stop *(mine: built first without it, two vehicles entered one after the other and each
+  stood in the other's path);*
+- the keep-clear rule and the arbitration inside the box (first come, first served by entry
+  ticket, ADR-0016 part 4) are as before;
+- no gap is read, so forced entry has nothing to trigger on.
+
+No ring can form: the stamps are a total order. The twin then differs from the observed arm in
+two ways, no violations and an agreed order, which is what the guide's claim compares. The
+milestone experiment was re-run with it (`reports/phases/P8.md`).
+
+### The milestone with D1 (2026-11-16, `reports/phases/P8.md` §6)
+
+At 400 veh/h per arm with 5 seeds, dark violations (350–410 per 1,000 vehicles) no longer
+clearly cut delay against the coordinated twin. SED is −28 ± 47%, +10 ± 142% and −7 ± 40% for
+rushed shares 0, 0.25 and 0.5, with every CI spanning zero. The twin's turn-taking costs about as
+much as the observed Chicken: mean delay 55–61 s against 48–56 s, with about as many conflicts. The
+negative-sum game does not appear at this junction. It does appear at the level crossing of
+ADR-0020, where encroachment is the violation. Under the fixed signal, with a quarter of drivers
+rushed, red-light running cuts delay by 12 ± 4%.

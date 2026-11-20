@@ -8,7 +8,8 @@
 //! order.
 
 use crate::agents::{
-    NO_AGENT, NO_RIBBON, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_UNAWARE, SPLIT_WAIT,
+    NO_AGENT, NO_ARM, NO_RIBBON, SPLIT_DECIDED, SPLIT_GAVE_UP, SPLIT_NONE, SPLIT_UNAWARE,
+    SPLIT_WAIT,
 };
 use crate::junctions::{
     LIGHT_AMBER, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, MODE_MUTUAL, chord_pose, onward,
@@ -17,6 +18,7 @@ use crate::model::lateral::{edge_gap, leader_weight, steering_speed};
 use crate::model::longitudinal::Idm;
 use crate::rng::{StreamKind, StreamRng};
 use crate::scan::{MoveCtx, approach};
+use crate::violations::Kind;
 use marg_net::{ConflictKind, Turn};
 use marg_params::VehicleClass;
 use marg_params::spec::JunctionKind;
@@ -81,6 +83,23 @@ pub struct JunctionOut {
     pub runner_needed: f64,
     /// It waits at its line because its way through is not clear.
     pub blocked: bool,
+    /// It is at the front of its line, within its desired gap of it: its
+    /// turn is stamped under first come first served (ADR-0019 D1).
+    pub at_line: bool,
+    /// Before a split, outside its branch's part of the road: the standing
+    /// queue in that part ahead (m: lengths and standstill gaps; NaN: not
+    /// read), for `late_merge` (ADR-0020 part 6).
+    pub branch_queue: f64,
+    /// At its deadline as a late merger: it stops to wait to cut in.
+    pub late_deadline: bool,
+    /// It learnt its branch after it took the one it was in (ADR-0017 C2).
+    pub realised: bool,
+    /// At the front of a red line, the room its movement has past the line
+    /// before the first crossing stream (m; NaN: none), for seepage.
+    pub seep_room: f64,
+    /// Its turn leaves by a wrong-way path and it is within its stopping
+    /// distance of the line: it decides now (ADR-0020 part 4).
+    pub wrong_way_due: bool,
 }
 
 impl JunctionOut {
@@ -105,6 +124,12 @@ impl JunctionOut {
         runner_gap: f64::NAN,
         runner_needed: f64::NAN,
         blocked: false,
+        at_line: false,
+        branch_queue: f64::NAN,
+        late_deadline: false,
+        realised: false,
+        seep_room: f64::NAN,
+        wrong_way_due: false,
     };
 }
 
@@ -213,12 +238,34 @@ impl MoveCtx<'_> {
         if a.land_y[i].is_finite() {
             view.track = Some(a.land_y[i]);
         }
+        // Crept past its red line: it stands its standstill gap short of the
+        // first crossing stream until its movement has green (ADR-0020 part
+        // 5), not yet committed to the junction.
+        if a.seeps[i] && net.ribbon(r).internal {
+            let light = self.junctions.light[r];
+            let hold = self.junctions.seep_hold[r];
+            if (light == LIGHT_RED || light == LIGHT_AMBER) && hold.is_finite() {
+                let gap = hold - a.standstill_gap[i] - s - 0.5 * l;
+                view.cap = if gap > 0.0 {
+                    (free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel)
+                } else {
+                    -p.emergency_decel
+                };
+                view.out.waiting = true;
+                view.track = Some(y);
+                return view;
+            }
+        }
         let Some((line_ribbon, dist)) = self.junctions.line[r] else {
             return view;
         };
         let d_line = dist - s;
         let gap = d_line - 0.5 * l;
-        if gap > p.lookahead || a.turn_junction[i] == NO_RIBBON {
+        // Beyond the lookahead only the pull towards a branch matters, and
+        // only if drivers who know their branch move over at leisure
+        // (ADR-0017 A2).
+        let far = gap > p.lookahead;
+        if (far && p.junction.base_urgency.is_none()) || a.turn_junction[i] == NO_RIBBON {
             return view;
         }
         let rib = net.ribbon(line_ribbon as usize);
@@ -234,6 +281,14 @@ impl MoveCtx<'_> {
         };
         let jn = &net.junctions[j];
         let hw = 0.5 * a.width[i];
+        // A wrong-way path or the legal route: decided once, while it can
+        // still stop before the line (ADR-0020 part 4).
+        if jn.arms[out].wrong_way_legal.is_some()
+            && !a.rides_wrong_way[i]
+            && gap <= v * v / (2.0 * idm.comfortable_decel) + a.standstill_gap[i] + l
+        {
+            view.out.wrong_way_due = true;
+        }
         // Being on the right side of the road for the branch (G§6.7).
         if let Some((lo, hi)) = self.junctions.window_of(net, j, arm, out) {
             let centre = if lo + hw <= hi - hw {
@@ -254,23 +309,100 @@ impl MoveCtx<'_> {
             view.out.aware = aware;
             let hard = self.junctions.hard_window(net, j, arm, out);
             let state = a.split_state[i];
+            let late = a.late_merge[i];
             if aware && need > 0.0 && state != SPLIT_GAVE_UP {
                 let u = need / gap.max(a.standstill_gap[i]);
                 let urgency = (u / p.max_heading_tan).min(1.0);
                 view.out.urgency = urgency;
                 view.out.needed_move = need;
+                // A late merger feels no pull before its deadline; at it, it
+                // squeezes in at full urgency (ADR-0020 part 6).
+                let pull = if late {
+                    0.0
+                } else {
+                    urgency.max(p.junction.base_urgency.unwrap_or(0.0))
+                };
                 view.route = Some(Route {
                     lo: centre.0,
                     hi: centre.1,
-                    weight: p.junction.route_weight.unwrap_or(0.0) * urgency,
+                    weight: p.junction.route_weight.unwrap_or(0.0) * pull,
                     squeeze: libm::exp(-p.junction.urgency_link.unwrap_or(0.0) * urgency),
                 });
+                // What a late merge would bypass: the standing queue in its
+                // branch's part of the road ahead.
+                if state == SPLIT_NONE && !late && p.violations.active(Kind::LateMerge) {
+                    view.out.branch_queue = crate::strips::standing_ahead(
+                        a,
+                        self.orders,
+                        p.stop_speed_below,
+                        r,
+                        s,
+                        l,
+                        lo,
+                        hi,
+                        p.lookahead,
+                    );
+                }
+            }
+            if far {
+                return view;
             }
             // The deadline: where it could still just stop before the line.
             let stopping = v * v / (2.0 * idm.comfortable_decel) + a.standstill_gap[i];
+            // Taken the branch it was in without knowing; it learns which
+            // it wanted while it can still stop before the line at the safe
+            // braking limit: it decides as at a deadline (ADR-0017 C2).
+            if state == SPLIT_UNAWARE
+                && aware
+                && a.wanted_out[i] != NO_ARM
+                && v * v <= 2.0 * p.safe_decel * gap.max(0.0)
+                && let Some((wlo, whi)) =
+                    self.junctions
+                        .window_of(net, j, arm, usize::from(a.wanted_out[i]))
+            {
+                let wc = if wlo + hw <= whi - hw {
+                    (wlo + hw, whi - hw)
+                } else {
+                    (0.5 * (wlo + whi), 0.5 * (wlo + whi))
+                };
+                let need_w = (wc.0 - y).max(y - wc.1).max(0.0);
+                if need_w > 0.0 {
+                    let p_wait = p.junction.stop_and_wait.unwrap_or(0.0);
+                    let draw = StreamRng::at(
+                        self.seed,
+                        StreamKind::Decisions,
+                        a.id[i],
+                        SPLIT_BASE + j as u64,
+                    )
+                    .uniform();
+                    view.out.split = if draw < p_wait {
+                        SPLIT_WAIT
+                    } else {
+                        SPLIT_GAVE_UP
+                    };
+                    view.out.split_p = p_wait;
+                    view.out.realised = true;
+                    view.out.urgency = 1.0;
+                    view.out.needed_move = need_w;
+                    if view.out.split == SPLIT_WAIT {
+                        view.track = Some(y);
+                        view.route = None;
+                        view.cap = (free
+                            - idm.interaction(v, gap.max(f64::MIN_POSITIVE), v, 1.0, 1.0))
+                        .max(-p.emergency_decel);
+                        view.out.held = true;
+                        return view;
+                    }
+                }
+            }
             if hard && state == SPLIT_NONE && gap <= stopping {
                 if need <= 0.0 {
                     view.out.split = SPLIT_DECIDED;
+                } else if aware && late {
+                    // A late merger stops to wait to cut in.
+                    view.out.split = SPLIT_WAIT;
+                    view.out.split_p = 1.0;
+                    view.out.late_deadline = true;
                 } else if aware {
                     let p_wait = p.junction.stop_and_wait.unwrap_or(0.0);
                     let draw = StreamRng::at(
@@ -327,6 +459,20 @@ impl MoveCtx<'_> {
         view.out.light = light;
         view.out.first = first as u32;
         view.out.line_gap = gap;
+        // Decided to creep past its red line: it makes for where it will
+        // stand, short of the first crossing stream (ADR-0020 part 5).
+        if a.seeps[i] {
+            let hold = self.junctions.seep_hold[first];
+            if shut && hold.is_finite() {
+                let to = gap + hold - a.standstill_gap[i];
+                view.cap = view.cap.min(if to > 0.0 {
+                    (free - idm.interaction(v, to, v, 1.0, 1.0)).max(-p.emergency_decel)
+                } else {
+                    -p.emergency_decel
+                });
+            }
+            return view;
+        }
         if a.gate_open[i] && (!shut || v >= p.stop_speed_below || a.runs_red[i]) {
             return view;
         }
@@ -336,7 +482,24 @@ impl MoveCtx<'_> {
         // junction every movement does (ADR-0019).
         let mutual = self.junctions.mode[j] == MODE_MUTUAL;
         let rank = self.junctions.rank[first];
-        if !closed && (rank > 0 || mutual) && self.yields(i, j, first, light) {
+        if !closed && mutual && self.junctions.first_come {
+            // Turns at the lines, first come first served (ADR-0019 D1).
+            let decide_within = idm.desired_gap(v, v, 1.0, 1.0);
+            if gap <= decide_within {
+                // At the front: the line, not a vehicle in front, is what
+                // holds it. Only a vehicle at the front holds a turn.
+                let line = (free - idm.interaction(v, gap, v, 1.0, 1.0)).max(-p.emergency_decel);
+                view.out.at_line = line <= *acc;
+                // Its turn, and the junction clear of conflicting traffic, as
+                // at an all-way stop.
+                closed = self
+                    .junctions
+                    .earlier_at_lines(net, j, first, a.line_arrival[i], a.id[i])
+                    || self.conflicting_inside(i, j, first);
+            } else {
+                closed = true;
+            }
+        } else if !closed && (rank > 0 || mutual) && self.yields(i, j, first, light) {
             let decide_within = idm.desired_gap(v, v, 1.0, 1.0);
             if gap <= decide_within {
                 let movement = jn.movement_of[arm][out].map(|m| jn.movements[m].turn);
@@ -376,6 +539,13 @@ impl MoveCtx<'_> {
                     let offer = self.gap_offer(i, j, first, light, 1.0, t_me, GAP_RUNNER);
                     view.out.runner_gap = offer.0;
                     view.out.runner_needed = offer.3;
+                }
+                if light == LIGHT_RED
+                    && view.out.line_binds
+                    && gap <= zone
+                    && p.violations.active(Kind::StoplineSeepage)
+                {
+                    view.out.seep_room = self.junctions.seep_hold[first] - a.standstill_gap[i];
                 }
             }
             view.cap = view.cap.min(line);
@@ -434,9 +604,26 @@ impl MoveCtx<'_> {
                     && !(signal && light == LIGHT_GREEN)
                     && self.orders[c].iter().any(|&k| {
                         let k = k as usize;
+                        // One that crept past its red line stands short of the
+                        // crossing streams: it is not being let out.
                         k != i
                             && a.s[k] - 0.5 * a.length[k] < c_s.1
-                            && (leaving || a.s[k] + 0.5 * a.length[k] > c_s.0)
+                            && ((leaving && !a.seeps[k]) || a.s[k] + 0.5 * a.length[k] > c_s.0)
+                    })
+            })
+    }
+
+    /// Whether a vehicle on a movement that crosses or merges with `first`
+    /// is inside junction `j` and not yet past the area they share (first
+    /// come first served, ADR-0019 D1).
+    fn conflicting_inside(&self, i: usize, j: usize, first: usize) -> bool {
+        let a = self.a;
+        self.net.junctions[j]
+            .conflicts_of(first)
+            .any(|(c, _, c_s, kind)| {
+                kind != ConflictKind::Diverge
+                    && self.orders[c].iter().any(|&k| {
+                        k as usize != i && a.s[k as usize] - 0.5 * a.length[k as usize] < c_s.1
                     })
             })
     }
@@ -719,7 +906,12 @@ impl MoveCtx<'_> {
                 let gap_s = ds - 0.5 * l - half_l;
                 let along = a.v[k] * cos;
                 let cj = usize::from(a.class[k]);
-                let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + along.abs())).1;
+                // On the inside of its turn, out of its sweep (ADR-0016 open
+                // problem 3, rule a).
+                let sw = a.sweep[k];
+                let inside = (sw > 0.0 && y > yk) || (sw < 0.0 && y < yk);
+                let c_min = scale * p.pair_clearance(ci, cj, 0.5 * (v + along.abs())).1
+                    + if inside { sw.abs() } else { 0.0 };
                 let excess = gy - c_min;
                 let left = yk > y || (yk == y && a.id[k] > a.id[i]);
                 // Who goes first between the two is decided by the
