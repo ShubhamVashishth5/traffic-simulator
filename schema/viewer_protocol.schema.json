@@ -3490,6 +3490,13 @@
           },
           "default": {}
         },
+        "presets": {
+          "description": "Presets to apply, in order, before `overrides` (names of files in\n`params/base/presets/`). `sandbox` fills what the guide leaves unset\nwith made-up values, so every mechanism runs; such runs are not\nevidence and validation refuses them.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "start_time_h": {
           "description": "Hour of day at simulated time 0 (0–24). Needed only by clock-driven\nbehaviour, such as a signal on the night blinker schedule (G§6.6).",
           "type": [

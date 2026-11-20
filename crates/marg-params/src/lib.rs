@@ -19,7 +19,7 @@ pub use calibration::{Calibration, CalibrationError, StageFile, StageStatus};
 pub use dist::Dist;
 pub use param::{Grade, ParamEntry, ParamValue, Role};
 pub use persona::{Persona, Trait};
-pub use register::{Register, RegisterFile, RegisterFilter};
+pub use register::{PRESETS_DIR, Preset, Register, RegisterFile, RegisterFilter};
 pub use resolve::{
     Layer, ResolveError, ResolveOptions, ResolvedParam, ResolvedSpec, resolve, resolve_layers,
 };

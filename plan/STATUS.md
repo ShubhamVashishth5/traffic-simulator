@@ -98,7 +98,7 @@ Statuses: `todo` · `doing` · `review` (PR open) · `done` · `blocked` (say wh
 | S | Sandbox track ([review](review-2026-11-20.md)): S1–S3 before P9 (your choice, 2026-11-20) | in progress | claude/fervent-hopper-drlv86 | Placeholders allowed; single lane = (a)+(b)+(c) per road plus a two-lane road with a shop-filled kerb lane; selfishness = κ |
 | S | S1 Live demand controls | done | claude/fervent-hopper-drlv86 | Traffic tab: flow per entry and for all entries, share per class; `set_demand` (protocol 5), logged and replayed bitwise. Existing runs unchanged (same output hash) |
 | S | S2 Behaviour panel, per-class κ | done | claude/fervent-hopper-drlv86 | `personas.class_shift.<class>.aggressiveness` (10 entries, live, 0); Behaviour tab; colour by κ wired. Applies to vehicles entering after a change. Outputs unchanged at 0 |
-| S | S3 Sandbox defaults | todo | | |
+| S | S3 Sandbox defaults | done | claude/fervent-hopper-drlv86 | Presets (`params/base/presets/`, `presets:` in scenarios, `--preset`, viewer box on by default); `sandbox` fills 97 unset entries. Tested: late merge -4/-6 and encroachment -8 lock roads, so -8/-10. Seen while testing: `split_corridor` without the preset barely moves (44 of 608 out, split values unset); with it, collision-guard events on some seeds even with violations off (known split fragility). The scorecard (P10.5) must refuse preset runs |
 | S | S4–S10 | todo | | S5 waits on the speed-camera question |
 | P9 | P9.1–P9.7 | todo | | |
 | P10 | P10.0 Data split (review gate) | todo | | Data-bound |

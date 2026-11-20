@@ -26,6 +26,7 @@ export function LiveView({ theme }: { theme: Chrome }) {
   const [file, setFile] = useState("corridor_2km.yaml");
   const [seed, setSeed] = useState(1);
   const [window_, setWindow] = useState(30);
+  const [sandbox, setSandbox] = useState(true);
   const [client, setClient] = useState<LiveClient | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -43,7 +44,7 @@ export function LiveView({ theme }: { theme: Chrome }) {
     setError(null);
     try {
       client?.close();
-      const s = await api.createSession({ scenario: file, seed, live_window_s: window_ });
+      const s = await api.createSession({ scenario: file, seed, live_window_s: window_, presets: sandbox ? ["sandbox"] : [] });
       setClient(new LiveClient(s.id, s.ws));
     } catch (e) {
       setError(String(e));
@@ -68,6 +69,9 @@ export function LiveView({ theme }: { theme: Chrome }) {
         </label>
         <label title="Interval of the live detector windows behind the dashboards">
           Window (s) <input type="number" value={window_} min={1} onChange={(e) => setWindow(Number(e.target.value))} style={{ width: 60 }} />
+        </label>
+        <label title="Fill every parameter the Delhi guide leaves empty with made-up values (params/base/presets/sandbox.yaml), so potholes, parking, personas, rule-breaking and the rest all work. Runs with it are play, not evidence.">
+          <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} /> Sandbox defaults
         </label>
         <button className="primary" onClick={start}>
           {client ? "Restart" : "Start session"}
@@ -215,7 +219,10 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
         </div>
       )}
       {st.error && <div className="notice error">{st.error}</div>}
-      <KpiStrip values={kpis} note={`Run ${status?.run_hash ?? hello.initial_run_hash} · seed ${hello.seed} · window ${hello.live_window_s} s`} />
+      <KpiStrip
+        values={kpis}
+        note={`Run ${status?.run_hash ?? hello.initial_run_hash} · seed ${hello.seed} · window ${hello.live_window_s} s${hello.scenario.presets?.length ? ` · presets: ${hello.scenario.presets.join(", ")} (made-up values: play, not evidence)` : ""}`}
+      />
       <div className="main">
         <div className="map-col">
           <div className="map-wrap">

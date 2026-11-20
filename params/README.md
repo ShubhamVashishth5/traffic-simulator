@@ -20,5 +20,16 @@ Validation targets (G§9.8 and the "Check" rows of §9) are **not** inputs and l
 `validation/targets/`. `guide_rows.yaml` lists every row of guide §9 and where it is implemented;
 a test checks the coverage.
 
+## Presets
+
+`presets/<name>.yaml` holds named sets of values (`name`, `description`, `values: {path: value}`)
+that a scenario applies with `presets: [<name>]` (or `marg run --preset <name>`, or the viewer's
+*Sandbox defaults* box). They sit between calibration and the scenario's own overrides, and
+`params.parquet` marks what they set `set_by = preset`. Every value is checked against its entry
+when the register loads.
+
+`sandbox` fills what the guide leaves unset with made-up values so every mechanism runs (the
+user's decision, 2026-11-20). Runs with it are play, not evidence; validation must refuse them.
+
 Lookups by vehicle fall back from type to class: `vehicles.free_flow_speed.motorcycle` is per type,
 `interaction.following.time_gap.two_wheeler` is per class.

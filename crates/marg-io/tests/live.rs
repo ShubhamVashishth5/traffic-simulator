@@ -259,3 +259,24 @@ fn demand_changed_live_is_replayed() {
     assert_eq!(r.commands_applied, 2);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Sandbox S3: a session with the sandbox preset saves its presets with the
+/// register snapshot, and replays.
+#[test]
+fn a_sandbox_session_replays_from_its_snapshot() {
+    let mut sc = Scenario::from_yaml(SCENARIO).unwrap();
+    sc.presets = vec!["sandbox".into()];
+    let mut run = LiveRun::new(source(), sc, 3, 1).unwrap();
+    for _ in 0..400 {
+        run.step();
+    }
+    let dir = tmp("sandbox");
+    let m = run.save(&dir, "s4").unwrap();
+    assert!(dir.join("params/presets/sandbox.yaml").is_file());
+    let saved = std::fs::read_to_string(dir.join("scenario.yaml")).unwrap();
+    assert!(saved.contains("sandbox"), "{saved}");
+    let r = replay(&dir, 1, false).unwrap();
+    assert!(r.matches, "{r:?}");
+    assert_eq!(r.output_hash, m.output_hash);
+    let _ = std::fs::remove_dir_all(&dir);
+}

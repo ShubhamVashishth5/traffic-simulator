@@ -38,6 +38,12 @@ pub struct Scenario {
     /// Which detectors the headline KPIs use.
     #[serde(default)]
     pub kpi: KpiSpec,
+    /// Presets to apply, in order, before `overrides` (names of files in
+    /// `params/base/presets/`). `sandbox` fills what the guide leaves unset
+    /// with made-up values, so every mechanism runs; such runs are not
+    /// evidence and validation refuses them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub presets: Vec<String>,
     /// Parameter overrides by register path, in the register entry's unit.
     #[serde(default)]
     pub overrides: IndexMap<String, ParamValue>,

@@ -28,6 +28,18 @@ The project now has a sandbox track ahead of P9 ([`plan/review-2026-11-20.md`](p
   two live κ links in plain words. Vehicles can be coloured by selfishness (selfish red, calm
   blue). The Violations tile now reads `violations_per_1000_veh`. With the shifts at 0,
   outputs are unchanged.
+- **Sandbox defaults (S3).** Presets: named value sets in `params/base/presets/`, applied by a
+  scenario's new `presets: [...]` field (or `marg run --preset`, or the viewer's *Sandbox
+  defaults* box, on by default) as a `preset` layer between calibration and the scenario's
+  overrides. The `sandbox` preset fills 97 entries the guide leaves unset with made-up values,
+  so potholes, parking, bus stops, pedestrians, stop-anywhere, personas, phone use, mood within
+  a trip, splits, U-turns, roundabouts, officers and every violation type run without any
+  override. Values reuse what shipped scenarios and the P8 milestone ran with; the rest are
+  reasoned guesses, two of them tested (late merging and opposite encroachment lock roads at
+  P8-like values, so the preset keeps them rare). All 17 shipped scenarios run with it (a
+  test). Live sessions and Python experiments snapshot the presets with the register.
+  `params.parquet` marks preset values `set_by = preset`; the KPI strip says "play, not
+  evidence". Without a preset nothing changes.
 
 Phase P8 completed: the rest of the violation catalogue, the decisions taken on 2026-11-16, and
 the persona-share experiment template.

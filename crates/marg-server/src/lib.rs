@@ -220,6 +220,10 @@ pub struct NewSession {
     pub threads: Option<usize>,
     #[serde(default)]
     pub live_window_s: Option<f64>,
+    /// Presets to apply on top of the scenario's own (`sandbox`: fill what
+    /// the guide leaves unset with made-up values).
+    #[serde(default)]
+    pub presets: Vec<String>,
 }
 
 fn default_seed() -> u64 {
@@ -249,7 +253,12 @@ pub fn start_session(st: &Arc<AppState>, req: NewSession) -> Result<SessionCreat
         }
         (None, None) => return Err("give `scenario` (a file name) or `yaml`".into()),
     };
-    let scenario = Scenario::from_yaml(&yaml).map_err(|e| format!("scenario: {e}"))?;
+    let mut scenario = Scenario::from_yaml(&yaml).map_err(|e| format!("scenario: {e}"))?;
+    for p in req.presets {
+        if !scenario.presets.contains(&p) {
+            scenario.presets.push(p);
+        }
+    }
     let live_window_s = req.live_window_s.unwrap_or(st.cfg.live_window_s);
     if !(live_window_s.is_finite() && live_window_s >= scenario.dt_s) {
         return Err("live_window_s must be at least dt_s".into());

@@ -1,0 +1,144 @@
+name: sandbox
+description: >
+  Made-up values for every parameter the guide leaves unset, so that every mechanism runs
+  (the user's decision, 2026-11-20: placeholders may be invented, reasoned out or tested; they
+  need not be sourced). Runs that use this preset are play, not evidence: their params.parquet
+  marks these values `set_by = preset`, and validation refuses them.
+
+  Where a shipped scenario already ran with a value, that value is reused (named after the
+  entry). The violation coefficients and the forced-entry, box-blocking, amber, seepage and
+  red-light intercepts are the P8 milestone's (red light: fitted there so about 1 driver in 17
+  runs the red at a fixed signal; early start takes the same value). Everything else is a
+  guess, explained inline.
+
+  Left unset on purpose: the cooperative twin's squeeze quantile (a twin switch, not
+  behaviour), signal outages (signals would fail at random; the viewer has a toggle), and
+  entries nothing reads yet (animals, zones, waterlogging depth curve, U-turn path shape).
+values:
+  # Personas (marg.templates defaults, delivery riders 15% of two-wheelers). Shares are
+  # renormalised within each vehicle class.
+  personas.shares.average_commuter: 0.60
+  personas.shares.rushed_driver: 0.13
+  personas.shares.delivery_rider: 0.15
+  personas.shares.bike_taxi_rider: 0.04
+  personas.shares.cautious_driver: 0.08
+  personas.shares.e_rickshaw_driver: 1.0
+  personas.shares.auto_rickshaw_driver: 1.0
+  personas.shares.bus_driver: 1.0
+  personas.shares.truck_lcv_driver: 1.0
+  personas.shares.cyclist: 1.0
+  # Phone use: 1 driver in 10; an episode every 10 minutes, a few seconds long.
+  personas.traits.phone_use_share: 0.1
+  personas.distraction.episode_rate: 6
+  personas.distraction.episode_duration: {dist: log_normal_median, median: 4, sigma: 0.5}
+  # Mood within a trip: κ wanders with SD 0.3 over about 5 minutes, and jumps by half an SD
+  # once a driver has lost 2 minutes to delay.
+  personas.traits.within_trip.reversion_rate: 12
+  personas.traits.within_trip.sd: 0.3
+  personas.traits.within_trip.delay_jump: 0.5
+  personas.traits.within_trip.delay_threshold: 120
+
+  # Rule-breaking (P8 milestone values).
+  violations.coefficients.aggressiveness: 0.5
+  violations.coefficients.time_saved: 0.05
+  violations.coefficients.waiting_time: 0.08
+  violations.coefficients.imitation_violators: 0.5
+  violations.coefficients.imitation_compliers: 0.2
+  violations.coefficients.enforcement: 1.0
+  violations.coefficients.risk: 2.0
+  violations.red_light.intercept: -8.1
+  violations.early_start.intercept: -8.1
+  violations.amber_go.intercept: -1.0
+  violations.forced_entry.intercept: -5.0
+  violations.box_blocking.intercept: -5.0
+  violations.stopline_seepage.intercept: -3.0
+  # P8 swept -10, -8, -6 at a level crossing: from -8 the road gridlocks on most seeds (a real
+  # negative-sum game). The sandbox keeps it rare.
+  violations.opposite_encroachment.intercept: -10.0
+  # Guesses: rarer than seepage, about as rare as forced entry. Late merging at -4 and -6
+  # locked split_corridor (3 seeds each, 2026-11-20); at -8 it is rare and the split flows.
+  violations.wrong_way.intercept: -6.0
+  violations.footpath.intercept: -5.0
+  violations.late_merge.intercept: -8.0
+  # Stop-anywhere is thinning: a high intercept keeps most of the class's stop rate.
+  violations.stop_anywhere.intercept: 3.0
+
+  # Potholes, roughness (side_friction_street; density and roughness guessed).
+  road.pothole.density: 20
+  road.pothole.detection_distance: 30
+  road.pothole.response.two_wheeler.swerve: 0.7
+  road.pothole.response.two_wheeler.slow: 0.2
+  road.pothole.response.two_wheeler.straddle: 0.0
+  road.pothole.response.car.swerve: 0.4
+  road.pothole.response.car.slow: 0.35
+  road.pothole.response.car.straddle: 0.15
+  road.pothole.response.heavy.swerve: 0.1
+  road.pothole.response.heavy.slow: 0.6
+  road.pothole.response.heavy.straddle: 0.2
+  road.pothole.crossing_speed.two_wheeler: 10
+  road.pothole.crossing_speed.car: 15
+  road.pothole.crossing_speed.heavy: 20
+  road.pothole.aggressiveness_link: 0.5
+  road.roughness.speed_loss_per_iri.car: 2.0
+  road.roughness.speed_loss_per_iri.heavy: 1.2
+
+  # Kerbside parking (side_friction_street, kerbside_parking).
+  road.parking.offset_from_kerb: {dist: uniform, min: 0.1, max: 0.6}
+  road.parking.double_parking_probability: 0.05
+  road.parking.manoeuvre_rate: 15
+  road.parking.manoeuvre_duration: {dist: log_normal_median, median: 20, sigma: 0.5}
+  road.parking.cruising_share: 0.03
+  road.parking.cruising_speed: 15
+
+  # Stopping anywhere, bus stops, pedestrians (side_friction_street, stop_anywhere_metro_exit).
+  road.stop_anywhere.rate.auto_rickshaw: 0.4
+  road.stop_anywhere.rate.e_rickshaw: 0.6
+  road.stop_anywhere.rate.car: 0.05
+  road.stop_anywhere.rate.two_wheeler: 0.03
+  road.stop_anywhere.pull_over_probability.auto_rickshaw: 0.7
+  road.stop_anywhere.pull_over_probability.e_rickshaw: 0.4
+  road.stop_anywhere.pull_over_probability.car: 0.8
+  road.stop_anywhere.pull_over_probability.two_wheeler: 0.9
+  road.stop_anywhere.dwell: {dist: log_normal_median, median: 20, sigma: 0.6}
+  road.bus.dwell_time: {dist: log_normal_median, median: 20, sigma: 0.5}
+  road.bus.stop_offset_longitudinal: {dist: normal, mean: 0, sd: 5}
+  road.bus.stop_offset_lateral: {dist: uniform, min: 0.2, max: 0.8}
+  road.bus.waiting_passenger_width: 0.5
+  road.pedestrian.accepted_gap: {dist: log_normal_median, median: 4, sigma: 0.3}
+  road.pedestrian.walking_speed: 1.2
+  road.pedestrian.body_size: 0.6
+  road.pedestrian.group_size: {dist: uniform, min: 0.5, max: 3.5}
+
+  # Junctions, U-turns, splits (median_opening, split_corridor, roundabout).
+  road.junction.turn_lateral_acceleration: 2.0
+  road.junction.roundabout.entry_critical_gap_factor: 0.6
+  road.junction.roundabout.priority_compliance: 0.8
+  interaction.gap_acceptance.u_turn.critical_gap_factor: 0.8
+  interaction.gap_acceptance.u_turn.path.four_lane: {dist: gamma, shape: 2.5, scale: 0.8}
+  interaction.gap_acceptance.u_turn.path.six_lane:
+    dist: mixture
+    components:
+      - {weight: 0.6, dist: {dist: gamma, shape: 4.0, scale: 0.3}}
+      - {weight: 0.4, dist: {dist: normal, mean: 5.5, sd: 0.8}}
+  road.split.awareness_distance: {dist: uniform, min: 800, max: 3000}
+  road.split.late_realiser_share: 0.1
+  road.split.late_awareness_distance: {dist: uniform, min: 20, max: 120}
+  road.split.sign_visibility_distance: 80
+  road.split.stop_and_wait_probability: 0.5
+  road.split.route_weight: 1.0
+  road.split.urgency_clearance_link: 0.5
+  # Guesses: a weak pull towards the branch from the start; give up waiting after 30 s.
+  road.split.base_urgency: 0.1
+  road.split.wait_patience: 30
+
+  # A traffic officer (guesses): arrives 10 minutes after a failure, runs 2-minute cycles,
+  # and gives the major road 60% of the time.
+  road.signal.officer.arrival_delay: 10
+  road.signal.officer.cycle_length: 120
+  road.signal.officer.major_bias: 0.6
+
+  # Hills (guesses): speed lost per % of gradient; a loaded e-rickshaw weighs 700 kg.
+  vehicles.gradient_speed_loss.auto_rickshaw: 0.8
+  vehicles.gradient_speed_loss.e_rickshaw: 1.5
+  vehicles.gradient_speed_loss.tractor: 1.0
+  vehicles.e_rickshaw.loaded_mass: 700

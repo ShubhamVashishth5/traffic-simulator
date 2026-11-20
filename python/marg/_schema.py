@@ -707,6 +707,10 @@ class Scenario(BaseModel):
         description="Parameter overrides by register path, in the register entry's unit.",
         validate_default=True,
     )
+    presets: list[str] | None = Field(
+        None,
+        description='Presets to apply, in order, before `overrides` (names of files in\n`params/base/presets/`). `sandbox` fills what the guide leaves unset\nwith made-up values, so every mechanism runs; such runs are not\nevidence and validation refuses them.',
+    )
     start_time_h: float | None = Field(
         None,
         description='Hour of day at simulated time 0 (0–24). Needed only by clock-driven\nbehaviour, such as a signal on the night blinker schedule (G§6.6).',

@@ -596,7 +596,7 @@ pub fn data_dictionary() -> String {
                     "set_by, fix_overridden",
                     "utf8, bool",
                     "",
-                    "base / calibration / scenario / experiment / live",
+                    "base / calibration / preset / scenario / experiment / live",
                 ),
             ],
         ),

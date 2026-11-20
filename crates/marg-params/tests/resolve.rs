@@ -183,6 +183,7 @@ fn run_hash_ignores_register_file_order() {
     let mut files: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|x| x == "yaml"))
         .collect();
     files.sort();
     files.reverse();
@@ -289,4 +290,78 @@ fn register_files_keep_their_groups() {
     let n: usize = files.iter().map(|f| f.entries.len()).sum();
     assert_eq!(n, reg.len());
     assert!(files.iter().any(|f| f.group == "vehicles"));
+}
+
+/// Sandbox S3: a preset is a layer between calibration and the scenario;
+/// unknown presets are refused, and a preset changes the run identity.
+#[test]
+fn presets_sit_between_calibration_and_the_scenario() {
+    let reg = register();
+    let sandbox = reg.preset("sandbox").expect("the sandbox preset ships");
+    assert!(sandbox.values.len() > 50);
+    let path = "violations.red_light.intercept";
+    let mut sc = scenario("corridor_2km.yaml");
+    sc.presets = vec!["sandbox".into()];
+    sc.overrides
+        .insert(path.to_string(), ParamValue::Scalar(-7.0));
+    let spec = resolve(&reg, &sc, &none(), ResolveOptions::default()).unwrap();
+    assert_eq!(
+        spec.params[path].set_by,
+        Layer::Scenario,
+        "the scenario wins"
+    );
+    let lm = &spec.params["violations.late_merge.intercept"];
+    assert_eq!(lm.set_by, Layer::Preset);
+    assert_eq!(
+        lm.value,
+        sandbox
+            .values
+            .get("violations.late_merge.intercept")
+            .cloned()
+    );
+    // Entries the preset leaves alone keep the register's value.
+    let t = &spec.params["interaction.following.time_gap.car"];
+    assert_eq!(t.set_by, Layer::Base);
+    // Identity.
+    let mut plain_sc = sc.clone();
+    plain_sc.presets.clear();
+    let plain = resolve(&reg, &plain_sc, &none(), ResolveOptions::default()).unwrap();
+    assert_ne!(plain.run_hash(1, "v"), spec.run_hash(1, "v"));
+    // A scenario without presets serialises as before (no `presets` key).
+    assert!(
+        !serde_norway::to_string(&plain_sc)
+            .unwrap()
+            .contains("presets")
+    );
+    sc.presets = vec!["nope".into()];
+    assert!(matches!(
+        resolve(&reg, &sc, &none(), ResolveOptions::default()),
+        Err(ResolveError::UnknownPreset(_))
+    ));
+}
+
+#[test]
+fn presets_are_checked_against_the_register() {
+    let mut reg = register();
+    let bad = |path: &str, v: f64| marg_params::Preset {
+        name: "bad".into(),
+        description: String::new(),
+        values: [(path.to_string(), ParamValue::Scalar(v))]
+            .into_iter()
+            .collect(),
+    };
+    assert!(reg.add_preset(bad("no.such.entry", 1.0)).is_err());
+    assert!(
+        reg.add_preset(bad("violations.late_merge.intercept", 99.0))
+            .is_err()
+    );
+    assert!(
+        reg.add_preset(bad("violations.late_merge.intercept", -1.0))
+            .is_ok()
+    );
+    assert!(
+        reg.add_preset(bad("violations.late_merge.intercept", -1.0))
+            .is_err(),
+        "duplicate"
+    );
 }

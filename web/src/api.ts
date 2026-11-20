@@ -50,7 +50,7 @@ export const api = {
   scenarios: () => fetch("/scenarios").then((r) => json<ScenarioListing[]>(r)),
   register: () => fetch("/register").then((r) => json<{ files: RegisterFile[] }>(r)),
   runs: () => fetch("/runs").then((r) => json<Listing>(r)),
-  createSession: (body: { scenario?: string; yaml?: string; seed: number; live_window_s?: number; threads?: number }) =>
+  createSession: (body: { scenario?: string; yaml?: string; seed: number; live_window_s?: number; threads?: number; presets?: string[] }) =>
     fetch("/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) =>
       json<SessionCreated>(r),
     ),

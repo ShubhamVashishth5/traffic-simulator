@@ -31,7 +31,7 @@ Resolved parameter register, one row per parameter.
 | grade | utf8 |  | A, B, C, A/B, B/C |
 | role, stage | utf8, i32 |  | fix / fit (stage 0–7) / sweep / scenario |
 | source, guide | utf8 |  | citation and guide section |
-| set_by, fix_overridden | utf8, bool |  | base / calibration / scenario / experiment / live |
+| set_by, fix_overridden | utf8, bool |  | base / calibration / preset / scenario / experiment / live |
 
 ## agents.parquet
 

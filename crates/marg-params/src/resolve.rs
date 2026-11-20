@@ -18,6 +18,8 @@ pub enum Layer {
     Base,
     /// A frozen calibration stage (`calibration/stage_<k>.yaml`).
     Calibration,
+    /// A preset the scenario names (`params/base/presets/<name>.yaml`).
+    Preset,
     Scenario,
     Experiment,
     Live,
@@ -28,6 +30,7 @@ impl Layer {
         match self {
             Layer::Base => "base",
             Layer::Calibration => "calibration",
+            Layer::Preset => "preset",
             Layer::Scenario => "scenario",
             Layer::Experiment => "experiment",
             Layer::Live => "live",
@@ -83,6 +86,8 @@ pub enum ResolveError {
     },
     #[error("parameter `{path}` must be a scalar, found a distribution")]
     NotScalar { path: String },
+    #[error("unknown preset `{0}` (no params/base/presets/{0}.yaml)")]
+    UnknownPreset(String),
     #[error(
         "parameter `{0}` is not live: the register does not allow changing it during a run (`live: false`)"
     )]
@@ -121,8 +126,9 @@ pub fn resolve(
     resolve_layers(register, &IndexMap::new(), scenario, experiment, opts)
 }
 
-/// Resolve with every layer: register ← frozen calibration stages ←
-/// scenario overrides ← experiment overrides (all in register units).
+/// Resolve with every layer: register ← frozen calibration stages ← the
+/// presets the scenario names, in order ← scenario overrides ← experiment
+/// overrides (all in register units).
 pub fn resolve_layers(
     register: &Register,
     calibration: &IndexMap<String, ParamValue>,
@@ -134,11 +140,20 @@ pub fn resolve_layers(
         .iter()
         .map(|(path, e)| (path.clone(), base_param(e)))
         .collect();
-    for (layer, overrides) in [
-        (Layer::Calibration, calibration),
-        (Layer::Scenario, &scenario.overrides),
-        (Layer::Experiment, experiment),
-    ] {
+    let mut presets = Vec::new();
+    for name in &scenario.presets {
+        let p = register
+            .preset(name)
+            .ok_or_else(|| ResolveError::UnknownPreset(name.clone()))?;
+        presets.push(&p.values);
+    }
+    let layers = std::iter::once((Layer::Calibration, calibration))
+        .chain(presets.into_iter().map(|v| (Layer::Preset, v)))
+        .chain([
+            (Layer::Scenario, &scenario.overrides),
+            (Layer::Experiment, experiment),
+        ]);
+    for (layer, overrides) in layers {
         for (path, value) in overrides {
             apply(register, &mut params, path, value, layer, opts)?;
         }

@@ -53,7 +53,9 @@ P9 is finished.
 - **Do:** run all patterns from [04 §4](../04-data-outputs-analytics.md) on held-out sites and
   periods.
 - **Done when:** the scorecard is rendered and every pattern is marked pass, near or fail, with
-  plots. Failures are recorded honestly, with a diagnosis.
+  plots. Failures are recorded honestly, with a diagnosis. It refuses runs that used a preset
+  (any `set_by = preset` row in `params.parquet`, or `presets:` in the scenario): the `sandbox`
+  preset holds made-up values (sandbox track S3, the user's decision of 2026-11-20).
 
 ## Milestone check
 A calibration-and-validation report for the shipped defaults, suitable for publication with them:

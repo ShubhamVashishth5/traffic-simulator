@@ -56,6 +56,11 @@ enum Command {
         /// Calibration directory: frozen `stage_<k>.yaml` files are applied.
         #[arg(long)]
         calibration: Option<PathBuf>,
+        /// Apply a preset from the register's `presets/` folder, after the
+        /// scenario's own (repeatable). `sandbox` fills unset parameters with
+        /// made-up values.
+        #[arg(long = "preset", value_name = "NAME")]
+        presets: Vec<String>,
     },
     /// Run entries of an experiment's run list (`<experiment>/runs.jsonl`).
     /// Finished runs (same hash, status ok) are skipped, so this is resumable.
@@ -388,9 +393,17 @@ fn main() -> Result<()> {
             set,
             allow_fix_override,
             calibration,
+            presets,
         } => {
             let text = std::fs::read_to_string(&scenario)
                 .with_context(|| format!("reading {}", scenario.display()))?;
+            let mut scenario = marg_params::Scenario::from_yaml(&text)
+                .with_context(|| format!("parsing {}", scenario.display()))?;
+            for p in presets {
+                if !scenario.presets.contains(&p) {
+                    scenario.presets.push(p);
+                }
+            }
             let mut opts = marg_io::RunOptions {
                 seed,
                 threads,
@@ -405,7 +418,7 @@ fn main() -> Result<()> {
                     serde_norway::from_str(v).with_context(|| format!("parsing value for {k}"))?;
                 opts.overrides.insert(k.to_string(), value);
             }
-            let manifest = marg_io::run::run_scenario_text(&text, &opts, &out)?;
+            let manifest = marg_io::run::run_scenario(&scenario, &opts, &out)?;
             println!("{}", serde_json::to_string_pretty(&manifest)?);
         }
     }

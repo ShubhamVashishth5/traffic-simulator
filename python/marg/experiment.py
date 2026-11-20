@@ -450,16 +450,27 @@ def read_runs(path: Path) -> list[dict[str, Any]]:
     ]
 
 
+#: The register directory's folder of presets (``marg_params::PRESETS_DIR``).
+PRESETS_DIR = "presets"
+
+
+def _register_files(params_dir: Path) -> list[Path]:
+    """Register files, then preset files (``presets/*.yaml``), each sorted by name."""
+    d = Path(params_dir)
+    return sorted(d.glob("*.yaml")) + sorted((d / PRESETS_DIR).glob("*.yaml"))
+
+
 def register_digest(params_dir: Path) -> str:
-    """Hash of the register files (content and names)."""
+    """Hash of the register and preset files (content and names)."""
     h = hashlib.blake2b(digest_size=8)
-    for f in sorted(Path(params_dir).glob("*.yaml")):
-        h.update(f.name.encode())
+    for f in _register_files(params_dir):
+        h.update(f.relative_to(params_dir).as_posix().encode())
         h.update(f.read_bytes())
     return h.hexdigest()
 
 
 def _snapshot(src: Path, dst: Path) -> None:
-    dst.mkdir(parents=True, exist_ok=True)
-    for f in sorted(src.glob("*.yaml")):
-        shutil.copyfile(f, dst / f.name)
+    for f in _register_files(src):
+        target = dst / f.relative_to(src)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(f, target)

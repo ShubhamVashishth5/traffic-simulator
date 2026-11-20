@@ -557,6 +557,13 @@ export interface Scenario {
     [k: string]: ParamValue;
   };
   /**
+   * Presets to apply, in order, before `overrides` (names of files in
+   * `params/base/presets/`). `sandbox` fills what the guide leaves unset
+   * with made-up values, so every mechanism runs; such runs are not
+   * evidence and validation refuses them.
+   */
+  presets?: string[];
+  /**
    * Hour of day at simulated time 0 (0–24). Needed only by clock-driven
    * behaviour, such as a signal on the night blinker schedule (G§6.6).
    */

@@ -434,6 +434,14 @@ impl LiveRun {
             serde_norway::to_string(&self.scenario)?,
         )?;
         copy_yaml(&self.source.params_dir, &dir.join("params"), |_| true)?;
+        let presets = self.source.params_dir.join(marg_params::PRESETS_DIR);
+        if presets.is_dir() {
+            copy_yaml(
+                &presets,
+                &dir.join("params").join(marg_params::PRESETS_DIR),
+                |_| true,
+            )?;
+        }
         if let Some(c) = &self.source.calibration_dir {
             copy_yaml(c, &dir.join("calibration"), |n| n.starts_with("stage_"))?;
         }

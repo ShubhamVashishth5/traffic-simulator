@@ -48,7 +48,10 @@ def test_run_list_layout(tiny, tmp_path: Path) -> None:
         assert r["seed"] == 1 + r["rep"]  # crn="all": seed depends on the replication only
         assert (exp.dir / r["scenario_file"]).exists()
     assert sorted(p.name for p in (exp.dir / "params").iterdir()) == sorted(
-        p.name for p in PARAMS.glob("*.yaml")
+        [p.name for p in PARAMS.glob("*.yaml")] + ["presets"]
+    )
+    assert sorted(p.name for p in (exp.dir / "params/presets").iterdir()) == sorted(
+        p.name for p in (PARAMS / "presets").glob("*.yaml")
     )
 
 
