@@ -15,6 +15,8 @@ export interface ColourScale {
   kind: "categorical" | "sequential" | "diverging";
   /** Sequential: [0, max]; diverging: [−max, max]. */
   max: number;
+  /** Diverging: red at +max instead of −max (high = bad, e.g. selfishness). */
+  flip?: boolean;
 }
 
 export interface MapLayerSource {
@@ -77,7 +79,7 @@ export function fitView(bounds: number[], width: number, height: number): Orthog
 function colourOf(scale: ColourScale, classes: Rgba[], cls: number, v: number): Rgba {
   if (scale.kind === "categorical") return classes[cls] ?? classes[classes.length - 1];
   if (scale.kind === "sequential") return sequentialOnRoad(v / scale.max);
-  return divergingOnRoad(v / scale.max);
+  return divergingOnRoad(((scale.flip ? -1 : 1) * v) / scale.max);
 }
 
 export function MapView(p: MapProps) {

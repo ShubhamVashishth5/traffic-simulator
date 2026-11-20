@@ -23,6 +23,116 @@ entries:
     register_row: 9.3/aggressiveness
     range: [0.0, 3.0]
     notes: "kappa is linked to the per-class parameter spreads through a Gaussian copula (ADR-0018 part 5, K2): the register's per-class distributions stay the marginals for a population with this kappa distribution."
+  class_shift.bicycle.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.cycle_rickshaw.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.two_wheeler.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.e_rickshaw.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.auto_rickshaw.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.car.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.lcv.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.bus.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.truck.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
+  class_shift.tractor.aggressiveness:
+    value: 0.0
+    unit: "1"
+    grade: C
+    role: sweep
+    source: "Sandbox control (the user's request, 2026-11-20): selfishness per vehicle class. Not in the guide; 0 leaves the guide's population as it is"
+    guide: "§3.1"
+    register_row: 9.3/aggressiveness
+    range: [-3.0, 3.0]
+    live: true
+    notes: "Mean shift of aggressiveness kappa for every driver of this class, in SDs of the trait, added to any persona shift. Through the kappa links it also moves the driver's clearances, gaps and violation propensity. Applies to vehicles that enter after a change."
   links.clearance:
     value: 0.2
     unit: "1"

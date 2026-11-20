@@ -138,7 +138,7 @@ impl Draws {
                 TRAIT_BLOCK + t as u64 - 1,
             ));
         }
-        let (traits, score) = pp.traits(persona, z);
+        let (traits, score) = pp.traits(persona, vtype.class(), z);
         let kappa = traits[KAPPA];
         let z_kappa = score[KAPPA];
         let draw = |drawn| draw_one(seed, id, vtype, p, drawn, z_kappa);

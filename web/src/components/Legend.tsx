@@ -28,7 +28,7 @@ export function Legend(p: { scale: ColourScale; label: string; unit: string; pre
     );
   }
   const stops = Array.from({ length: 11 }, (_, i) => i / 10);
-  const grad = stops.map((f) => css(p.scale.kind === "sequential" ? sequentialOnRoad(f) : divergingOnRoad(2 * f - 1))).join(",");
+  const grad = stops.map((f) => css(p.scale.kind === "sequential" ? sequentialOnRoad(f) : divergingOnRoad(p.scale.flip ? 1 - 2 * f : 2 * f - 1))).join(",");
   const lo = p.scale.kind === "sequential" ? 0 : -p.scale.max;
   return (
     <div className="legend">

@@ -354,3 +354,27 @@ fn a_partial_population_is_refused() {
         "{err}"
     );
 }
+
+/// Sandbox S2: a class's selfishness shift moves the κ of that class only,
+/// by that many SDs, and its κ-linked draws with it.
+#[test]
+fn class_shift_moves_that_class_kappa_only() {
+    let p0 = params(&[]);
+    let p = params(&[("personas.class_shift.two_wheeler.aggressiveness", "1.0")]);
+    let n = 20_000u64;
+    let kappa = |p: &CoreParams, t: VehicleType| -> Vec<f64> {
+        (0..n).map(|id| Draws::sample(4, id, t, p).kappa).collect()
+    };
+    let (m_tw, sd_tw) = mean_sd(&kappa(&p, VehicleType::Motorcycle));
+    let (m_car, _) = mean_sd(&kappa(&p, VehicleType::Hatchback));
+    assert!((m_tw - 1.0).abs() < 0.03, "two-wheeler κ mean {m_tw}");
+    assert!((sd_tw - 1.0).abs() < 0.03, "two-wheeler κ sd {sd_tw}");
+    assert!(m_car.abs() < 0.03, "car κ mean {m_car}");
+    // Cars draw exactly as without the shift.
+    for id in 0..200 {
+        assert_eq!(
+            Draws::sample(4, id, VehicleType::Hatchback, &p),
+            Draws::sample(4, id, VehicleType::Hatchback, &p0)
+        );
+    }
+}

@@ -44,7 +44,8 @@ fn colour_value(sim: &Simulation, i: usize, by: ColourBy) -> f32 {
         ColourBy::Accel => a.acc[i],
         ColourBy::Lateral => a.y[i],
         ColourBy::DesiredSpeed => a.v0[i],
-        ColourBy::Persona | ColourBy::Kappa | ColourBy::Violation | ColourBy::Zone => f64::NAN,
+        ColourBy::Kappa => a.kappa[i],
+        ColourBy::Persona | ColourBy::Violation | ColourBy::Zone => f64::NAN,
     }) as f32
 }
 

@@ -132,7 +132,7 @@ export const KPI_TILES: { key: string; label: string; unit: string; scale?: numb
   { key: "delay_p95_s", label: "Delay, p95", unit: "s" },
   { key: "density", label: "Density", unit: "veh/km" },
   { key: "network_mean_speed_m_s", label: "Mean speed", unit: "km/h", scale: 3.6 },
-  { key: "violations", label: "Violations", unit: "", note: "not modelled before P8" },
+  { key: "violations_per_1000_veh", label: "Violations", unit: "/1000 veh", note: "not in this run's outputs" },
   { key: "conflicts", label: "Conflicts", unit: "" },
   { key: "gridlock_share", label: "Gridlock", unit: "%", scale: 100, note: "needs an area detector" },
 ];

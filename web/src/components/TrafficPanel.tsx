@@ -4,6 +4,7 @@
  * when the session is saved. Sliders send on release, not while dragging.
  */
 import { useMemo, useState } from "react";
+import { Knob } from "./Knob";
 import type { ClientMessage, DemandView, Hello } from "../protocol.gen";
 import { CLASS_LABELS, type Shares, classShares, flowAt, setClassShare, typesFromClasses } from "../live/demand";
 
@@ -12,45 +13,6 @@ export interface TrafficPanelProps {
   demand: DemandView[];
   t: number;
   send: (m: ClientMessage) => void;
-}
-
-/** A slider plus a number box; `onCommit` fires on release, Enter or blur. */
-function Knob({ value, max, step, unit, label, onCommit }: { value: number; max: number; step: number; unit: string; label: string; onCommit: (x: number) => void }) {
-  const [draft, setDraft] = useState<number | null>(null);
-  const shown = draft ?? value;
-  const commit = () => {
-    if (draft !== null && Number.isFinite(draft) && draft !== value) onCommit(draft);
-    setDraft(null);
-  };
-  return (
-    <div className="knob">
-      <span className="knob-label">{label}</span>
-      <input
-        type="range"
-        min={0}
-        max={max}
-        step={step}
-        value={Math.min(shown, max)}
-        aria-label={label}
-        onChange={(e) => setDraft(Number(e.target.value))}
-        onPointerUp={commit}
-        onKeyUp={commit}
-        onBlur={commit}
-      />
-      <input
-        type="number"
-        min={0}
-        step={step}
-        value={Math.round(shown * 10) / 10}
-        aria-label={`${label} value`}
-        onChange={(e) => setDraft(Number(e.target.value))}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-        onBlur={commit}
-        style={{ width: 70 }}
-      />
-      <span className="muted small">{unit}</span>
-    </div>
-  );
 }
 
 export function TrafficPanel({ hello, demand, t, send }: TrafficPanelProps) {

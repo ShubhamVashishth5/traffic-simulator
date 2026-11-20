@@ -11,6 +11,7 @@
 //! `a`, `b`, the critical gap) through a Gaussian copula: an agent draws at
 //! normal score `r·z_κ + √(1 − r²)·ε`, so each keeps its register marginal.
 
+use crate::params::N_CLASSES;
 use marg_params::{Dist, Persona, ResolveError, ResolvedSpec, Trait, VehicleClass, VehicleType};
 
 /// Number of personas and of trait dimensions.
@@ -72,6 +73,9 @@ pub struct PersonaParams {
     pub missing_shares: Vec<&'static str>,
     /// Mean shift of each trait by persona, in SDs of the trait.
     pub shift: [[f64; N_PERSONAS]; N_TRAITS],
+    /// Mean shift of κ by vehicle class, in SDs (sandbox S2), added to the
+    /// persona's.
+    pub class_shift: [f64; N_CLASSES],
     /// Population mean and SD of each trait. A trait whose register entry is
     /// not a normal distribution is named in `non_normal`.
     pub trait_mean: [f64; N_TRAITS],
@@ -127,6 +131,11 @@ impl PersonaParams {
                     spec.scalar_si(&format!("personas.shift.{}.{}", p.key(), t.key()))?;
             }
         }
+        let mut class_shift = [0.0; N_CLASSES];
+        for c in VehicleClass::ALL {
+            class_shift[c.index()] =
+                spec.scalar_si(&format!("personas.class_shift.{}.aggressiveness", c.key()))?;
+        }
         let (mut trait_mean, mut trait_sd) = ([0.0; N_TRAITS], [0.0; N_TRAITS]);
         let mut non_normal = Vec::new();
         trait_mean[KAPPA] = kappa_mean;
@@ -163,6 +172,7 @@ impl PersonaParams {
             shares: any.then_some(shares),
             missing_shares: if any { missing } else { Vec::new() },
             shift,
+            class_shift,
             trait_mean,
             trait_sd,
             non_normal,
@@ -286,16 +296,19 @@ impl PersonaParams {
         Some(last)
     }
 
-    /// An agent's trait vector from its own normal scores `z` (one per trait)
-    /// and persona: `mean + sd · (z + shift)`. Also returns the shifted
-    /// scores, which the copula and the phone-user rule read.
+    /// An agent's trait vector from its own normal scores `z` (one per trait),
+    /// persona and vehicle class: `mean + sd · (z + shift)`, κ also shifted
+    /// by its class. Also returns the shifted scores, which the copula and
+    /// the phone-user rule read.
     pub fn traits(
         &self,
         persona: Option<Persona>,
+        class: VehicleClass,
         z: [f64; N_TRAITS],
     ) -> ([f64; N_TRAITS], [f64; N_TRAITS]) {
         let mut x = [0.0; N_TRAITS];
         let mut score = z;
+        score[KAPPA] += self.class_shift[class.index()];
         for t in 0..N_TRAITS {
             if let Some(p) = persona {
                 score[t] += self.shift[t][p.index()];
@@ -335,6 +348,7 @@ impl PersonaParams {
             shares: None,
             missing_shares: Vec::new(),
             shift: [[0.0; N_PERSONAS]; N_TRAITS],
+            class_shift: [0.0; N_CLASSES],
             trait_mean: [0.0; N_TRAITS],
             trait_sd: [1.0; N_TRAITS],
             non_normal: Vec::new(),
@@ -365,6 +379,7 @@ mod tests {
             shares: Some([0.5, 0.1, 0.3, 0.1, 0.0, 0.2, 0.1, 0.1, 0.2, 0.1]),
             missing_shares: Vec::new(),
             shift: [[0.0; N_PERSONAS]; N_TRAITS],
+            class_shift: [0.0; N_CLASSES],
             trait_mean: [0.0; N_TRAITS],
             trait_sd: [1.0; N_TRAITS],
             non_normal: Vec::new(),
@@ -415,12 +430,23 @@ mod tests {
         p.shift[1][Persona::DeliveryRider.index()] = 1.5;
         let (x, score) = p.traits(
             Some(Persona::DeliveryRider),
+            VehicleClass::TwoWheeler,
             [0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0],
         );
         assert!((score[1] - 1.7).abs() < 1e-12);
         assert!((x[1] - (2.0 + 0.5 * 1.7)).abs() < 1e-12);
-        let (x, _) = p.traits(None, [0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let (x, _) = p.traits(None, VehicleClass::Car, [0.0, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0]);
         assert!((x[1] - 2.1).abs() < 1e-12);
+        // A class shift moves κ only, and adds to the persona's.
+        p.class_shift[VehicleClass::TwoWheeler.index()] = 0.8;
+        p.shift[KAPPA][Persona::DeliveryRider.index()] = 0.5;
+        let z = [0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let (x, score) = p.traits(Some(Persona::DeliveryRider), VehicleClass::TwoWheeler, z);
+        assert!((score[KAPPA] - 1.4).abs() < 1e-12);
+        assert!((x[KAPPA] - 1.4).abs() < 1e-12);
+        assert!((score[1] - 1.7).abs() < 1e-12);
+        let (_, score) = p.traits(None, VehicleClass::Car, z);
+        assert!((score[KAPPA] - 0.1).abs() < 1e-12);
     }
 
     #[test]

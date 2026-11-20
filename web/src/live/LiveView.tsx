@@ -7,6 +7,7 @@ import { KpiStrip } from "../components/KpiStrip";
 import { Legend } from "../components/Legend";
 import { ChangeHistory, ParamPanel } from "../components/ParamPanel";
 import { TrafficPanel } from "../components/TrafficPanel";
+import { BehaviourPanel } from "../components/BehaviourPanel";
 import { KMH_PER_MS, VEH_KM_PER_VEH_M, clock, fmt } from "../format";
 import type { ParamValue } from "../paramSchema";
 import type { ColourBy } from "../protocol.gen";
@@ -82,7 +83,7 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
   const st = useStore(client.state);
   const [colour, setColour] = useState<ColourBy>("class");
   const [trails, setTrails] = useState(false);
-  const [tab, setTab] = useState<"traffic" | "inspector" | "params" | "changes" | "log">("traffic");
+  const [tab, setTab] = useState<"traffic" | "behaviour" | "inspector" | "params" | "changes" | "log">("traffic");
   const [tsRibbon, setTsRibbon] = useState<string>("");
   const [renderFps, setRenderFps] = useState(0);
   const [stepN, setStepN] = useState(10);
@@ -238,7 +239,7 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
               onRenderRate={setRenderFps}
               hoverLabel={(_s, i, b) => `${hello.classes[b.cls[i]]?.replace(/_/g, " ")} · agent ${b.id[i]}${scale.kind !== "categorical" ? ` · ${fmt(b.value[i] * scale.factor, 1)} ${scale.unit}` : ""}`}
             />
-            <Legend scale={{ kind: scale.kind, max: Math.round(scale.max * scale.factor) }} label={mode?.label ?? ""} unit={scale.unit} />
+            <Legend scale={{ kind: scale.kind, max: Math.round(scale.max * scale.factor), flip: scale.flip }} label={mode?.label ?? ""} unit={scale.unit} />
             <div className="map-stats small">
               {renderFps.toFixed(0)} fps drawn · {st.rate.fps.toFixed(0)} frames/s received · {st.rate.mbps.toFixed(1)} MB/s
             </div>
@@ -281,14 +282,26 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
         </div>
         <aside className="side">
           <nav className="tabs">
-            {(["traffic", "params", "inspector", "changes", "log"] as const).map((t) => (
+            {(["traffic", "behaviour", "params", "inspector", "changes", "log"] as const).map((t) => (
               <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
-                {{ traffic: "Traffic", params: "Parameters", inspector: "Inspector", changes: `Changes (${st.history.length})`, log: "Command log" }[t]}
+                {{ traffic: "Traffic", behaviour: "Behaviour", params: "Parameters", inspector: "Inspector", changes: `Changes (${st.history.length})`, log: "Command log" }[t]}
               </button>
             ))}
           </nav>
           <div className="tab-body">
             {tab === "traffic" && <TrafficPanel hello={hello} demand={status?.demand ?? []} t={status?.t ?? 0} send={send} />}
+            {tab === "behaviour" && (
+              <BehaviourPanel
+                overrides={hello.scenario.overrides as Record<string, ParamValue> | undefined}
+                history={st.history}
+                classes={[...new Set(hello.vehicle_types.map((v) => v.class))]}
+                onApply={(path, value) => apply(path, value, false)}
+                onColourBySelfishness={() => {
+                  setColour("kappa");
+                  send({ cmd: "view", colour: "kappa" });
+                }}
+              />
+            )}
             {tab === "params" && <ParamPanel overrides={hello.scenario.overrides as Record<string, ParamValue> | undefined} history={st.history} onApply={apply} onUndo={() => send({ cmd: "undo" })} />}
             {tab === "inspector" && <Inspector ins={st.inspector} onClose={() => send({ cmd: "select_agent", id: null })} onSelect={(id) => send({ cmd: "select_agent", id })} />}
             {tab === "changes" && <ChangeHistory history={st.history} onUndo={() => send({ cmd: "undo" })} />}

@@ -21,6 +21,13 @@ The project now has a sandbox track ahead of P9 ([`plan/review-2026-11-20.md`](p
   vehicle class. Each change is a `set_demand` command (viewer protocol 5): it acts from the
   next step, is logged, and a saved session still replays bit for bit. The status message
   carries each entry's flow and mix now. Runs without the command are unchanged.
+- **Selfishness per vehicle class (S2).** Ten register entries
+  `personas.class_shift.<class>.aggressiveness` (live, default 0) shift κ for every driver of a
+  class, in SDs, on top of any persona shift; through the κ links they also move clearances,
+  gaps and violation propensity. A new *Behaviour* tab sets them, the population's κ and the
+  two live κ links in plain words. Vehicles can be coloured by selfishness (selfish red, calm
+  blue). The Violations tile now reads `violations_per_1000_veh`. With the shifts at 0,
+  outputs are unchanged.
 
 Phase P8 completed: the rest of the violation catalogue, the decisions taken on 2026-11-16, and
 the persona-share experiment template.
