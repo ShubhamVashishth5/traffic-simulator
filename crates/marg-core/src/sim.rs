@@ -14,7 +14,7 @@ use crate::agents::{
     SPLIT_NONE, SPLIT_UNAWARE, SPLIT_WAIT, STOP_IN_PLACE, STOP_NONE, STOP_PULLING_OVER,
     STOP_STANDING, STRIP_FOOTPATH, STRIP_NONE, STRIP_OPPOSITE,
 };
-use crate::demand::{Arrival, Demand, Draws, draw_one};
+use crate::demand::{Arrival, Demand, Draws, EntryDemand, draw_one};
 use crate::gridlock::Gridlock;
 use crate::junctions::{
     Junctions, LIGHT_GREEN, LIGHT_NONE, LIGHT_RED, chord_pose, draw_turn, onward,
@@ -805,6 +805,41 @@ impl Simulation {
             ))
         })?;
         self.junctions.request(j, s).map_err(bad)
+    }
+
+    /// A live change of demand at entry `entry` (its id) from the next step
+    /// on: the viewer's `set_demand`. `veh_per_h` replaces the rest of the
+    /// entry's flow profile with a constant flow; `composition` replaces its
+    /// type shares. See [`Demand::set_entry`].
+    pub fn set_demand(
+        &mut self,
+        entry: &str,
+        veh_per_h: Option<f64>,
+        composition: Option<&[(VehicleType, f64)]>,
+    ) -> Result<(), SimError> {
+        let e = self
+            .demand
+            .entries
+            .iter()
+            .position(|e| e.id == entry)
+            .ok_or_else(|| SimError::InvalidScenario(format!("no entry `{entry}`")))?;
+        self.demand
+            .set_entry(e, self.t, veh_per_h, composition, &self.p, self.seed)
+            .map_err(|err| SimError::InvalidScenario(err.to_string()))
+    }
+
+    /// Every entry's demand now: id, flow (veh/h) and type shares.
+    pub fn demand_now(&self) -> Vec<EntryDemand> {
+        self.demand
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(e, st)| EntryDemand {
+                id: st.id.clone(),
+                veh_per_h: self.demand.flow_at(e, self.t),
+                composition: st.composition.clone(),
+            })
+            .collect()
     }
 
     /// The state of every signal's controller now, by junction id.

@@ -14,13 +14,14 @@
 //! The TypeScript types (`web/src/protocol.gen.ts`) are generated from these
 //! types by `scripts/gen-schema.sh`.
 
+use indexmap::IndexMap;
 use marg_params::spec::ObjectSpec;
-use marg_params::{ParamValue, Scenario};
+use marg_params::{ParamValue, Scenario, VehicleType};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Bump on any change to the messages or frame columns.
-pub const PROTOCOL_VERSION: u32 = 4;
+pub const PROTOCOL_VERSION: u32 = 5;
 
 /// Columns of a binary agent frame, in order.
 pub const FRAME_COLUMNS: [&str; 8] = [
@@ -129,6 +130,16 @@ pub enum ClientMessage {
     RemoveObject {
         id: String,
     },
+    /// Change an entry's demand from the next step on: a constant flow
+    /// (veh/h) for the rest of the run, and/or new type shares (any
+    /// non-negative weights, normalised). Logged and replayed.
+    SetDemand {
+        entry: String,
+        #[serde(default)]
+        veh_per_h: Option<f64>,
+        #[serde(default)]
+        composition: Option<IndexMap<VehicleType, f64>>,
+    },
     /// Write the session folder and verify it by a headless replay.
     Save,
     /// Viewer settings ([`ViewSettings`]): not logged, no effect on the run.
@@ -165,6 +176,7 @@ impl ClientMessage {
             ClientMessage::ToggleSignalState { .. } => "toggle_signal_state",
             ClientMessage::AddObject { .. } => "add_object",
             ClientMessage::RemoveObject { .. } => "remove_object",
+            ClientMessage::SetDemand { .. } => "set_demand",
             ClientMessage::Save => "save",
             ClientMessage::View { .. } => "view",
         }
@@ -260,6 +272,18 @@ pub struct Status {
     pub run_hash: String,
     /// The state of every signal's controller (P8.7).
     pub signals: Vec<SignalView>,
+    /// Every entry's demand now.
+    pub demand: Vec<DemandView>,
+}
+
+/// One entry's demand now.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DemandView {
+    pub entry: String,
+    /// Flow now (veh/h).
+    pub veh_per_h: f64,
+    /// Type shares now (normalised).
+    pub composition: IndexMap<VehicleType, f64>,
 }
 
 /// A signalised junction and its controller's state now.

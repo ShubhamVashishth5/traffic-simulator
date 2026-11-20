@@ -69,6 +69,29 @@ export type ClientMessage =
       [k: string]: unknown;
     }
   | {
+      cmd: "set_demand";
+      composition?: {
+        auto_rickshaw?: number;
+        bicycle?: number;
+        bus?: number;
+        cycle_rickshaw?: number;
+        e_rickshaw?: number;
+        e_two_wheeler?: number;
+        hatchback?: number;
+        lcv?: number;
+        moped?: number;
+        motorcycle?: number;
+        scooter?: number;
+        sedan?: number;
+        suv?: number;
+        tractor?: number;
+        truck?: number;
+      } | null;
+      entry: string;
+      veh_per_h?: number | null;
+      [k: string]: unknown;
+    }
+  | {
       cmd: "save";
       [k: string]: unknown;
     }
@@ -1191,6 +1214,10 @@ export interface TypeView {
 export interface Status {
   agents: number;
   breakpoints: BreakpointOn[];
+  /**
+   * Every entry's demand now.
+   */
+  demand: DemandView[];
   finished: boolean;
   playing: boolean;
   /**
@@ -1211,6 +1238,37 @@ export interface Status {
   speed: number;
   step: number;
   t: number;
+  [k: string]: unknown;
+}
+/**
+ * One entry's demand now.
+ */
+export interface DemandView {
+  /**
+   * Type shares now (normalised).
+   */
+  composition: {
+    auto_rickshaw?: number;
+    bicycle?: number;
+    bus?: number;
+    cycle_rickshaw?: number;
+    e_rickshaw?: number;
+    e_two_wheeler?: number;
+    hatchback?: number;
+    lcv?: number;
+    moped?: number;
+    motorcycle?: number;
+    scooter?: number;
+    sedan?: number;
+    suv?: number;
+    tractor?: number;
+    truck?: number;
+  };
+  entry: string;
+  /**
+   * Flow now (veh/h).
+   */
+  veh_per_h: number;
   [k: string]: unknown;
 }
 /**

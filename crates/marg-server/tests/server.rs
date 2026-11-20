@@ -587,3 +587,57 @@ async fn frame_rate_benchmark_20k_agents() {
     );
     let _ = std::fs::remove_dir_all(&runs);
 }
+
+/// Sandbox S1: the viewer changes an entry's flow and mix; the status shows
+/// the demand now, and the saved session replays.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn demand_is_changed_live_and_reported_in_the_status() {
+    let runs = tmp("demand");
+    let addr = start(&runs).await;
+    let (_id, mut ws) = session(addr, json!({"yaml": SCENARIO, "seed": 2})).await;
+    let mut frames = Vec::new();
+    let status = until(&mut ws, &mut frames, is("status")).await;
+    assert_eq!(status["data"]["demand"][0]["entry"], "w");
+    assert_eq!(status["data"]["demand"][0]["veh_per_h"], 2400.0);
+    send(&mut ws, json!({"cmd": "step", "n": 100})).await;
+    send(
+        &mut ws,
+        json!({"cmd": "set_demand", "entry": "w", "veh_per_h": 900, "composition": {"bus": 1, "motorcycle": 1}}),
+    )
+    .await;
+    let ack = until(&mut ws, &mut frames, |v| {
+        v["type"] == "ack" && v["data"]["cmd"] == "set_demand"
+    })
+    .await;
+    assert_eq!(ack["data"]["ok"], true, "{ack}");
+    let status = until(&mut ws, &mut frames, |v| {
+        v["type"] == "status" && v["data"]["demand"][0]["veh_per_h"] == 900.0
+    })
+    .await;
+    let c = &status["data"]["demand"][0]["composition"];
+    assert_eq!(c["bus"], 0.5);
+    assert_eq!(c["motorcycle"], 0.5);
+    send(
+        &mut ws,
+        json!({"cmd": "set_demand", "entry": "x", "veh_per_h": 1}),
+    )
+    .await;
+    let refused = until(&mut ws, &mut frames, |v| {
+        v["type"] == "ack" && v["data"]["cmd"] == "set_demand" && v["data"]["ok"] == false
+    })
+    .await;
+    assert!(
+        refused["data"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("no entry")
+    );
+    send(&mut ws, json!({"cmd": "step", "n": 100})).await;
+    send(&mut ws, json!({"cmd": "save"})).await;
+    let saved = until(&mut ws, &mut frames, |v| {
+        v["type"] == "saved" || v["type"] == "error"
+    })
+    .await;
+    assert_eq!(saved["data"]["replay_matches"], true, "{saved}");
+    let _ = std::fs::remove_dir_all(&runs);
+}

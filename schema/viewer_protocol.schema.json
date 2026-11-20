@@ -732,6 +732,101 @@
           ]
         },
         {
+          "description": "Change an entry's demand from the next step on: a constant flow\n(veh/h) for the rest of the run, and/or new type shares (any\nnon-negative weights, normalised). Logged and replayed.",
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "const": "set_demand"
+            },
+            "composition": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "auto_rickshaw": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "bicycle": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "bus": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "cycle_rickshaw": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "e_rickshaw": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "e_two_wheeler": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "hatchback": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "lcv": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "moped": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "motorcycle": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "scooter": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "sedan": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "suv": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "tractor": {
+                  "type": "number",
+                  "format": "double"
+                },
+                "truck": {
+                  "type": "number",
+                  "format": "double"
+                }
+              },
+              "additionalProperties": false,
+              "default": null
+            },
+            "entry": {
+              "type": "string"
+            },
+            "veh_per_h": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "format": "double",
+              "default": null
+            }
+          },
+          "required": [
+            "cmd",
+            "entry"
+          ]
+        },
+        {
           "description": "Write the session folder and verify it by a headless replay.",
           "type": "object",
           "properties": {
@@ -1149,6 +1244,92 @@
       "additionalProperties": false,
       "required": [
         "entries"
+      ]
+    },
+    "DemandView": {
+      "description": "One entry's demand now.",
+      "type": "object",
+      "properties": {
+        "composition": {
+          "description": "Type shares now (normalised).",
+          "type": "object",
+          "properties": {
+            "auto_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "bicycle": {
+              "type": "number",
+              "format": "double"
+            },
+            "bus": {
+              "type": "number",
+              "format": "double"
+            },
+            "cycle_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "e_rickshaw": {
+              "type": "number",
+              "format": "double"
+            },
+            "e_two_wheeler": {
+              "type": "number",
+              "format": "double"
+            },
+            "hatchback": {
+              "type": "number",
+              "format": "double"
+            },
+            "lcv": {
+              "type": "number",
+              "format": "double"
+            },
+            "moped": {
+              "type": "number",
+              "format": "double"
+            },
+            "motorcycle": {
+              "type": "number",
+              "format": "double"
+            },
+            "scooter": {
+              "type": "number",
+              "format": "double"
+            },
+            "sedan": {
+              "type": "number",
+              "format": "double"
+            },
+            "suv": {
+              "type": "number",
+              "format": "double"
+            },
+            "tractor": {
+              "type": "number",
+              "format": "double"
+            },
+            "truck": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false
+        },
+        "entry": {
+          "type": "string"
+        },
+        "veh_per_h": {
+          "description": "Flow now (veh/h).",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "required": [
+        "entry",
+        "veh_per_h",
+        "composition"
       ]
     },
     "DetectorRow": {
@@ -3645,6 +3826,13 @@
             "$ref": "#/$defs/BreakpointOn"
           }
         },
+        "demand": {
+          "description": "Every entry's demand now.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DemandView"
+          }
+        },
         "finished": {
           "type": "boolean"
         },
@@ -3692,7 +3880,8 @@
         "real_time_factor",
         "breakpoints",
         "run_hash",
-        "signals"
+        "signals",
+        "demand"
       ]
     },
     "SurfaceSpec": {

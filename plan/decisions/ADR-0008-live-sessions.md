@@ -56,6 +56,15 @@ ADR and not a modelling choice.
   `live.initial_run_hash`). `marg replay` re-runs it headless for the same number of steps,
   checks the output hash, and writes the output tables.
 - Run hash: as option 4(b).
+- *Addendum (sandbox S1, 2026-11-20, mine; extends the list of state commands, which already
+  held `add_object`, `remove_object` and `toggle_signal_state`):* `set_demand(entry,
+  veh_per_h?, composition?)` changes an entry's demand. A flow replaces the rest of the entry's
+  flow profile with that constant flow; a composition replaces its type shares. Every arrival
+  process of the entry then draws its next arrival afresh from the current time (memoryless, so
+  this is the process at the new rate); a class new to the entry gets its own process and
+  stream (entity `entry << 8 | class`), so agent ids stay unique and other classes keep their
+  random numbers. Arrivals already queued stay. Demand is scenario data, not a register entry,
+  so this is a command of its own rather than a `set_param`.
 
 ## Consequences
 - `marg replay` reproduces sessions bitwise, for any thread count (tested in `marg-io` and

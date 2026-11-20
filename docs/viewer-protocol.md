@@ -1,4 +1,4 @@
-# Viewer protocol (version 1)
+# Viewer protocol (version 5)
 
 `marg serve` (crate `marg-server`) serves the web viewer, its live sessions and run folders. The
 message types are Rust types in `crates/marg-server/src/protocol.rs`; their JSON Schema
@@ -14,7 +14,7 @@ message types are Rust types in `crates/marg-server/src/protocol.rs`; their JSON
 | `GET /scenarios` | `[{file, name, description, duration_s}]` from the scenarios directory |
 | `POST /sessions` | `{scenario: "<file>" \| yaml: "<text>", seed, threads?, live_window_s?}` → `{id, ws, scenario, initial_run_hash}` |
 | `GET /sessions`, `DELETE /sessions/{id}` | list and stop sessions |
-| `GET /sessions/{id}/ws?protocol=1` | the session's WebSocket; other versions get HTTP 400 |
+| `GET /sessions/{id}/ws?protocol=5` | the session's WebSocket; other versions get HTTP 400 |
 | `GET /runs` | `{root, runs: [...], experiments: [...]}`: run folders (with a `manifest.json`) and experiments (with a `runs.jsonl`) under the runs directory |
 | `GET /files/{path}` | files under the runs directory, with HTTP range requests (DuckDB-WASM reads Parquet over them) |
 | anything else | the built web app (`web/dist`) |
@@ -35,7 +35,9 @@ step it acts before and logged to `commands.parquet` (ADR-0008).
 | `select_agent` | `id` (decimal string) or `null` | inspector messages for this agent |
 | `breakpoint` | `on: {on: "event", kind} \| {on: "time", t}` | pause at the first matching event, or at `t` |
 | `clear_breakpoints` | | |
-| `toggle_signal_state`, `add_object`, `remove_object` | | refused until P8 / P6 (logged) |
+| `toggle_signal_state` | `junction, state` | a signal's control state (`fixed`, `blinker`, `dark`, `police`) from the next step |
+| `add_object`, `remove_object` | `object` / `id` | a road object (ribbon coordinates) on the road, or gone, from the next step |
+| `set_demand` | `entry, veh_per_h?, composition?` | from the next step the entry has this constant flow (the rest of its flow profile is dropped) and/or these type shares (weights, normalised); arrivals already waiting stay |
 | `save` | | write `<runs>/live/<id>/` and replay it headless (`saved` message) |
 | `view` | `viewport? [x0,y0,x1,y1], fps?, colour?, ts_ribbon?` | viewer settings; not logged, no effect on the run |
 
@@ -44,7 +46,7 @@ step it acts before and logged to `commands.parquet` (ADR-0008).
 | `type` | When | `data` |
 | --- | --- | --- |
 | `hello` | on connect | protocol, session, seed, scenario, initial run hash, `origin`, bounds, ribbon and detector shapes (relative to `origin`), classes, colour modes, live window, dt, duration |
-| `status` | on change and once a second | playing, speed, t, step, finished, agents, real-time factor, breakpoints, run hash |
+| `status` | on change and once a second | playing, speed, t, step, finished, agents, real-time factor, breakpoints, run hash, signal states, and `demand`: each entry's flow now and type shares |
 | `ack` | every command | `seq` (position in the command log), `cmd`, `ok`, `message` |
 | `kpi` | once a wall second while playing; after steps | KPIs if the run ended now (`kpis.parquet` computation), live detector windows closed since the last message (`detectors.parquet` rows at the live interval), speed histograms by class, time–space samples of `ts_ribbon` |
 | `inspector` | with `kpi`, and on selection | the agent's `agents.parquet` row as it would be now, its state, and every neighbour its leader scan considers (gap, lateral gap, clearance, ω, IDM acceleration) |

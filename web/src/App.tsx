@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { CompareView } from "./compare/CompareView";
 import { LiveView } from "./live/LiveView";
+import { PROTOCOL_VERSION } from "./protocol";
 import { ReplayView } from "./replay/ReplayView";
 import { type Chrome, applyChrome, chrome } from "./theme";
 
@@ -40,7 +41,7 @@ export function App() {
             </a>
           ))}
         </nav>
-        <span className="muted small">lane-free mixed-traffic simulator · viewer protocol 1</span>
+        <span className="muted small">lane-free mixed-traffic simulator · viewer protocol {PROTOCOL_VERSION}</span>
       </header>
       <main>
         {view === "live" && <LiveView theme={theme} />}

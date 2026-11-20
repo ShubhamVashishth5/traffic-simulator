@@ -11,7 +11,7 @@
 //! in the scenario (common random numbers across twin arms).
 
 use crate::model::traits::{linked_score, phone_user};
-use crate::params::{CoreParams, Drawn, N_CLASSES};
+use crate::params::{CoreParams, Drawn};
 use crate::personas::{DISTRACTION, KAPPA, Linked, N_TRAITS, NO_PERSONA};
 use crate::rng::{StreamKind, StreamRng};
 use marg_params::Dist;
@@ -212,6 +212,9 @@ pub struct EntryState {
     pub s: f64,
     flow: Vec<FlowInterval>,
     pub pending: VecDeque<Arrival>,
+    /// The composition now (shares by type, normalised), as the scenario set
+    /// it or the latest live change.
+    pub composition: TypeShares,
     /// A signal upstream that is not simulated: arrivals wait unless it
     /// shows green (G§7.3).
     pub gate: Option<UpstreamSignalSpec>,
@@ -235,7 +238,29 @@ pub enum DemandError {
         "entry `{0}`: flow needs at least one interval, starting at 0, with non-negative rising times and flows"
     )]
     BadFlow(String),
+    #[error("entry `{0}`: a live flow must be a number from 0 to {MAX_LIVE_FLOW} veh/h")]
+    BadLiveFlow(String),
 }
+
+/// Type shares (normalised), in the order of `VehicleType::ALL`.
+pub type TypeShares = Vec<(VehicleType, f64)>;
+
+/// One class's part of a composition: the class, its share, and its types
+/// with cumulative within-class probability.
+type ClassSplit = (VehicleClass, f64, Vec<(VehicleType, f64)>);
+
+/// One entry's demand now (for the live viewer).
+#[derive(Debug, Clone, PartialEq)]
+pub struct EntryDemand {
+    pub id: String,
+    /// Flow now (veh/h).
+    pub veh_per_h: f64,
+    pub composition: TypeShares,
+}
+
+/// Upper bound on a live flow change (veh/h at one entry): far above any
+/// entry's capacity, so it only catches typing errors.
+pub const MAX_LIVE_FLOW: f64 = 50_000.0;
 
 fn flow_at(flow: &[FlowInterval], t: f64) -> f64 {
     let i = flow.partition_point(|f| f.from_s <= t);
@@ -271,46 +296,13 @@ impl Demand {
             if !flow_ok {
                 return Err(DemandError::BadFlow(e.id.clone()).to_string());
             }
-            let total: f64 = e.composition.values().sum();
-            if total.is_nan()
-                || total <= 0.0
-                || e.composition.values().any(|&x| x < 0.0 || !x.is_finite())
-            {
-                return Err(DemandError::BadComposition(e.id.clone()).to_string());
-            }
-            let mut by_class: [Vec<(VehicleType, f64)>; N_CLASSES] = Default::default();
-            for t in VehicleType::ALL {
-                if let Some(&w) = e.composition.get(&t)
-                    && w > 0.0
-                {
-                    by_class[t.class().index()].push((t, w / total));
-                }
-            }
-            for c in VehicleClass::ALL {
-                let types = &by_class[c.index()];
-                if types.is_empty() {
+            let composition = normalise(&e.id, e.composition.iter().map(|(&t, &w)| (t, w)))
+                .map_err(|err| err.to_string())?;
+            for (c, share, cumulative) in by_class(&composition) {
+                if share <= 0.0 {
                     continue;
                 }
-                let share: f64 = types.iter().map(|(_, w)| w).sum();
-                let mut cum = 0.0;
-                let cumulative = types
-                    .iter()
-                    .map(|&(t, w)| {
-                        cum += w / share;
-                        (t, cum)
-                    })
-                    .collect();
-                let entity = (e_idx as u64) << 8 | c.index() as u64;
-                let mut p = ClassProcess {
-                    entry: e_idx,
-                    class: c,
-                    share,
-                    types: cumulative,
-                    min_headway: params.classes[c.index()].min_headway,
-                    next_t: 0.0,
-                    seq: 0,
-                    rng: StreamRng::new(seed, StreamKind::Demand, entity),
-                };
+                let mut p = ClassProcess::new(e_idx, c, share, cumulative, params, seed);
                 p.next_t = p.headway_from(0.0, &e.flow, &mut 0);
                 processes.push(p);
             }
@@ -333,6 +325,7 @@ impl Demand {
                 s: e.s,
                 flow: e.flow.clone(),
                 pending: VecDeque::new(),
+                composition,
                 gate: e.upstream_signal.filter(|s| s.stop_line_s.is_none()),
             });
         }
@@ -381,9 +374,147 @@ impl Demand {
     pub fn pending(&self) -> usize {
         self.entries.iter().map(|e| e.pending.len()).sum()
     }
+
+    /// The flow of entry `e` at time `t` (veh/h).
+    pub fn flow_at(&self, e: usize, t: f64) -> f64 {
+        flow_at(&self.entries[e].flow, t)
+    }
+
+    /// A live change to entry `e` at time `t` (the viewer's `set_demand`):
+    /// from `t` on the entry has the constant flow `veh_per_h` (the rest of
+    /// the scenario's flow profile is dropped) and/or the type shares
+    /// `composition`. Either may be left unchanged with `None`.
+    ///
+    /// Every arrival process of the entry then draws its next arrival afresh
+    /// from `t` (the exponential part is memoryless, so this is the process
+    /// at the new rate). A class new to the entry gets its own process and
+    /// stream, so agent ids stay unique and arrivals of other classes keep
+    /// their random numbers. Arrivals already waiting to enter stay.
+    pub fn set_entry(
+        &mut self,
+        e: usize,
+        t: f64,
+        veh_per_h: Option<f64>,
+        composition: Option<&[(VehicleType, f64)]>,
+        params: &CoreParams,
+        seed: u64,
+    ) -> Result<(), DemandError> {
+        let id = self.entries[e].id.clone();
+        if let Some(q) = veh_per_h
+            && !(q.is_finite() && (0.0..=MAX_LIVE_FLOW).contains(&q))
+        {
+            return Err(DemandError::BadLiveFlow(id));
+        }
+        let composition = composition
+            .map(|c| normalise(&id, c.iter().copied()))
+            .transpose()?;
+        let entry = &mut self.entries[e];
+        if let Some(q) = veh_per_h {
+            entry.flow.retain(|f| f.from_s < t);
+            entry.flow.push(FlowInterval {
+                from_s: t.max(0.0),
+                veh_per_h: q,
+            });
+        }
+        if let Some(c) = composition {
+            for (class, share, cumulative) in by_class(&c) {
+                match self
+                    .processes
+                    .iter_mut()
+                    .find(|p| p.entry == e && p.class == class)
+                {
+                    Some(p) => {
+                        p.share = share;
+                        if share > 0.0 {
+                            p.types = cumulative;
+                        }
+                    }
+                    None if share > 0.0 => self
+                        .processes
+                        .push(ClassProcess::new(e, class, share, cumulative, params, seed)),
+                    None => {}
+                }
+            }
+            entry.composition = c;
+        }
+        let flow = &self.entries[e].flow;
+        let mut saturated = 0;
+        for p in self.processes.iter_mut().filter(|p| p.entry == e) {
+            p.next_t = if p.share > 0.0 {
+                p.headway_from(t, flow, &mut saturated)
+            } else {
+                f64::INFINITY
+            };
+        }
+        self.saturated_headways += saturated;
+        Ok(())
+    }
+}
+
+/// Check and normalise type shares: non-negative, finite, summing to more
+/// than 0. Types keep the order of `VehicleType::ALL`; zero shares are dropped.
+fn normalise(
+    id: &str,
+    shares: impl Iterator<Item = (VehicleType, f64)>,
+) -> Result<TypeShares, DemandError> {
+    let shares: Vec<_> = shares.collect();
+    let total: f64 = shares.iter().map(|(_, w)| w).sum();
+    if total.is_nan() || total <= 0.0 || shares.iter().any(|&(_, x)| x < 0.0 || !x.is_finite()) {
+        return Err(DemandError::BadComposition(id.to_string()));
+    }
+    Ok(VehicleType::ALL
+        .iter()
+        .filter_map(|&t| {
+            let w: f64 = shares.iter().filter(|(u, _)| *u == t).map(|(_, w)| w).sum();
+            (w > 0.0).then_some((t, w / total))
+        })
+        .collect())
+}
+
+/// Per class: its share of the stream and its types with cumulative
+/// within-class probability (empty, share 0, for a class not in `shares`).
+fn by_class(shares: &[(VehicleType, f64)]) -> Vec<ClassSplit> {
+    VehicleClass::ALL
+        .iter()
+        .map(|&c| {
+            let types: Vec<_> = shares.iter().filter(|(t, _)| t.class() == c).collect();
+            let share: f64 = types.iter().map(|(_, w)| w).sum();
+            let mut cum = 0.0;
+            let cumulative = types
+                .iter()
+                .map(|&&(t, w)| {
+                    cum += w / share;
+                    (t, cum)
+                })
+                .collect();
+            (c, share, cumulative)
+        })
+        .collect()
 }
 
 impl ClassProcess {
+    /// The process of class `class` at entry `entry`, with its own stream.
+    fn new(
+        entry: usize,
+        class: VehicleClass,
+        share: f64,
+        types: Vec<(VehicleType, f64)>,
+        params: &CoreParams,
+        seed: u64,
+    ) -> Self {
+        let entity = (entry as u64) << 8 | class.index() as u64;
+        Self {
+            entry,
+            class,
+            share,
+            types,
+            min_headway: params.classes[class.index()].min_headway,
+            next_t: 0.0,
+            seq: 0,
+            rng: StreamRng::new(seed, StreamKind::Demand, entity),
+        }
+    }
+
     /// Time of the next arrival after one at `t`.
     fn headway_from(&mut self, t: f64, flow: &[FlowInterval], saturated: &mut u64) -> f64 {
         let rate = flow_at(flow, t) * self.share / SECONDS_PER_HOUR;

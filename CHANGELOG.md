@@ -12,6 +12,16 @@ Tagging fails if the section is missing.
 
 ## [Unreleased]
 
+### Sandbox track (2026-11-20)
+
+The project now has a sandbox track ahead of P9 ([`plan/review-2026-11-20.md`](plan/review-2026-11-20.md)).
+
+- **Live traffic volume and vehicle mix (S1).** A new *Traffic* tab in the live viewer: a flow
+  slider per entry and one for all entries (as % of the scenario), and a share slider per
+  vehicle class. Each change is a `set_demand` command (viewer protocol 5): it acts from the
+  next step, is logged, and a saved session still replays bit for bit. The status message
+  carries each entry's flow and mix now. Runs without the command are unchanged.
+
 Phase P8 completed: the rest of the violation catalogue, the decisions taken on 2026-11-16, and
 the persona-share experiment template.
 

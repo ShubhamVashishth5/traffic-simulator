@@ -6,6 +6,7 @@ import { Inspector } from "../components/Inspector";
 import { KpiStrip } from "../components/KpiStrip";
 import { Legend } from "../components/Legend";
 import { ChangeHistory, ParamPanel } from "../components/ParamPanel";
+import { TrafficPanel } from "../components/TrafficPanel";
 import { KMH_PER_MS, VEH_KM_PER_VEH_M, clock, fmt } from "../format";
 import type { ParamValue } from "../paramSchema";
 import type { ColourBy } from "../protocol.gen";
@@ -81,7 +82,7 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
   const st = useStore(client.state);
   const [colour, setColour] = useState<ColourBy>("class");
   const [trails, setTrails] = useState(false);
-  const [tab, setTab] = useState<"inspector" | "params" | "changes" | "log">("params");
+  const [tab, setTab] = useState<"traffic" | "inspector" | "params" | "changes" | "log">("traffic");
   const [tsRibbon, setTsRibbon] = useState<string>("");
   const [renderFps, setRenderFps] = useState(0);
   const [stepN, setStepN] = useState(10);
@@ -280,13 +281,14 @@ function Session({ client, theme }: { client: LiveClient; theme: Chrome }) {
         </div>
         <aside className="side">
           <nav className="tabs">
-            {(["params", "inspector", "changes", "log"] as const).map((t) => (
+            {(["traffic", "params", "inspector", "changes", "log"] as const).map((t) => (
               <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
-                {{ params: "Parameters", inspector: "Inspector", changes: `Changes (${st.history.length})`, log: "Command log" }[t]}
+                {{ traffic: "Traffic", params: "Parameters", inspector: "Inspector", changes: `Changes (${st.history.length})`, log: "Command log" }[t]}
               </button>
             ))}
           </nav>
           <div className="tab-body">
+            {tab === "traffic" && <TrafficPanel hello={hello} demand={status?.demand ?? []} t={status?.t ?? 0} send={send} />}
             {tab === "params" && <ParamPanel overrides={hello.scenario.overrides as Record<string, ParamValue> | undefined} history={st.history} onApply={apply} onUndo={() => send({ cmd: "undo" })} />}
             {tab === "inspector" && <Inspector ins={st.inspector} onClose={() => send({ cmd: "select_agent", id: null })} onSelect={(id) => send({ cmd: "select_agent", id })} />}
             {tab === "changes" && <ChangeHistory history={st.history} onUndo={() => send({ cmd: "undo" })} />}

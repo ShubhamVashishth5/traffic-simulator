@@ -210,3 +210,124 @@ fn inspector_terms_reproduce_the_next_acceleration() {
     }
     assert!(checked > 20);
 }
+
+// ------------------------------------------------------------ live demand (S1)
+
+const CHANGE_STEP: u64 = 3000; // 300 s
+const CHANGE_T: f64 = 300.0;
+
+fn demand_base() -> ResolvedSpec {
+    spec(&corridor(800.0, 600.0, 1200.0, CARS), &[])
+}
+
+/// Run 600 s; at 300 s apply `change` (flow, composition) to entry `west`.
+fn run_demand(
+    flow: Option<f64>,
+    composition: Option<&[(VehicleType, f64)]>,
+) -> (RunSummary, RunOutputs) {
+    let mut sim = Simulation::new(&demand_base(), 3, 1).unwrap();
+    while !sim.finished() {
+        if sim.step_index() == CHANGE_STEP {
+            sim.set_demand("west", flow, composition).unwrap();
+        }
+        sim.step();
+    }
+    sim.finish().unwrap()
+}
+
+fn arrivals(out: &RunOutputs, before: bool) -> Vec<(u64, f64)> {
+    let mut v: Vec<_> = out
+        .agents
+        .iter()
+        .filter(|r| (r.t_arrival < CHANGE_T) == before)
+        .map(|r| (r.agent_id, r.t_arrival))
+        .collect();
+    v.sort_by_key(|x| x.0);
+    v
+}
+
+#[test]
+fn live_flow_changes_the_arrival_rate_from_that_moment() {
+    let (_, plain) = run_all(Simulation::new(&demand_base(), 3, 1).unwrap());
+    let (_, doubled) = run_demand(Some(2400.0), None);
+    let (_, stopped) = run_demand(Some(0.0), None);
+    // Arrivals before the change are untouched (common random numbers).
+    assert_eq!(arrivals(&doubled, true), arrivals(&plain, true));
+    assert_eq!(arrivals(&stopped, true), arrivals(&plain, true));
+    assert!(
+        arrivals(&stopped, false).is_empty(),
+        "flow 0 stops arrivals"
+    );
+    let before = arrivals(&doubled, true).len() as f64;
+    let after = arrivals(&doubled, false).len() as f64;
+    let ratio = after / before;
+    assert!((1.6..2.4).contains(&ratio), "after/before = {ratio}");
+}
+
+#[test]
+fn live_composition_changes_the_mix_and_keeps_ids_unique() {
+    let only_buses = [(VehicleType::Bus, 1.0)];
+    let (_, out) = run_demand(None, Some(&only_buses));
+    let late: Vec<_> = out
+        .agents
+        .iter()
+        .filter(|r| r.t_arrival >= CHANGE_T)
+        .collect();
+    assert!(late.len() > 20, "{} late arrivals", late.len());
+    assert!(late.iter().all(|r| r.vehicle_type == "bus"));
+    assert!(
+        out.agents
+            .iter()
+            .filter(|r| r.t_arrival < CHANGE_T)
+            .all(|r| r.vehicle_type != "bus")
+    );
+    let mut ids: Vec<u64> = out.agents.iter().map(|r| r.agent_id).collect();
+    let n = ids.len();
+    ids.sort_unstable();
+    ids.dedup();
+    assert_eq!(ids.len(), n, "agent ids stay unique");
+    // Shares: a 50/50 hatchback/motorcycle mix after the change.
+    let half = [
+        (VehicleType::Hatchback, 1.0),
+        (VehicleType::Motorcycle, 1.0),
+    ];
+    let (_, out) = run_demand(None, Some(&half));
+    let late: Vec<_> = out
+        .agents
+        .iter()
+        .filter(|r| r.t_arrival >= CHANGE_T)
+        .collect();
+    let cars = late
+        .iter()
+        .filter(|r| r.vehicle_type == "hatchback")
+        .count() as f64;
+    let share = cars / late.len() as f64;
+    assert!((0.38..0.62).contains(&share), "hatchback share {share}");
+    assert!(late.iter().all(|r| r.vehicle_type != "auto_rickshaw"));
+}
+
+#[test]
+fn live_demand_changes_are_deterministic_and_checked() {
+    let mix = [(VehicleType::Bus, 0.2), (VehicleType::Scooter, 0.8)];
+    let a = run_demand(Some(1800.0), Some(&mix)).0;
+    let b = run_demand(Some(1800.0), Some(&mix)).0;
+    assert_eq!(a, b);
+    let mut sim = Simulation::new(&demand_base(), 3, 1).unwrap();
+    assert!(sim.set_demand("east", Some(100.0), None).is_err());
+    assert!(sim.set_demand("west", Some(-1.0), None).is_err());
+    assert!(sim.set_demand("west", Some(f64::NAN), None).is_err());
+    assert!(sim.set_demand("west", None, Some(&[])).is_err());
+    assert!(
+        sim.set_demand("west", None, Some(&[(VehicleType::Bus, -1.0)]))
+            .is_err()
+    );
+    sim.set_demand("west", Some(900.0), Some(&mix)).unwrap();
+    let now = sim.demand_now();
+    assert_eq!(now.len(), 1);
+    assert_eq!(now[0].id, "west");
+    assert_eq!(now[0].veh_per_h, 900.0);
+    assert_eq!(
+        now[0].composition,
+        vec![(VehicleType::Scooter, 0.8), (VehicleType::Bus, 0.2)]
+    );
+}

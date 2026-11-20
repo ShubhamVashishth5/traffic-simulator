@@ -17,6 +17,9 @@
 //!   the network, from each agent's own random numbers.
 //! - `add_object(object)` and `remove_object(id)`: a road object, in ribbon
 //!   coordinates, is on the road (or gone) from the next step on.
+//! - `toggle_signal_state(junction, state)`: a signal's control state.
+//! - `set_demand(entry, veh_per_h?, composition?)`: from the next step on the
+//!   entry has this constant flow and/or these type shares (sandbox track S1).
 //!
 //! Everything else (play, pause, speed, select, breakpoints, …) is logged for
 //! the record but does not change the run.
@@ -29,20 +32,22 @@ use crate::table::{TableError, write_batch};
 use arrow::array::{Array, ArrayRef, BooleanArray, Float64Array, StringArray, UInt64Array};
 use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
+use indexmap::IndexMap;
 use marg_core::Simulation;
 use marg_params::spec::ObjectSpec;
-use marg_params::{ParamValue, ResolvedSpec, Scenario};
+use marg_params::{ParamValue, ResolvedSpec, Scenario, VehicleType};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Commands that change the simulation (re-applied by [`replay`]).
-pub const STATE_COMMANDS: [&str; 5] = [
+pub const STATE_COMMANDS: [&str; 6] = [
     "set_param",
     "resample",
     "add_object",
     "remove_object",
     "toggle_signal_state",
+    "set_demand",
 ];
 
 /// One logged command (a row of `commands.parquet`).
@@ -274,6 +279,7 @@ impl LiveRun {
             "add_object" => (self.apply_add_object(args), None),
             "remove_object" => (self.apply_remove_object(args), None),
             "toggle_signal_state" => (self.apply_toggle_signal(args), None),
+            "set_demand" => (self.apply_set_demand(args), None),
             other => (Err(format!("`{other}` is not a state command")), None),
         };
         let seq = self.push(cmd, args, &result, wall_s);
@@ -362,6 +368,49 @@ impl LiveRun {
             .set_control(junction, state)
             .map_err(|e| e.to_string())?;
         Ok(format!("signal `{junction}`: {state} from the next step"))
+    }
+
+    /// `set_demand {entry, veh_per_h?, composition?}`: from the next step on
+    /// the entry has this constant flow (veh/h) and/or these type shares
+    /// (any non-negative weights, normalised).
+    fn apply_set_demand(&mut self, args: &serde_json::Value) -> Result<String, String> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Args {
+            entry: String,
+            #[serde(default)]
+            veh_per_h: Option<f64>,
+            #[serde(default)]
+            composition: Option<IndexMap<VehicleType, f64>>,
+        }
+        let a: Args =
+            serde_json::from_value(args.clone()).map_err(|e| format!("bad arguments: {e}"))?;
+        if a.veh_per_h.is_none() && a.composition.is_none() {
+            return Err("give `veh_per_h`, `composition` or both".into());
+        }
+        let composition: Option<Vec<(VehicleType, f64)>> =
+            a.composition.map(|c| c.into_iter().collect());
+        self.sim
+            .set_demand(&a.entry, a.veh_per_h, composition.as_deref())
+            .map_err(|e| e.to_string())?;
+        let mut parts = Vec::new();
+        if let Some(q) = a.veh_per_h {
+            parts.push(format!("{q:.0} veh/h"));
+        }
+        if let Some(c) = &composition {
+            let total: f64 = c.iter().map(|(_, w)| w).sum();
+            let mix: Vec<String> = c
+                .iter()
+                .filter(|(_, w)| *w > 0.0)
+                .map(|(t, w)| format!("{} {:.0}%", t.key(), 100.0 * w / total))
+                .collect();
+            parts.push(mix.join(", "));
+        }
+        Ok(format!(
+            "entry `{}`: {} from the next step",
+            a.entry,
+            parts.join("; ")
+        ))
     }
 
     /// `remove_object {id}`: the object is gone from the next step on.

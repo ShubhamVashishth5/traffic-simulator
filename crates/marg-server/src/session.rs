@@ -474,6 +474,21 @@ impl Session {
                 let m = self.objects();
                 self.send(&m);
             }
+            ClientMessage::SetDemand {
+                entry,
+                veh_per_h,
+                composition,
+            } => {
+                let mut args = json!({ "entry": entry });
+                if let Some(q) = veh_per_h {
+                    args["veh_per_h"] = json!(q);
+                }
+                if let Some(c) = composition {
+                    args["composition"] = json!(c);
+                }
+                let _ = self.state_command(name, args);
+                self.send_status();
+            }
             ClientMessage::Save => self.save(),
             ClientMessage::View {
                 viewport,
@@ -773,6 +788,16 @@ impl Session {
                 .map(|(junction, s)| SignalView {
                     junction,
                     state: s.key().to_string(),
+                })
+                .collect(),
+            demand: self
+                .sim()
+                .demand_now()
+                .into_iter()
+                .map(|d| DemandView {
+                    entry: d.id,
+                    veh_per_h: d.veh_per_h,
+                    composition: d.composition.into_iter().collect(),
                 })
                 .collect(),
         })

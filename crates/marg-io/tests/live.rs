@@ -219,3 +219,43 @@ fn objects_placed_live_are_replayed() {
     assert_eq!(r.commands_applied, 2);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Sandbox S1: flow and mix changed live are in the command log, change the
+/// run and replay to the same output hash.
+#[test]
+fn demand_changed_live_is_replayed() {
+    let sc = Scenario::from_yaml(SCENARIO).unwrap();
+    let mut run = LiveRun::new(source(), sc, 7, 1).unwrap();
+    for _ in 0..300 {
+        run.step();
+    }
+    let (_, r) = run.command("set_demand", &json!({"entry": "w", "veh_per_h": 600}), 1.0);
+    assert!(r.unwrap().contains("600 veh/h"));
+    for _ in 0..200 {
+        run.step();
+    }
+    let mix = json!({"entry": "w", "composition": {"bus": 1, "scooter": 3}});
+    let (_, r) = run.command("set_demand", &mix, 2.0);
+    assert!(r.unwrap().contains("scooter 75%"));
+    // Refused: unknown entry, nothing to change, bad flow, unknown type.
+    for bad in [
+        json!({"entry": "nope", "veh_per_h": 10}),
+        json!({"entry": "w"}),
+        json!({"entry": "w", "veh_per_h": -5}),
+        json!({"entry": "w", "composition": {"spaceship": 1}}),
+    ] {
+        assert!(run.command("set_demand", &bad, 2.0).1.is_err(), "{bad}");
+    }
+    for _ in 0..300 {
+        run.step();
+    }
+    let now = run.sim().demand_now();
+    assert_eq!(now[0].veh_per_h, 600.0);
+    let dir = tmp("demand");
+    let m = run.save(&dir, "s3").unwrap();
+    assert_eq!(m.live.as_ref().unwrap().state_commands, 2);
+    let r = replay(&dir, 2, false).unwrap();
+    assert!(r.matches, "{r:?}");
+    assert_eq!(r.commands_applied, 2);
+    let _ = std::fs::remove_dir_all(&dir);
+}
